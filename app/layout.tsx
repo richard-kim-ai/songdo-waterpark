@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Pacifico, Noto_Sans_KR } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const pacifico = Pacifico({
@@ -34,10 +33,7 @@ export default function RootLayout({
           href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css"
         />
       </head>
-      <body className="bg-white">
-        {children}
-        <Analytics />
-      </body>
+      <body className="bg-white">{children}</body>
     </html>
   );
 }
