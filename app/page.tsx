@@ -12,13 +12,13 @@ import FaqAccordion from '@/components/FaqAccordion';
 import Footer from '@/components/Footer';
 import MobileNav from '@/components/MobileNav';
 import PopupModal from '@/components/PopupModal';
+import { resolveSiteImages } from '@/lib/images';
 import type { Database } from '@/types/database';
 
 export const revalidate = 60; // 요금표는 1분마다 재검증
 
 type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
-type SiteSetting = Database['public']['Tables']['site_settings']['Row'];
 type Popup = Database['public']['Tables']['popups']['Row'];
 type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
 
@@ -71,23 +71,28 @@ async function getData() {
 
 export default async function Home() {
   const { tickets, zones, settings, popups, galleryImages } = await getData();
+  const siteImages = resolveSiteImages(settings);
 
   return (
     <>
       <PopupModal popups={popups} />
-      <Header />
+      <Header logoUrl={siteImages.logo} />
       <main>
-        <Hero />
+        <Hero heroUrl={siteImages.hero} />
         <Pricing tickets={tickets} />
-        <Facilities tickets={tickets} />
-        <Cabana zones={zones} cabanaNotice={settings.cabana_notice ?? ''} />
-        <FacilityLayout />
+        <Facilities tickets={tickets} trainUrl={siteImages.train} carUrl={siteImages.car} />
+        <Cabana
+          zones={zones}
+          cabanaNotice={settings.cabana_notice ?? ''}
+          diagramUrl={siteImages.cabana_diagram}
+        />
+        <FacilityLayout masterUrl={siteImages.layout_master} cabanaUrl={siteImages.layout_cabana} />
         <InfoNotice settings={settings} tickets={tickets} />
-        <SafetyRules />
+        <SafetyRules imageUrl={siteImages.safety_rules} />
         <Gallery images={galleryImages} />
         <FaqAccordion />
       </main>
-      <Footer />
+      <Footer logoUrl={siteImages.logo} mapUrl={siteImages.map} />
       <MobileNav />
     </>
   );

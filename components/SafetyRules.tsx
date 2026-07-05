@@ -1,5 +1,3 @@
-import { images } from '@/lib/images';
-
 const RULES: { title: string; desc: string; color: 'primary' | 'secondary' | 'gray' }[] = [
   { title: '지도자 안전요령 숙지', desc: '수영장 이용 전 반드시 안전 수칙을 확인하세요', color: 'primary' },
   { title: '이용 전 준비운동 필수', desc: '충분한 준비운동으로 안전사고를 예방하세요', color: 'primary' },
@@ -25,7 +23,7 @@ const BADGE: Record<string, string> = {
   gray: 'bg-gray-600',
 };
 
-export default function SafetyRules() {
+export default function SafetyRules({ imageUrl }: { imageUrl: string }) {
   return (
     <section id="rules" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
@@ -40,7 +38,7 @@ export default function SafetyRules() {
           <div className="p-8">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={images.safetyRules}
+              src={imageUrl}
               alt="수영장 안전수칙"
               className="w-full rounded-xl shadow-lg mb-8"
             />

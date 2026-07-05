@@ -1,11 +1,9 @@
-import { images } from '@/lib/images';
-
-export default function Hero() {
+export default function Hero({ heroUrl }: { heroUrl: string }) {
   return (
     <section
       className="relative min-h-screen flex items-center justify-center"
       style={{
-        background: `linear-gradient(rgba(87, 181, 231, 0.15), rgba(87, 181, 231, 0.05)), url('${images.hero}') center/cover no-repeat`,
+        background: `linear-gradient(rgba(87, 181, 231, 0.15), rgba(87, 181, 231, 0.05)), url('${heroUrl}') center/cover no-repeat`,
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-transparent"></div>

@@ -1,14 +1,13 @@
 import Link from 'next/link';
-import { images } from '@/lib/images';
 
-export default function Footer() {
+export default function Footer({ logoUrl, mapUrl }: { logoUrl: string; mapUrl: string }) {
   return (
     <footer className="bg-gray-900 text-white py-16">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-3 gap-12 mb-12">
           <div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={images.logo} alt="송도국제캠핑장" className="h-10 w-auto mb-6" />
+            <img src={logoUrl} alt="송도국제캠핑장" className="h-10 w-auto mb-6" />
             <p className="text-gray-400 leading-relaxed">
               송도국제캠핑장 물놀이장에서 가족과 함께 특별한 여름 추억을 만들어보세요
             </p>
@@ -67,7 +66,7 @@ export default function Footer() {
         </div>
         <div
           className="h-64 rounded-lg overflow-hidden mb-12"
-          style={{ background: `url('${images.mapPlaceholder}') center/cover no-repeat` }}
+          style={{ background: `url('${mapUrl}') center/cover no-repeat` }}
         ></div>
         <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-gray-400 text-sm">© 2026 송도국제캠핑장. All rights reserved.</p>
