@@ -2,24 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --deep-tide: #073b4c;
-  --lagoon: #118ab2;
-  --sun-flare: #ffd23f;
-}
-
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  @apply bg-foam text-ink font-body;
+  @apply bg-white font-body text-gray-900;
 }
 
-.eyebrow {
-  @apply font-display uppercase tracking-[0.22em] text-xs font-semibold;
-}
-
-.section-pad {
-  @apply px-[6vw] md:px-[8vw] py-20 md:py-24;
+:where([class^='ri-'])::before {
+  content: '\f3c2';
 }

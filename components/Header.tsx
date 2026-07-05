@@ -8,32 +8,26 @@ const NAV_ITEMS = [
 
 export default function Header() {
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-deep-tide/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <a href="#" className="flex items-center gap-2 text-white">
-          <span className="h-2.5 w-2.5 rounded-full bg-sun-flare" />
-          <span className="font-display font-bold tracking-wide">
-            송도국제캠핑장 <span className="text-sun-flare">물놀이장</span>
-          </span>
-        </a>
-        <nav className="hidden gap-8 md:flex">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-white/80 transition hover:text-sun-flare"
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#pricing"
-          className="rounded-full bg-sun-flare px-5 py-2 text-sm font-bold text-deep-tide transition hover:brightness-95"
-        >
-          입장권 구매
-        </a>
+    <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-sm z-50">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="font-pacifico text-2xl text-primary">logo</div>
+          <div className="hidden md:flex items-center gap-8">
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-gray-700 hover:text-primary transition-colors cursor-pointer"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+          <div className="w-6 h-6 flex items-center justify-center md:hidden cursor-pointer">
+            <i className="ri-menu-line text-2xl text-gray-700"></i>
+          </div>
+        </div>
       </div>
-    </header>
+    </nav>
   );
 }

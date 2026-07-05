@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import { Jost, Noto_Sans_KR } from 'next/font/google';
+import { Pacifico, Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
 
-const jost = Jost({
+const pacifico = Pacifico({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-jost',
+  weight: ['400'],
+  variable: '--font-pacifico',
 });
 
 const notoSansKr = Noto_Sans_KR({
@@ -26,8 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={`${jost.variable} ${notoSansKr.variable}`}>
-      <body>{children}</body>
+    <html lang="ko" className={`${pacifico.variable} ${notoSansKr.variable}`}>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css"
+        />
+      </head>
+      <body className="bg-white">{children}</body>
     </html>
   );
 }

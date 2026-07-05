@@ -4,10 +4,13 @@ import Hero from '@/components/Hero';
 import Pricing from '@/components/Pricing';
 import Facilities from '@/components/Facilities';
 import Cabana from '@/components/Cabana';
-import SafetyRules from '@/components/SafetyRules';
+import FacilityLayout from '@/components/FacilityLayout';
 import InfoNotice from '@/components/InfoNotice';
+import SafetyRules from '@/components/SafetyRules';
 import Gallery from '@/components/Gallery';
+import FaqAccordion from '@/components/FaqAccordion';
 import Footer from '@/components/Footer';
+import MobileNav from '@/components/MobileNav';
 import type { Database } from '@/types/database';
 
 export const revalidate = 60; // 요금표는 1분마다 재검증
@@ -46,11 +49,14 @@ export default async function Home() {
         <Pricing tickets={tickets} />
         <Facilities tickets={tickets} />
         <Cabana zones={zones} />
-        <SafetyRules />
+        <FacilityLayout />
         <InfoNotice />
+        <SafetyRules />
         <Gallery />
+        <FaqAccordion />
       </main>
       <Footer />
+      <MobileNav />
     </>
   );
 }
