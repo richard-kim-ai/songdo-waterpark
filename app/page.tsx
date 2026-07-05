@@ -22,7 +22,7 @@ async function getData() {
     return { tickets: [] as TicketType[], zones: [] as CabanaZone[] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const [{ data: tickets }, { data: zones }] = await Promise.all([
     supabase.from('ticket_types').select('*').order('sort_order'),
