@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOutAdmin } from '@/app/admin/actions';
+import { images } from '@/lib/images';
 
 const MENU = [
   { href: '/admin/popups', icon: 'ri-megaphone-line', label: '팝업 생성 관리' },
@@ -19,7 +20,8 @@ export default function AdminSidebar() {
   return (
     <div className="w-64 bg-gray-900 text-white flex flex-col shrink-0">
       <div className="p-6 border-b border-white/10">
-        <p className="font-pacifico text-2xl text-primary">logo</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={images.logo} alt="송도국제캠핑장" className="h-8 w-auto" />
         <p className="text-sm text-gray-400 mt-1">물놀이장 관리자</p>
       </div>
       <nav className="flex-1 p-4 space-y-1">
