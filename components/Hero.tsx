@@ -19,7 +19,7 @@ export default function Hero() {
             즐거운 여름을 만나세요
           </h1>
           <p className="text-xl text-gray-700 mb-10 leading-relaxed">
-            시원한 발물놀이터와 편안한 카바나에서
+            시원하게 딱 트인 수영장/발물놀이터와 편안한 카바나에서
             <br />
             가족과 함께 특별한 추억을 만드세요
           </p>

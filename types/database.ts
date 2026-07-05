@@ -8,11 +8,14 @@ export type Database = {
           name: string;
           description: string | null;
           price: number;
+          purchase_url: string | null;
+          usage_hours: string | null;
           sort_order: number;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['ticket_types']['Row']>;
         Update: Partial<Database['public']['Tables']['ticket_types']['Row']>;
+        Relationships: [];
       };
       cabana_zones: {
         Row: {
@@ -27,6 +30,7 @@ export type Database = {
         };
         Insert: Partial<Database['public']['Tables']['cabana_zones']['Row']>;
         Update: Partial<Database['public']['Tables']['cabana_zones']['Row']>;
+        Relationships: [];
       };
       ticket_orders: {
         Row: {
@@ -41,6 +45,7 @@ export type Database = {
         };
         Insert: Partial<Database['public']['Tables']['ticket_orders']['Row']>;
         Update: Partial<Database['public']['Tables']['ticket_orders']['Row']>;
+        Relationships: [];
       };
       cabana_reservations: {
         Row: {
@@ -55,7 +60,59 @@ export type Database = {
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;
         Update: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;
+        Relationships: [];
+      };
+      admin_users: {
+        Row: {
+          user_id: string;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['admin_users']['Row']>;
+        Update: Partial<Database['public']['Tables']['admin_users']['Row']>;
+        Relationships: [];
+      };
+      site_settings: {
+        Row: {
+          key: string;
+          value: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['site_settings']['Row']>;
+        Update: Partial<Database['public']['Tables']['site_settings']['Row']>;
+        Relationships: [];
+      };
+      popups: {
+        Row: {
+          id: string;
+          title: string;
+          image_path: string | null;
+          link_url: string | null;
+          is_active: boolean;
+          start_date: string | null;
+          end_date: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['popups']['Row']>;
+        Update: Partial<Database['public']['Tables']['popups']['Row']>;
+        Relationships: [];
+      };
+      gallery_images: {
+        Row: {
+          id: string;
+          label: string;
+          image_path: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['gallery_images']['Row']>;
+        Update: Partial<Database['public']['Tables']['gallery_images']['Row']>;
+        Relationships: [];
       };
     };
+    Views: Record<never, never>;
+    Functions: Record<never, never>;
+    Enums: Record<never, never>;
+    CompositeTypes: Record<never, never>;
   };
 };

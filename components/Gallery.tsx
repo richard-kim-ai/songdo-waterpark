@@ -1,15 +1,9 @@
-import { images } from '@/lib/images';
+import { publicUrl } from '@/lib/images';
+import type { Database } from '@/types/database';
 
-const ITEMS = [
-  { label: '물놀이장 전경', src: images.gallery1 },
-  { label: '발물놀이터', src: images.gallery2 },
-  { label: '카바나 내부', src: images.gallery3 },
-  { label: '카바나 외부', src: images.gallery4 },
-  { label: '신나는기차', src: images.gallery5 },
-  { label: '캠핑장 전경', src: images.gallery6 },
-];
+type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
 
-export default function Gallery() {
+export default function Gallery({ images }: { images: GalleryImage[] }) {
   return (
     <section id="gallery" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-6">
@@ -18,14 +12,14 @@ export default function Gallery() {
           <p className="text-lg text-gray-600">송도국제캠핑장 물놀이장의 생생한 모습</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {ITEMS.map((item) => (
+          {images.map((item) => (
             <div
-              key={item.label}
+              key={item.id}
               className="relative rounded-xl overflow-hidden shadow-lg group cursor-pointer aspect-video"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={item.src}
+                src={publicUrl(item.image_path)}
                 alt={item.label}
                 className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500"
               />

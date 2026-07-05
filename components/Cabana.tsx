@@ -9,7 +9,13 @@ function findZone(zones: CabanaZone[], name: string) {
   return zones.find((z) => z.name === name);
 }
 
-export default function Cabana({ zones }: { zones: CabanaZone[] }) {
+export default function Cabana({
+  zones,
+  cabanaNotice,
+}: {
+  zones: CabanaZone[];
+  cabanaNotice: string;
+}) {
   const a = findZone(zones, 'A타입 (4인)');
   const b = findZone(zones, 'B타입 (3인)');
   const c = findZone(zones, 'C타입 (2인)');
@@ -167,9 +173,12 @@ export default function Cabana({ zones }: { zones: CabanaZone[] }) {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-900 mb-2">안내사항</p>
                   <ul className="text-sm text-gray-700 space-y-1">
-                    <li>• 카바나는 일별 사용권으로 판매됩니다</li>
-                    <li>• 썬배드는 카바나 예약 시 추가로 선택 가능합니다</li>
-                    <li>• 주말 요금은 금요일, 토요일, 일요일 및 공휴일에 적용됩니다</li>
+                    {cabanaNotice
+                      .split('\n')
+                      .filter((line) => line.trim())
+                      .map((line, i) => (
+                        <li key={i}>• {line}</li>
+                      ))}
                   </ul>
                 </div>
               </div>
