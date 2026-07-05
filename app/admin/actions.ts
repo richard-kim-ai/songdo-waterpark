@@ -69,6 +69,27 @@ export async function upsertSiteSetting(key: string, value: string) {
   revalidatePath('/admin/hours');
 }
 
+// ---------- 사이트 고정 이미지(로고/배경/배치도 등) ----------
+export async function updateSiteImage(settingKey: string, formData: FormData) {
+  const { supabase } = await requireAdmin();
+
+  const file = formData.get('image') as File | null;
+  if (!file || file.size === 0) {
+    throw new Error('이미지 파일을 선택해주세요.');
+  }
+
+  const imagePath = await uploadImage(supabase, file, 'site');
+
+  const { error } = await supabase
+    .from('site_settings')
+    .upsert({ key: settingKey, value: imagePath, updated_at: new Date().toISOString() });
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/site-images');
+}
+
 // ---------- 팝업 ----------
 export async function createPopup(formData: FormData) {
   const { supabase } = await requireAdmin();

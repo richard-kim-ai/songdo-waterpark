@@ -1,14 +1,20 @@
 import type { Database } from '@/types/database';
-import { images } from '@/lib/images';
 
 type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 
-const RIDE_IMAGE: Record<string, string> = {
-  신나는기차: images.train,
-  마이카: images.car,
-};
-
-export default function Facilities({ tickets }: { tickets: TicketType[] }) {
+export default function Facilities({
+  tickets,
+  trainUrl,
+  carUrl,
+}: {
+  tickets: TicketType[];
+  trainUrl: string;
+  carUrl: string;
+}) {
+  const RIDE_IMAGE: Record<string, string> = {
+    신나는기차: trainUrl,
+    마이카: carUrl,
+  };
   const attractions = tickets.filter((t) => t.category === 'attraction');
   const rides = attractions.filter((t) => RIDE_IMAGE[t.name]);
   const packageTicket = attractions.find((t) => t.name.includes('빅2'));

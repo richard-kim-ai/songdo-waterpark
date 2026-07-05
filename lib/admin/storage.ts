@@ -6,7 +6,7 @@ const BUCKET = 'site-images';
 export async function uploadImage(
   supabase: SupabaseClient<Database>,
   file: File,
-  folder: 'popups' | 'gallery'
+  folder: 'popups' | 'gallery' | 'site'
 ) {
   const ext = file.name.split('.').pop() ?? 'jpg';
   const path = `${folder}/${crypto.randomUUID()}.${ext}`;

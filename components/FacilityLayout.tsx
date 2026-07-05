@@ -1,9 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { images } from '@/lib/images';
 
-export default function FacilityLayout() {
+export default function FacilityLayout({
+  masterUrl,
+  cabanaUrl,
+}: {
+  masterUrl: string;
+  cabanaUrl: string;
+}) {
   const [tab, setTab] = useState<'total' | 'cabana'>('total');
 
   return (
@@ -41,7 +46,7 @@ export default function FacilityLayout() {
               <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={images.layoutMaster}
+                  src={masterUrl}
                   alt="전체 배치도"
                   className="w-full h-full object-cover object-top"
                 />
@@ -59,7 +64,7 @@ export default function FacilityLayout() {
               <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={images.layoutCabana}
+                  src={cabanaUrl}
                   alt="카바나 배치도"
                   className="w-full h-full object-cover object-top"
                 />

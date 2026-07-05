@@ -1,5 +1,4 @@
 import type { Database } from '@/types/database';
-import { images } from '@/lib/images';
 
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 
@@ -12,9 +11,11 @@ function findZone(zones: CabanaZone[], name: string) {
 export default function Cabana({
   zones,
   cabanaNotice,
+  diagramUrl,
 }: {
   zones: CabanaZone[];
   cabanaNotice: string;
+  diagramUrl: string;
 }) {
   const a = findZone(zones, 'A타입 (4인)');
   const b = findZone(zones, 'B타입 (3인)');
@@ -35,7 +36,7 @@ export default function Cabana({
               <div className="absolute inset-0 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={images.cabanaDiagram}
+                  src={diagramUrl}
                   alt="카바나 배치도"
                   className="w-full h-full object-contain"
                 />
