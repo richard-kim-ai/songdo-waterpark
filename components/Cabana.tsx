@@ -136,28 +136,17 @@ export default function Cabana({
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-secondary/10 hover:bg-secondary/20 transition-colors">
-                    <td className="px-6 py-4 border border-gray-200 font-semibold text-gray-900">
-                      일 소개 (50EA)
-                    </td>
-                    <td className="px-6 py-4 border border-gray-200 text-center text-secondary font-bold">
-                      50
-                    </td>
-                    <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
-                      —
-                    </td>
-                    <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
-                      —
-                    </td>
-                  </tr>
                   {sunbed && (
                     <tr className="bg-gradient-to-r from-primary/5 to-secondary/5">
                       <td className="px-6 py-4 border border-gray-200 font-bold text-gray-900">
                         {sunbed.name}
                       </td>
+                      <td className="px-6 py-4 border border-gray-200 text-center font-bold text-secondary">
+                        {sunbed.unit_count}
+                      </td>
                       <td
                         className="px-6 py-4 border border-gray-200 text-center font-bold text-gray-900"
-                        colSpan={3}
+                        colSpan={2}
                       >
                         {won(sunbed.weekday_price)} / 개당 이용
                       </td>
