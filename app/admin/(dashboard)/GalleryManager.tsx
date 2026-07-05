@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createGalleryImage, updateGalleryImage, deleteGalleryImage } from '@/app/admin/actions';
+import { useResizingFormAction } from '@/lib/admin/useResizingFormAction';
 import { publicUrl } from '@/lib/images';
 import type { Database } from '@/types/database';
 
@@ -78,11 +79,13 @@ function GalleryRow({ image }: { image: GalleryImage }) {
 }
 
 export default function GalleryManager({ images }: { images: GalleryImage[] }) {
+  const { pending, onSubmit } = useResizingFormAction(createGalleryImage);
+
   return (
     <div className="space-y-8">
       <div className="bg-white rounded-xl shadow p-6">
         <h2 className="font-bold text-gray-900 mb-4">새 이미지 등록</h2>
-        <form key={images.length} action={createGalleryImage} className="flex flex-wrap items-end gap-4">
+        <form key={images.length} onSubmit={onSubmit} className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">라벨</label>
             <input
@@ -106,9 +109,10 @@ export default function GalleryManager({ images }: { images: GalleryImage[] }) {
           </div>
           <button
             type="submit"
-            className="px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+            disabled={pending}
+            className="px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
           >
-            등록
+            {pending ? '업로드 중...' : '등록'}
           </button>
         </form>
       </div>
