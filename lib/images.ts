@@ -5,6 +5,7 @@ export function publicUrl(path: string) {
 }
 
 export const images = {
+  logo: `${base}/logo.png`,
   hero: `${base}/hero.jpg`,
   layoutMaster: `${base}/layout-master.jpg`,
   layoutCabana: `${base}/layout-cabana.jpg`,
