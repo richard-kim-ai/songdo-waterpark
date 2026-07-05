@@ -65,9 +65,20 @@ export default function Pricing({ tickets }: { tickets: TicketType[] }) {
                       </>
                     )}
                   </div>
-                  <button className="w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-                    시즌권 구매
-                  </button>
+                  {t.purchase_url ? (
+                    <a
+                      href={t.purchase_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+                    >
+                      시즌권 구매
+                    </a>
+                  ) : (
+                    <button className="w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
+                      시즌권 구매
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -120,11 +131,22 @@ export default function Pricing({ tickets }: { tickets: TicketType[] }) {
                     <i className={`ri-checkbox-circle-fill ${style.iconColor}`}></i>
                     <span>{t.description}</span>
                   </div>
-                  <button
-                    className={`w-full px-6 py-3 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer ${style.button}`}
-                  >
-                    패키지 구매
-                  </button>
+                  {t.purchase_url ? (
+                    <a
+                      href={t.purchase_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`block text-center w-full px-6 py-3 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer ${style.button}`}
+                    >
+                      패키지 구매
+                    </a>
+                  ) : (
+                    <button
+                      className={`w-full px-6 py-3 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer ${style.button}`}
+                    >
+                      패키지 구매
+                    </button>
+                  )}
                 </div>
               );
             })}

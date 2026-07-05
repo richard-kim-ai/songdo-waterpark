@@ -41,9 +41,20 @@ export default function Facilities({ tickets }: { tickets: TicketType[] }) {
                   </span>
                   <span className="text-gray-600">원 / 30분</span>
                 </div>
-                <button className="w-full px-6 py-3 bg-gray-100 text-gray-900 font-semibold !rounded-button hover:bg-gray-200 transition-all whitespace-nowrap cursor-pointer">
-                  이용권 구매
-                </button>
+                {t.purchase_url ? (
+                  <a
+                    href={t.purchase_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center w-full px-6 py-3 bg-gray-100 text-gray-900 font-semibold !rounded-button hover:bg-gray-200 transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    이용권 구매
+                  </a>
+                ) : (
+                  <button className="w-full px-6 py-3 bg-gray-100 text-gray-900 font-semibold !rounded-button hover:bg-gray-200 transition-all whitespace-nowrap cursor-pointer">
+                    이용권 구매
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -72,9 +83,20 @@ export default function Facilities({ tickets }: { tickets: TicketType[] }) {
                   <span>마이카 이용권 포함</span>
                 </div>
               </div>
-              <button className="w-full px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-                패키지 구매
-              </button>
+              {packageTicket.purchase_url ? (
+                <a
+                  href={packageTicket.purchase_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center w-full px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+                >
+                  패키지 구매
+                </a>
+              ) : (
+                <button className="w-full px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
+                  패키지 구매
+                </button>
+              )}
             </div>
           )}
         </div>

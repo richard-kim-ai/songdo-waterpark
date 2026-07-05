@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { images } from '@/lib/images';
 
 export default function Footer() {
@@ -76,6 +77,12 @@ export default function Footer() {
             <a href="#" className="text-gray-400 hover:text-white transition-colors cursor-pointer">
               개인정보처리방침
             </a>
+            <Link
+              href="/admin"
+              className="text-gray-500 hover:text-white transition-colors cursor-pointer"
+            >
+              관리자 로그인
+            </Link>
           </div>
         </div>
       </div>

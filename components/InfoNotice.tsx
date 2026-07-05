@@ -1,4 +1,18 @@
-export default function InfoNotice() {
+import type { Database } from '@/types/database';
+
+type TicketType = Database['public']['Tables']['ticket_types']['Row'];
+
+export default function InfoNotice({
+  settings,
+  tickets,
+}: {
+  settings: Record<string, string>;
+  tickets: TicketType[];
+}) {
+  const attractions = tickets.filter(
+    (t) => t.category === 'attraction' && !t.name.includes('빅2')
+  );
+
   return (
     <section id="info" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-6">
@@ -17,19 +31,19 @@ export default function InfoNotice() {
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="font-semibold text-gray-900">운영 시즌</span>
-                <span className="text-gray-700">6월 ~ 8월 (하계)</span>
+                <span className="text-gray-700">{settings.pool_season}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="font-semibold text-gray-900">평일 운영</span>
-                <span className="text-gray-700">10:00 ~ 18:00</span>
+                <span className="text-gray-700">{settings.pool_weekday_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="font-semibold text-gray-900">주말 운영</span>
-                <span className="text-gray-700">09:00 ~ 19:00</span>
+                <span className="text-gray-700">{settings.pool_weekend_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="font-semibold text-gray-900">입장 마감</span>
-                <span className="text-secondary font-semibold">마감 1시간 전</span>
+                <span className="text-secondary font-semibold">{settings.pool_last_entry}</span>
               </div>
             </div>
           </div>
@@ -41,21 +55,22 @@ export default function InfoNotice() {
               <h3 className="text-2xl font-bold text-gray-900">부속시설 운영시간</h3>
             </div>
             <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">신나는기차</span>
-                <span className="text-gray-700">10:00 ~ 17:30</span>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">마이카</span>
-                <span className="text-gray-700">10:00 ~ 17:30</span>
-              </div>
+              {attractions.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between py-3 border-b border-gray-100"
+                >
+                  <span className="font-semibold text-gray-900">{t.name}</span>
+                  <span className="text-gray-700">{t.usage_hours}</span>
+                </div>
+              ))}
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="font-semibold text-gray-900">카바나 이용</span>
-                <span className="text-gray-700">10:00 ~ 18:00</span>
+                <span className="text-gray-700">{settings.cabana_open_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="font-semibold text-gray-900">이용 시간</span>
-                <span className="text-secondary font-semibold">30분 단위</span>
+                <span className="text-secondary font-semibold">{settings.cabana_usage_unit}</span>
               </div>
             </div>
           </div>

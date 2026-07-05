@@ -1,5 +1,9 @@
 const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-images`;
 
+export function publicUrl(path: string) {
+  return `${base}/${path}`;
+}
+
 export const images = {
   hero: `${base}/hero.jpg`,
   layoutMaster: `${base}/layout-master.jpg`,
