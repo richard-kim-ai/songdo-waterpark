@@ -25,7 +25,17 @@ const FAMILY_STYLE = [
   },
 ];
 
-export default function Pricing({ tickets }: { tickets: TicketType[] }) {
+export default function Pricing({
+  tickets,
+  benefitTitle,
+  benefitSubtitle,
+  benefitNote,
+}: {
+  tickets: TicketType[];
+  benefitTitle: string;
+  benefitSubtitle: string;
+  benefitNote: string;
+}) {
   const general = tickets.filter((t) => t.category === 'general');
   const family = tickets.filter((t) => t.category === 'family_package');
 
@@ -157,9 +167,9 @@ export default function Pricing({ tickets }: { tickets: TicketType[] }) {
           <div className="w-20 h-20 flex items-center justify-center bg-white/20 rounded-full mx-auto mb-6">
             <i className="ri-tent-line text-4xl"></i>
           </div>
-          <h3 className="text-3xl font-bold mb-3">캠핑장 이용 고객 특별 혜택</h3>
-          <p className="text-xl opacity-90">수영장 및 발물놀이터 입장권 무료</p>
-          <p className="text-sm opacity-75 mt-2">(단, 입장객 수용 인원 초과 시 입장 불가)</p>
+          <h3 className="text-3xl font-bold mb-3">{benefitTitle}</h3>
+          <p className="text-xl opacity-90">{benefitSubtitle}</p>
+          <p className="text-sm opacity-75 mt-2">{benefitNote}</p>
         </div>
       </div>
     </section>

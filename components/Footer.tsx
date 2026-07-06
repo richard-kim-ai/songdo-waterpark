@@ -1,6 +1,26 @@
 import Link from 'next/link';
 
-export default function Footer({ logoUrl, mapUrl }: { logoUrl: string; mapUrl: string }) {
+export default function Footer({
+  logoUrl,
+  mapUrl,
+  address,
+  phone,
+  email,
+  copyright,
+  poolSeason,
+  poolWeekdayHours,
+  poolWeekendHours,
+}: {
+  logoUrl: string;
+  mapUrl: string;
+  address: string;
+  phone: string;
+  email: string;
+  copyright: string;
+  poolSeason: string;
+  poolWeekdayHours: string;
+  poolWeekendHours: string;
+}) {
   return (
     <footer className="bg-gray-900 text-white py-16">
       <div className="max-w-7xl mx-auto px-6">
@@ -19,28 +39,28 @@ export default function Footer({ logoUrl, mapUrl }: { logoUrl: string; mapUrl: s
                 <div className="w-5 h-5 flex items-center justify-center">
                   <i className="ri-map-pin-line text-lg"></i>
                 </div>
-                <p>인천광역시 연수구 송도동 123-45</p>
+                <p>{address}</p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-5 h-5 flex items-center justify-center">
                   <i className="ri-phone-line text-lg"></i>
                 </div>
-                <p>032-123-4567</p>
+                <p>{phone}</p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-5 h-5 flex items-center justify-center">
                   <i className="ri-mail-line text-lg"></i>
                 </div>
-                <p>info@songdocamping.com</p>
+                <p>{email}</p>
               </div>
             </div>
           </div>
           <div>
             <h4 className="font-bold text-lg mb-6">운영 시간</h4>
             <div className="space-y-3 text-gray-400">
-              <p>하계 시즌: 6월 ~ 8월</p>
-              <p>평일: 10:00 ~ 18:00</p>
-              <p>주말: 09:00 ~ 19:00</p>
+              <p>하계 시즌: {poolSeason}</p>
+              <p>평일: {poolWeekdayHours}</p>
+              <p>주말: {poolWeekendHours}</p>
             </div>
             <div className="flex gap-4 mt-6">
               <a
@@ -69,7 +89,7 @@ export default function Footer({ logoUrl, mapUrl }: { logoUrl: string; mapUrl: s
           style={{ background: `url('${mapUrl}') center/cover no-repeat` }}
         ></div>
         <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-gray-400 text-sm">© 2026 송도국제캠핑장. All rights reserved.</p>
+          <p className="text-gray-400 text-sm">{copyright}</p>
           <div className="flex gap-6 text-sm">
             <a href="#" className="text-gray-400 hover:text-white transition-colors cursor-pointer">
               이용약관

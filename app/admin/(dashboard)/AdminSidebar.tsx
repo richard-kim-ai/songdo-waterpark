@@ -9,9 +9,9 @@ const MENU = [
   { href: '/admin/tickets', icon: 'ri-ticket-line', label: '입장권 및 링크 관리' },
   { href: '/admin/facilities', icon: 'ri-rollercoaster-line', label: '부속시설 & 패키지' },
   { href: '/admin/cabana', icon: 'ri-home-heart-line', label: '카바나 금액 수정' },
-  { href: '/admin/hours', icon: 'ri-time-line', label: '이용시간 텍스트' },
   { href: '/admin/gallery', icon: 'ri-image-line', label: '포토갤러리 관리' },
   { href: '/admin/site-images', icon: 'ri-image-add-line', label: '그외 이미지 관리' },
+  { href: '/admin/copy', icon: 'ri-edit-2-line', label: '카피 수정' },
 ];
 
 export default function AdminSidebar({ logoUrl }: { logoUrl: string }) {

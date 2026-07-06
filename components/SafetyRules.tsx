@@ -23,13 +23,21 @@ const BADGE: Record<string, string> = {
   gray: 'bg-gray-600',
 };
 
-export default function SafetyRules({ imageUrl }: { imageUrl: string }) {
+export default function SafetyRules({
+  imageUrl,
+  title,
+  subtitle,
+}: {
+  imageUrl: string;
+  title: string;
+  subtitle: string;
+}) {
   return (
     <section id="rules" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">수영장 안전수칙</h2>
-          <p className="text-lg text-gray-600">안전하고 즐거운 물놀이를 위한 필수 수칙</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{title}</h2>
+          <p className="text-lg text-gray-600">{subtitle}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-2 border-primary/10">
           <div className="bg-gradient-to-r from-primary to-secondary p-6">

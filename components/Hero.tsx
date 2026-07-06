@@ -1,4 +1,14 @@
-export default function Hero({ heroUrl }: { heroUrl: string }) {
+import { renderLines } from '@/lib/renderLines';
+
+export default function Hero({
+  heroUrl,
+  title,
+  subtitle,
+}: {
+  heroUrl: string;
+  title: string;
+  subtitle: string;
+}) {
   return (
     <section
       className="relative min-h-screen flex items-center justify-center"
@@ -10,17 +20,9 @@ export default function Hero({ heroUrl }: { heroUrl: string }) {
       <div className="relative w-full max-w-7xl mx-auto px-6 py-32 mt-16">
         <div className="max-w-2xl">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            송도국제캠핑장
-            <br />
-            물놀이장에서
-            <br />
-            즐거운 여름을 만나세요
+            {renderLines(title)}
           </h1>
-          <p className="text-xl text-gray-700 mb-10 leading-relaxed">
-            시원하게 딱 트인 수영장/발물놀이터와 편안한 카바나에서
-            <br />
-            가족과 함께 특별한 추억을 만드세요
-          </p>
+          <p className="text-xl text-gray-700 mb-10 leading-relaxed">{renderLines(subtitle)}</p>
           <div className="flex flex-wrap gap-4">
             <a
               href="#pricing"
