@@ -21,7 +21,7 @@ export default function AdminSidebar({ logoUrl }: { logoUrl: string }) {
     <div className="w-64 bg-gray-900 text-white flex flex-col shrink-0">
       <div className="p-6 border-b border-white/10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt="송도국제캠핑장" className="h-8 w-auto" />
+        <img src={logoUrl} alt="송도국제캠핑장" className="h-14 w-auto" />
         <p className="text-sm text-gray-400 mt-1">물놀이장 관리자</p>
       </div>
       <nav className="flex-1 p-4 space-y-1">

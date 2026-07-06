@@ -7,7 +7,7 @@ export default function Footer({ logoUrl, mapUrl }: { logoUrl: string; mapUrl: s
         <div className="grid md:grid-cols-3 gap-12 mb-12">
           <div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="송도국제캠핑장" className="h-10 w-auto mb-6" />
+            <img src={logoUrl} alt="송도국제캠핑장" className="h-24 w-auto mb-6" />
             <p className="text-gray-400 leading-relaxed">
               송도국제캠핑장 물놀이장에서 가족과 함께 특별한 여름 추억을 만들어보세요
             </p>
