@@ -2,24 +2,26 @@
 
 import { useTransition } from 'react';
 import { createPopup, updatePopup, deletePopup } from '@/app/admin/actions';
+import { useResizingFormAction } from '@/lib/admin/useResizingFormAction';
 import { publicUrl } from '@/lib/images';
 import type { Database } from '@/types/database';
 
 type Popup = Database['public']['Tables']['popups']['Row'];
 
 function PopupRow({ popup }: { popup: Popup }) {
-  const [pending, startTransition] = useTransition();
+  const [deleting, startDelete] = useTransition();
   const boundUpdate = updatePopup.bind(null, popup.id);
+  const { pending: updating, onSubmit } = useResizingFormAction(boundUpdate);
 
   function handleDelete() {
     if (!confirm('이 팝업을 삭제할까요?')) return;
-    startTransition(async () => {
+    startDelete(async () => {
       await deletePopup(popup.id, popup.image_path);
     });
   }
 
   return (
-    <form action={boundUpdate} className="bg-white rounded-xl shadow p-6 space-y-4">
+    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-6 space-y-4">
       <div className="flex items-start gap-4">
         {popup.image_path && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -94,14 +96,15 @@ function PopupRow({ popup }: { popup: Popup }) {
       <div className="flex gap-3">
         <button
           type="submit"
-          className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+          disabled={updating}
+          className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
         >
-          저장하기
+          {updating ? '업로드 중...' : '저장하기'}
         </button>
         <button
           type="button"
           onClick={handleDelete}
-          disabled={pending}
+          disabled={deleting}
           className="px-6 py-2 bg-red-50 text-red-600 font-semibold !rounded-button hover:bg-red-100 transition-all disabled:opacity-50 cursor-pointer"
         >
           삭제
@@ -112,11 +115,13 @@ function PopupRow({ popup }: { popup: Popup }) {
 }
 
 export default function PopupManager({ popups }: { popups: Popup[] }) {
+  const { pending, onSubmit } = useResizingFormAction(createPopup);
+
   return (
     <div className="space-y-8">
       <div className="bg-white rounded-xl shadow p-6">
         <h2 className="font-bold text-gray-900 mb-4">새 팝업 등록</h2>
-        <form key={popups.length} action={createPopup} className="grid md:grid-cols-2 gap-4">
+        <form key={popups.length} onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">제목</label>
             <input
@@ -177,9 +182,10 @@ export default function PopupManager({ popups }: { popups: Popup[] }) {
           <div className="md:col-span-2">
             <button
               type="submit"
-              className="px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+              disabled={pending}
+              className="px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
             >
-              팝업 등록
+              {pending ? '업로드 중...' : '팝업 등록'}
             </button>
           </div>
         </form>
