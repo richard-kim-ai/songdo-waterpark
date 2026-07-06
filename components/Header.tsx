@@ -12,7 +12,7 @@ export default function Header({ logoUrl }: { logoUrl: string }) {
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="송도국제캠핑장" className="h-9 w-auto" />
+          <img src={logoUrl} alt="송도국제캠핑장" className="h-16 w-auto" />
           <div className="hidden md:flex items-center gap-8">
             {NAV_ITEMS.map((item) => (
               <a
