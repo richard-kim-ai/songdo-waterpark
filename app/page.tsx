@@ -78,8 +78,17 @@ export default async function Home() {
       <PopupModal popups={popups} />
       <Header logoUrl={siteImages.logo} />
       <main>
-        <Hero heroUrl={siteImages.hero} />
-        <Pricing tickets={tickets} />
+        <Hero
+          heroUrl={siteImages.hero}
+          title={settings.hero_title ?? ''}
+          subtitle={settings.hero_subtitle ?? ''}
+        />
+        <Pricing
+          tickets={tickets}
+          benefitTitle={settings.benefit_title ?? ''}
+          benefitSubtitle={settings.benefit_subtitle ?? ''}
+          benefitNote={settings.benefit_note ?? ''}
+        />
         <Facilities tickets={tickets} trainUrl={siteImages.train} carUrl={siteImages.car} />
         <Cabana
           zones={zones}
@@ -88,11 +97,25 @@ export default async function Home() {
         />
         <FacilityLayout masterUrl={siteImages.layout_master} cabanaUrl={siteImages.layout_cabana} />
         <InfoNotice settings={settings} tickets={tickets} />
-        <SafetyRules imageUrl={siteImages.safety_rules} />
+        <SafetyRules
+          imageUrl={siteImages.safety_rules}
+          title={settings.safety_title ?? ''}
+          subtitle={settings.safety_subtitle ?? ''}
+        />
         <Gallery images={galleryImages} />
         <FaqAccordion />
       </main>
-      <Footer logoUrl={siteImages.logo} mapUrl={siteImages.map} />
+      <Footer
+        logoUrl={siteImages.logo}
+        mapUrl={siteImages.map}
+        address={settings.footer_address ?? ''}
+        phone={settings.footer_phone ?? ''}
+        email={settings.footer_email ?? ''}
+        copyright={settings.footer_copyright ?? ''}
+        poolSeason={settings.pool_season ?? ''}
+        poolWeekdayHours={settings.pool_weekday_hours ?? ''}
+        poolWeekendHours={settings.pool_weekend_hours ?? ''}
+      />
       <MobileNav />
     </>
   );

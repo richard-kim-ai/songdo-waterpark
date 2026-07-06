@@ -66,7 +66,7 @@ export async function upsertSiteSetting(key: string, value: string) {
   if (error) throw new Error(error.message);
 
   revalidateSite();
-  revalidatePath('/admin/hours');
+  revalidatePath('/admin/copy');
 }
 
 // ---------- 사이트 고정 이미지(로고/배경/배치도 등) ----------
