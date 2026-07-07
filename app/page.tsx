@@ -12,6 +12,7 @@ import FaqAccordion from '@/components/FaqAccordion';
 import Footer from '@/components/Footer';
 import MobileNav from '@/components/MobileNav';
 import PopupModal from '@/components/PopupModal';
+import ScrollToTop from '@/components/ScrollToTop';
 import { resolveSiteImages } from '@/lib/images';
 import type { Database } from '@/types/database';
 
@@ -117,6 +118,7 @@ export default async function Home() {
         poolWeekendHours={settings.pool_weekend_hours ?? ''}
       />
       <MobileNav />
+      <ScrollToTop />
     </>
   );
 }
