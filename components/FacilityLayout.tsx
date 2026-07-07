@@ -59,18 +59,6 @@ export default function FacilityLayout({
                   alt="카바나 배치도"
                   className="w-full h-full object-cover object-top"
                 />
-                <div className="absolute top-2 left-2 sm:top-6 sm:left-6 bg-white rounded-lg shadow-lg px-2 py-1 sm:px-6 sm:py-3">
-                  <span className="font-bold text-primary text-xs sm:text-lg">A구역 (1-10번)</span>
-                </div>
-                <div className="absolute top-2 right-2 sm:top-6 sm:right-6 bg-white rounded-lg shadow-lg px-2 py-1 sm:px-6 sm:py-3">
-                  <span className="font-bold text-primary text-xs sm:text-lg">B구역 (11-20번)</span>
-                </div>
-                <div className="absolute bottom-2 left-2 sm:bottom-6 sm:left-6 bg-white rounded-lg shadow-lg px-2 py-1 sm:px-6 sm:py-3">
-                  <span className="font-bold text-secondary text-xs sm:text-lg">C구역 (21-30번)</span>
-                </div>
-                <div className="absolute bottom-2 right-2 sm:bottom-6 sm:right-6 bg-white rounded-lg shadow-lg px-2 py-1 sm:px-6 sm:py-3">
-                  <span className="font-bold text-secondary text-xs sm:text-lg">D구역 (31-40번)</span>
-                </div>
               </div>
             )}
           </div>
