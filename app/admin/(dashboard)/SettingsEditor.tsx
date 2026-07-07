@@ -52,10 +52,21 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     ],
   },
   {
-    title: '이용안내 및 주의사항 (FAQ 섹션 제목)',
+    title: '이용안내 및 주의사항 (FAQ 섹션)',
+    description: '섹션 제목과 아코디언 5개 항목의 제목·내용을 수정합니다.',
     fields: [
       { key: 'faq_title', label: 'FAQ 섹션 제목' },
       { key: 'faq_subtitle', label: 'FAQ 섹션 설명' },
+      { key: 'faq_item_1_title', label: '항목 1 제목' },
+      { key: 'faq_item_1_lines', label: '항목 1 내용 (줄바꿈으로 구분)', multiline: true },
+      { key: 'faq_item_2_title', label: '항목 2 제목' },
+      { key: 'faq_item_2_lines', label: '항목 2 내용 (줄바꿈으로 구분)', multiline: true },
+      { key: 'faq_item_3_title', label: '항목 3 제목' },
+      { key: 'faq_item_3_lines', label: '항목 3 내용 (줄바꿈으로 구분)', multiline: true },
+      { key: 'faq_item_4_title', label: '항목 4 제목' },
+      { key: 'faq_item_4_lines', label: '항목 4 내용 (줄바꿈으로 구분)', multiline: true },
+      { key: 'faq_item_5_title', label: '항목 5 제목' },
+      { key: 'faq_item_5_lines', label: '항목 5 내용 (줄바꿈으로 구분)', multiline: true },
     ],
   },
   {

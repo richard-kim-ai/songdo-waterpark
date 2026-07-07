@@ -70,9 +70,18 @@ async function getData() {
   };
 }
 
+const FAQ_ITEM_COUNT = 5;
+
 export default async function Home() {
   const { tickets, zones, settings, popups, galleryImages } = await getData();
   const siteImages = resolveSiteImages(settings);
+  const faqItems = Array.from({ length: FAQ_ITEM_COUNT }, (_, i) => {
+    const n = i + 1;
+    return {
+      title: settings[`faq_item_${n}_title`] ?? '',
+      lines: (settings[`faq_item_${n}_lines`] ?? '').split('\n').filter((line) => line.trim()),
+    };
+  });
 
   return (
     <>
@@ -109,6 +118,7 @@ export default async function Home() {
         <FaqAccordion
           title={settings.faq_title ?? ''}
           subtitle={settings.faq_subtitle ?? ''}
+          items={faqItems}
         />
       </main>
       <Footer
