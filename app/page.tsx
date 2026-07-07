@@ -88,6 +88,8 @@ export default async function Home() {
           benefitTitle={settings.benefit_title ?? ''}
           benefitSubtitle={settings.benefit_subtitle ?? ''}
           benefitNote={settings.benefit_note ?? ''}
+          seasonPassNotice={settings.pricing_season_notice ?? ''}
+          entryLimitNotice={settings.pricing_entry_limit_notice ?? ''}
         />
         <Facilities tickets={tickets} trainUrl={siteImages.train} carUrl={siteImages.car} />
         <Cabana
@@ -103,7 +105,10 @@ export default async function Home() {
           subtitle={settings.safety_subtitle ?? ''}
         />
         <Gallery images={galleryImages} />
-        <FaqAccordion />
+        <FaqAccordion
+          title={settings.faq_title ?? ''}
+          subtitle={settings.faq_subtitle ?? ''}
+        />
       </main>
       <Footer
         logoUrl={siteImages.logo}

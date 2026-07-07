@@ -30,11 +30,15 @@ export default function Pricing({
   benefitTitle,
   benefitSubtitle,
   benefitNote,
+  seasonPassNotice,
+  entryLimitNotice,
 }: {
   tickets: TicketType[];
   benefitTitle: string;
   benefitSubtitle: string;
   benefitNote: string;
+  seasonPassNotice: string;
+  entryLimitNotice: string;
 }) {
   const general = tickets.filter((t) => t.category === 'general');
   const family = tickets.filter((t) => t.category === 'family_package');
@@ -102,12 +106,10 @@ export default function Pricing({
               </div>
               <div className="flex-1">
                 <p className="text-sm text-gray-700 mb-2">
-                  <span className="font-semibold">시즌권 안내:</span> 시즌 중 아무때나 이용 가능
-                  (주중, 주말 구분 없음)
+                  <span className="font-semibold">시즌권 안내:</span> {seasonPassNotice}
                 </p>
                 <p className="text-sm text-gray-700">
-                  <span className="font-semibold">입장 제한:</span> 입장객 수용 인원 초과 시
-                  입장이 불가할 수 있습니다
+                  <span className="font-semibold">입장 제한:</span> {entryLimitNotice}
                 </p>
               </div>
             </div>
