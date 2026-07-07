@@ -25,7 +25,7 @@ export default function Cabana({
           <p className="text-lg text-gray-600">프라이빗한 공간에서 편안한 휴식을 즐기세요</p>
         </div>
         <div className="grid lg:grid-cols-2 gap-12">
-          <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">카바나 배치도</h3>
             <div className="relative bg-blue-50 rounded-lg p-8 aspect-square">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -37,23 +37,23 @@ export default function Cabana({
                 />
               </div>
               {a && (
-                <div className="absolute top-12 left-12 bg-white rounded-lg shadow-md px-4 py-2">
-                  <span className="font-semibold text-primary">{a.name}</span>
+                <div className="absolute top-2 left-2 sm:top-12 sm:left-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
+                  <span className="text-xs sm:text-base font-semibold text-primary">{a.name}</span>
                 </div>
               )}
               {b && (
-                <div className="absolute top-12 right-12 bg-white rounded-lg shadow-md px-4 py-2">
-                  <span className="font-semibold text-primary">{b.name}</span>
+                <div className="absolute top-2 right-2 sm:top-12 sm:right-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
+                  <span className="text-xs sm:text-base font-semibold text-primary">{b.name}</span>
                 </div>
               )}
               {c && (
-                <div className="absolute bottom-24 left-12 bg-white rounded-lg shadow-md px-4 py-2">
-                  <span className="font-semibold text-secondary">{c.name}</span>
+                <div className="absolute bottom-2 left-2 sm:bottom-24 sm:left-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
+                  <span className="text-xs sm:text-base font-semibold text-secondary">{c.name}</span>
                 </div>
               )}
               {sunbed && (
-                <div className="absolute bottom-24 right-12 bg-white rounded-lg shadow-md px-4 py-2">
-                  <span className="font-semibold text-gray-900">{sunbed.name}</span>
+                <div className="absolute bottom-2 right-2 sm:bottom-24 sm:right-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
+                  <span className="text-xs sm:text-base font-semibold text-gray-900">{sunbed.name}</span>
                 </div>
               )}
             </div>
@@ -102,7 +102,7 @@ export default function Cabana({
               )}
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">구역별 금액 안내</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
