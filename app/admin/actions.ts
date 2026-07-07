@@ -13,13 +13,21 @@ function revalidateSite() {
 // ---------- 입장권 / 부속시설 ----------
 export async function upsertTicket(
   id: string,
-  data: { price: number; purchase_url: string | null; usage_hours: string | null }
+  data: {
+    name: string;
+    description: string;
+    price: number;
+    purchase_url: string | null;
+    usage_hours: string | null;
+  }
 ) {
   const { supabase } = await requireAdmin();
 
   const { error } = await supabase
     .from('ticket_types')
     .update({
+      name: data.name,
+      description: data.description || null,
       price: data.price,
       purchase_url: data.purchase_url || null,
       usage_hours: data.usage_hours || null,
@@ -36,13 +44,14 @@ export async function upsertTicket(
 // ---------- 카바나 구역 ----------
 export async function upsertCabanaZone(
   id: string,
-  data: { weekday_price: number; weekend_price: number; unit_count: number }
+  data: { name: string; weekday_price: number; weekend_price: number; unit_count: number }
 ) {
   const { supabase } = await requireAdmin();
 
   const { error } = await supabase
     .from('cabana_zones')
     .update({
+      name: data.name,
       weekday_price: data.weekday_price,
       weekend_price: data.weekend_price,
       unit_count: data.unit_count,

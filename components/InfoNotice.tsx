@@ -9,9 +9,11 @@ export default function InfoNotice({
   settings: Record<string, string>;
   tickets: TicketType[];
 }) {
-  const attractions = tickets.filter(
-    (t) => t.category === 'attraction' && !t.name.includes('빅2')
-  );
+  // 관리자에서 이름을 바꿔도 깨지지 않도록, 패키지 이용권 제외는 이름 문자열이 아니라
+  // 정렬 순서상 마지막 항목(등록 순서상 패키지)으로 판단합니다. (Facilities.tsx와 동일한 규칙)
+  const attractionsAll = tickets.filter((t) => t.category === 'attraction');
+  const attractions =
+    attractionsAll.length > 1 ? attractionsAll.slice(0, -1) : attractionsAll;
 
   return (
     <section id="info" className="py-20 bg-gradient-to-b from-white to-blue-50/30">

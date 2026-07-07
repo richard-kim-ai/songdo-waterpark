@@ -30,11 +30,15 @@ export default function Pricing({
   benefitTitle,
   benefitSubtitle,
   benefitNote,
+  seasonPassNotice,
+  entryLimitNotice,
 }: {
   tickets: TicketType[];
   benefitTitle: string;
   benefitSubtitle: string;
   benefitNote: string;
+  seasonPassNotice: string;
+  entryLimitNotice: string;
 }) {
   const general = tickets.filter((t) => t.category === 'general');
   const family = tickets.filter((t) => t.category === 'family_package');
@@ -52,7 +56,9 @@ export default function Pricing({
           <p className="text-base text-gray-600 mb-6">당일 구매 가능 (현장 상황에 따라 유동)</p>
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             {general.map((t, i) => {
-              const isDiscount = t.name.includes('국가유공자');
+              // 관리자에서 이름을 바꿔도 깨지지 않도록, "할인" 특수 표시는 이름 문자열이 아닌
+              // 정렬 순서상 마지막 일반권(등록된 순서상 국가유공자/장애인 할인권)으로 판단합니다.
+              const isDiscount = i === general.length - 1 && general.length > 1;
               return (
                 <div
                   key={t.id}
@@ -100,12 +106,10 @@ export default function Pricing({
               </div>
               <div className="flex-1">
                 <p className="text-sm text-gray-700 mb-2">
-                  <span className="font-semibold">시즌권 안내:</span> 시즌 중 아무때나 이용 가능
-                  (주중, 주말 구분 없음)
+                  <span className="font-semibold">시즌권 안내:</span> {seasonPassNotice}
                 </p>
                 <p className="text-sm text-gray-700">
-                  <span className="font-semibold">입장 제한:</span> 입장객 수용 인원 초과 시
-                  입장이 불가할 수 있습니다
+                  <span className="font-semibold">입장 제한:</span> {entryLimitNotice}
                 </p>
               </div>
             </div>

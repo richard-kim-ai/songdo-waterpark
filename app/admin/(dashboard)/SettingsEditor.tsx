@@ -26,6 +26,13 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     ],
   },
   {
+    title: '입장권 하단 안내 문구',
+    fields: [
+      { key: 'pricing_season_notice', label: '시즌권 안내 문구 ("시즌권 안내:" 뒤에 표시)' },
+      { key: 'pricing_entry_limit_notice', label: '입장 제한 안내 문구 ("입장 제한:" 뒤에 표시)' },
+    ],
+  },
+  {
     title: '이용시간 안내',
     fields: [
       { key: 'pool_season', label: '물놀이장 운영 시즌' },
@@ -38,10 +45,17 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     ],
   },
   {
-    title: '이용안내 및 주의사항 (안전수칙 상단)',
+    title: '안전수칙 섹션 (수영장 안전수칙)',
     fields: [
       { key: 'safety_title', label: '안전수칙 섹션 제목' },
       { key: 'safety_subtitle', label: '안전수칙 섹션 설명' },
+    ],
+  },
+  {
+    title: '이용안내 및 주의사항 (FAQ 섹션 제목)',
+    fields: [
+      { key: 'faq_title', label: 'FAQ 섹션 제목' },
+      { key: 'faq_subtitle', label: 'FAQ 섹션 설명' },
     ],
   },
   {

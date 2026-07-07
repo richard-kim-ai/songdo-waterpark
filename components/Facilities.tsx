@@ -11,13 +11,12 @@ export default function Facilities({
   trainUrl: string;
   carUrl: string;
 }) {
-  const RIDE_IMAGE: Record<string, string> = {
-    신나는기차: trainUrl,
-    마이카: carUrl,
-  };
+  // 관리자에서 이름을 바꿔도 깨지지 않도록, 놀이기구 이미지/패키지 여부는 이름 문자열이
+  // 아니라 정렬 순서(등록 순서상 마지막 = 패키지, 그 앞은 개별 놀이기구)로 판단합니다.
   const attractions = tickets.filter((t) => t.category === 'attraction');
-  const rides = attractions.filter((t) => RIDE_IMAGE[t.name]);
-  const packageTicket = attractions.find((t) => t.name.includes('빅2'));
+  const rides = attractions.length > 1 ? attractions.slice(0, -1) : attractions;
+  const packageTicket = attractions.length > 1 ? attractions[attractions.length - 1] : undefined;
+  const RIDE_IMAGES = [trainUrl, carUrl];
 
   return (
     <section id="facilities" className="py-20 bg-white">
@@ -27,7 +26,7 @@ export default function Facilities({
           <p className="text-lg text-gray-600">아이들이 좋아하는 신나는 놀이기구</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
-          {rides.map((t) => (
+          {rides.map((t, i) => (
             <div
               key={t.id}
               className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
@@ -35,7 +34,7 @@ export default function Facilities({
               <div
                 className="h-64"
                 style={{
-                  background: `url('${RIDE_IMAGE[t.name]}') center/cover no-repeat`,
+                  background: `url('${RIDE_IMAGES[i] ?? RIDE_IMAGES[0]}') center/cover no-repeat`,
                 }}
               ></div>
               <div className="p-6">
@@ -80,14 +79,12 @@ export default function Facilities({
                 <span className="text-gray-600">원</span>
               </div>
               <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <i className="ri-checkbox-circle-fill text-secondary"></i>
-                  <span>신나는기차 이용권 포함</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <i className="ri-checkbox-circle-fill text-secondary"></i>
-                  <span>마이카 이용권 포함</span>
-                </div>
+                {rides.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 text-sm text-gray-700">
+                    <i className="ri-checkbox-circle-fill text-secondary"></i>
+                    <span>{r.name} 이용권 포함</span>
+                  </div>
+                ))}
               </div>
               {packageTicket.purchase_url ? (
                 <a
