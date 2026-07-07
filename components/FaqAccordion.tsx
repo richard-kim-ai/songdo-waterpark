@@ -69,7 +69,13 @@ const CONTACT = {
   ],
 };
 
-export default function FaqAccordion() {
+export default function FaqAccordion({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
   const [open, setOpen] = useState<number | null>(null);
 
   const toggle = (i: number) => setOpen((cur) => (cur === i ? null : i));
@@ -78,8 +84,8 @@ export default function FaqAccordion() {
     <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">이용 안내 및 주의사항</h2>
-          <p className="text-lg text-gray-600">안전하고 즐거운 이용을 위해 확인해주세요</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{title}</h2>
+          <p className="text-lg text-gray-600">{subtitle}</p>
         </div>
         <div className="space-y-4">
           {ITEMS.map((item, i) => (

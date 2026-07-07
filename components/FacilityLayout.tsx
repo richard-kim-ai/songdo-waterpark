@@ -50,15 +50,6 @@ export default function FacilityLayout({
                   alt="전체 배치도"
                   className="w-full h-full object-cover object-top"
                 />
-                <div className="absolute top-6 left-6 bg-white rounded-lg shadow-lg px-4 py-2">
-                  <span className="font-semibold text-gray-900">캠핑장 구역</span>
-                </div>
-                <div className="absolute top-6 right-6 bg-white rounded-lg shadow-lg px-4 py-2">
-                  <span className="font-semibold text-gray-900">물놀이장 구역</span>
-                </div>
-                <div className="absolute bottom-6 left-6 bg-white rounded-lg shadow-lg px-4 py-2">
-                  <span className="font-semibold text-gray-900">주차장</span>
-                </div>
               </div>
             ) : (
               <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
