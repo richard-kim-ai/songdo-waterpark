@@ -7,6 +7,8 @@ import type { Database } from '@/types/database';
 type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 
 function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHours: boolean }) {
+  const [name, setName] = useState(ticket.name);
+  const [description, setDescription] = useState(ticket.description ?? '');
   const [price, setPrice] = useState(String(ticket.price));
   const [purchaseUrl, setPurchaseUrl] = useState(ticket.purchase_url ?? '');
   const [usageHours, setUsageHours] = useState(ticket.usage_hours ?? '');
@@ -17,6 +19,8 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
     setSaved(false);
     startTransition(async () => {
       await upsertTicket(ticket.id, {
+        name,
+        description,
         price: Number(price) || 0,
         purchase_url: purchaseUrl,
         usage_hours: usageHours,
@@ -28,13 +32,23 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-bold text-gray-900">{ticket.name}</h3>
-          <p className="text-sm text-gray-500">{ticket.description}</p>
-        </div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-xs font-semibold text-gray-600">항목명</label>
         {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}
       </div>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full px-3 py-2 mb-3 border border-gray-300 rounded-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+      <label className="block text-xs font-semibold text-gray-600 mb-1">설명</label>
+      <input
+        type="text"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        className="w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"
+      />
       <div className="grid md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">가격(원)</label>

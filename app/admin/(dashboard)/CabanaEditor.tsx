@@ -7,6 +7,7 @@ import type { Database } from '@/types/database';
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 
 function CabanaRow({ zone }: { zone: CabanaZone }) {
+  const [name, setName] = useState(zone.name);
   const [weekdayPrice, setWeekdayPrice] = useState(String(zone.weekday_price));
   const [weekendPrice, setWeekendPrice] = useState(String(zone.weekend_price));
   const [unitCount, setUnitCount] = useState(String(zone.unit_count));
@@ -17,6 +18,7 @@ function CabanaRow({ zone }: { zone: CabanaZone }) {
     setSaved(false);
     startTransition(async () => {
       await upsertCabanaZone(zone.id, {
+        name,
         weekday_price: Number(weekdayPrice) || 0,
         weekend_price: Number(weekendPrice) || 0,
         unit_count: Number(unitCount) || 0,
@@ -28,10 +30,16 @@ function CabanaRow({ zone }: { zone: CabanaZone }) {
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-900">{zone.name}</h3>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-xs font-semibold text-gray-600">구역명</label>
         {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}
       </div>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+      />
       <div className="grid md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">개수(EA)</label>

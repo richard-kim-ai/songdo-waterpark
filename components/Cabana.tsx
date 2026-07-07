@@ -4,10 +4,6 @@ type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
-function findZone(zones: CabanaZone[], name: string) {
-  return zones.find((z) => z.name === name);
-}
-
 export default function Cabana({
   zones,
   cabanaNotice,
@@ -17,10 +13,9 @@ export default function Cabana({
   cabanaNotice: string;
   diagramUrl: string;
 }) {
-  const a = findZone(zones, 'A타입 (4인)');
-  const b = findZone(zones, 'B타입 (3인)');
-  const c = findZone(zones, 'C타입 (2인)');
-  const sunbed = findZone(zones, '썬배드 구역');
+  // 관리자에서 구역명을 바꿔도 깨지지 않도록, A/B/C/썬배드 구분은 이름 문자열이 아니라
+  // 정렬 순서(sort_order, 이미 정렬되어 전달됨)로 판단합니다.
+  const [a, b, c, sunbed] = zones;
 
   return (
     <section id="cabana" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
@@ -41,18 +36,26 @@ export default function Cabana({
                   className="w-full h-full object-contain"
                 />
               </div>
-              <div className="absolute top-12 left-12 bg-white rounded-lg shadow-md px-4 py-2">
-                <span className="font-semibold text-primary">A타입 (4인)</span>
-              </div>
-              <div className="absolute top-12 right-12 bg-white rounded-lg shadow-md px-4 py-2">
-                <span className="font-semibold text-primary">B타입 (3인)</span>
-              </div>
-              <div className="absolute bottom-24 left-12 bg-white rounded-lg shadow-md px-4 py-2">
-                <span className="font-semibold text-secondary">C타입 (2인)</span>
-              </div>
-              <div className="absolute bottom-24 right-12 bg-white rounded-lg shadow-md px-4 py-2">
-                <span className="font-semibold text-gray-900">썬배드 구역</span>
-              </div>
+              {a && (
+                <div className="absolute top-12 left-12 bg-white rounded-lg shadow-md px-4 py-2">
+                  <span className="font-semibold text-primary">{a.name}</span>
+                </div>
+              )}
+              {b && (
+                <div className="absolute top-12 right-12 bg-white rounded-lg shadow-md px-4 py-2">
+                  <span className="font-semibold text-primary">{b.name}</span>
+                </div>
+              )}
+              {c && (
+                <div className="absolute bottom-24 left-12 bg-white rounded-lg shadow-md px-4 py-2">
+                  <span className="font-semibold text-secondary">{c.name}</span>
+                </div>
+              )}
+              {sunbed && (
+                <div className="absolute bottom-24 right-12 bg-white rounded-lg shadow-md px-4 py-2">
+                  <span className="font-semibold text-gray-900">{sunbed.name}</span>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4 mt-6">
               {a && (
