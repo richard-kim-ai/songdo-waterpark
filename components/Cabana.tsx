@@ -8,10 +8,12 @@ export default function Cabana({
   zones,
   cabanaNotice,
   diagramUrl,
+  bookingUrl,
 }: {
   zones: CabanaZone[];
   cabanaNotice: string;
   diagramUrl: string;
+  bookingUrl: string;
 }) {
   // 관리자에서 구역명을 바꿔도 깨지지 않도록, A/B/C/썬배드 구분은 이름 문자열이 아니라
   // 정렬 순서(sort_order, 이미 정렬되어 전달됨)로 판단합니다.
@@ -176,9 +178,20 @@ export default function Cabana({
                 </div>
               </div>
             </div>
-            <button className="w-full mt-6 px-6 py-4 bg-primary text-white font-bold text-lg !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-              카바나 예약하기
-            </button>
+            {bookingUrl ? (
+              <a
+                href={bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center w-full mt-6 px-6 py-4 bg-primary text-white font-bold text-lg !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+              >
+                카바나 예약하기
+              </a>
+            ) : (
+              <button className="w-full mt-6 px-6 py-4 bg-primary text-white font-bold text-lg !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
+                카바나 예약하기
+              </button>
+            )}
           </div>
         </div>
       </div>
