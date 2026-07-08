@@ -32,6 +32,7 @@ export default function Pricing({
   benefitNote,
   seasonPassNotice,
   entryLimitNotice,
+  discountPercent,
 }: {
   tickets: TicketType[];
   benefitTitle: string;
@@ -39,6 +40,7 @@ export default function Pricing({
   benefitNote: string;
   seasonPassNotice: string;
   entryLimitNotice: string;
+  discountPercent: string;
 }) {
   const general = tickets.filter((t) => t.category === 'general');
   const family = tickets.filter((t) => t.category === 'family_package');
@@ -72,7 +74,8 @@ export default function Pricing({
                   <div className="text-4xl font-bold text-primary mb-6">
                     {isDiscount ? (
                       <>
-                        50%<span className="text-xl text-gray-600"> 할인</span>
+                        {discountPercent}%
+                        <span className="text-xl text-gray-600"> 할인</span>
                       </>
                     ) : (
                       <>

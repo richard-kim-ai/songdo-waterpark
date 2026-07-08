@@ -3,8 +3,8 @@
 import { useState } from 'react';
 
 const NAV_ITEMS = [
-  { href: '#pricing', label: '입장안내' },
-  { href: '#cabana', label: '카바나' },
+  { href: '#pricing', label: '입장권 안내' },
+  { href: '#cabana', label: '케노피' },
   { href: '#facilities', label: '부속시설' },
   { href: '#info', label: '이용안내' },
   { href: '#gallery', label: '갤러리' },

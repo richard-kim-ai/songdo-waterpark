@@ -30,6 +30,7 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     fields: [
       { key: 'pricing_season_notice', label: '시즌권 안내 문구 ("시즌권 안내:" 뒤에 표시)' },
       { key: 'pricing_entry_limit_notice', label: '입장 제한 안내 문구 ("입장 제한:" 뒤에 표시)' },
+      { key: 'pricing_discount_percent', label: '국가유공자/장애인 할인율 (%, 숫자만 입력)' },
     ],
   },
   {

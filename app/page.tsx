@@ -100,6 +100,7 @@ export default async function Home() {
           benefitNote={settings.benefit_note ?? ''}
           seasonPassNotice={settings.pricing_season_notice ?? ''}
           entryLimitNotice={settings.pricing_entry_limit_notice ?? ''}
+          discountPercent={settings.pricing_discount_percent ?? '50'}
         />
         <Facilities
           tickets={tickets}
