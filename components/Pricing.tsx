@@ -56,9 +56,6 @@ export default function Pricing({
           <p className="text-base text-gray-600 mb-6">당일 구매 가능 (현장 상황에 따라 유동)</p>
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             {general.map((t, i) => {
-              // 관리자에서 이름을 바꿔도 깨지지 않도록, "할인" 특수 표시는 이름 문자열이 아닌
-              // 정렬 순서상 마지막 일반권(등록된 순서상 국가유공자/장애인 할인권)으로 판단합니다.
-              const isDiscount = i === general.length - 1 && general.length > 1;
               return (
                 <div
                   key={t.id}
@@ -68,18 +65,10 @@ export default function Pricing({
                     <i className={`${GENERAL_ICONS[i] ?? 'ri-user-line'} text-3xl text-primary`}></i>
                   </div>
                   <h4 className="text-xl font-bold text-gray-900 mb-2">{t.name}</h4>
-                  <p className="text-gray-600 mb-6">{isDiscount ? '특별 할인' : t.description}</p>
+                  <p className="text-gray-600 mb-6">{t.description}</p>
                   <div className="text-4xl font-bold text-primary mb-6">
-                    {isDiscount ? (
-                      <>
-                        50%<span className="text-xl text-gray-600"> 할인</span>
-                      </>
-                    ) : (
-                      <>
-                        {t.price.toLocaleString('ko-KR')}
-                        <span className="text-xl text-gray-600">원</span>
-                      </>
-                    )}
+                    {t.price.toLocaleString('ko-KR')}
+                    <span className="text-xl text-gray-600">원</span>
                   </div>
                   {t.purchase_url ? (
                     <a
