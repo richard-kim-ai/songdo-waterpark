@@ -4,16 +4,23 @@ import CabanaBookingUrl from '../CabanaBookingUrl';
 
 export default async function CabanaAdminPage() {
   const supabase = await createClient();
-  const [{ data: zones }, { data: settingRow }] = await Promise.all([
+  const [{ data: zones }, { data: settingsRows }] = await Promise.all([
     supabase.from('cabana_zones').select('*').order('sort_order'),
-    supabase.from('site_settings').select('value').eq('key', 'cabana_booking_url').maybeSingle(),
+    supabase
+      .from('site_settings')
+      .select('key,value')
+      .in('key', ['cabana_booking_url', 'cabana_booking_button_label']),
   ]);
+  const settings = Object.fromEntries((settingsRows ?? []).map((s) => [s.key, s.value]));
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">카바나 금액 수정</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">케노피 금액 수정</h1>
       <CabanaEditor zones={zones ?? []} />
-      <CabanaBookingUrl initialValue={settingRow?.value ?? ''} />
+      <CabanaBookingUrl
+        initialUrl={settings.cabana_booking_url ?? ''}
+        initialButtonLabel={settings.cabana_booking_button_label ?? ''}
+      />
     </div>
   );
 }

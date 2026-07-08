@@ -2,8 +2,6 @@ import type { Database } from '@/types/database';
 
 type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 
-const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
-
 const GENERAL_ICONS = ['ri-user-line', 'ri-user-smile-line', 'ri-medal-line'];
 
 const FAMILY_STYLE = [
@@ -27,6 +25,13 @@ const FAMILY_STYLE = [
 
 export default function Pricing({
   tickets,
+  sectionTitle,
+  sectionSubtitle,
+  poolSectionTitle,
+  purchaseNotice,
+  familySectionTitle,
+  generalButtonLabel,
+  familyButtonLabel,
   benefitTitle,
   benefitSubtitle,
   benefitNote,
@@ -34,6 +39,13 @@ export default function Pricing({
   entryLimitNotice,
 }: {
   tickets: TicketType[];
+  sectionTitle: string;
+  sectionSubtitle: string;
+  poolSectionTitle: string;
+  purchaseNotice: string;
+  familySectionTitle: string;
+  generalButtonLabel: string;
+  familyButtonLabel: string;
   benefitTitle: string;
   benefitSubtitle: string;
   benefitNote: string;
@@ -47,13 +59,13 @@ export default function Pricing({
     <section id="pricing" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">입장권 안내</h2>
-          <p className="text-lg text-gray-600">합리적인 가격으로 즐기는 시원한 물놀이</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
 
         <div className="mb-16">
-          <h3 className="text-2xl font-bold text-gray-900 mb-8">수영장 및 발물놀이터 입장권</h3>
-          <p className="text-base text-gray-600 mb-6">당일 구매 가능 (현장 상황에 따라 유동)</p>
+          <h3 className="text-2xl font-bold text-gray-900 mb-8">{poolSectionTitle}</h3>
+          <p className="text-base text-gray-600 mb-6">{purchaseNotice}</p>
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             {general.map((t, i) => {
               return (
@@ -77,11 +89,11 @@ export default function Pricing({
                       rel="noopener noreferrer"
                       className="block text-center w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
                     >
-                      시즌권 구매
+                      {generalButtonLabel}
                     </a>
                   ) : (
                     <button className="w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-                      시즌권 구매
+                      {generalButtonLabel}
                     </button>
                   )}
                 </div>
@@ -106,7 +118,7 @@ export default function Pricing({
         </div>
 
         <div className="mb-16">
-          <h3 className="text-2xl font-bold text-gray-900 mb-8">가족 패키지 (빅2 포함)</h3>
+          <h3 className="text-2xl font-bold text-gray-900 mb-8">{familySectionTitle}</h3>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {family.map((t, i) => {
               const style = FAMILY_STYLE[i] ?? FAMILY_STYLE[0];
@@ -141,13 +153,13 @@ export default function Pricing({
                       rel="noopener noreferrer"
                       className={`block text-center w-full px-6 py-3 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer ${style.button}`}
                     >
-                      패키지 구매
+                      {familyButtonLabel}
                     </a>
                   ) : (
                     <button
                       className={`w-full px-6 py-3 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer ${style.button}`}
                     >
-                      패키지 구매
+                      {familyButtonLabel}
                     </button>
                   )}
                 </div>

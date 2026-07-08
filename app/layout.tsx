@@ -18,7 +18,7 @@ const notoSansKr = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: '송도국제캠핑장 물놀이장 - 여름의 즐거움',
   description:
-    '시원하게 딱 트인 수영장/발물놀이터와 편안한 카바나에서 가족과 함께 특별한 여름 추억을 만드세요. 입장권·카바나 예약 안내.',
+    '시원하게 딱 트인 수영장/발물놀이터와 편안한 케노피에서 가족과 함께 특별한 여름 추억을 만드세요. 입장권·케노피 예약 안내.',
 };
 
 export default function RootLayout({

@@ -19,8 +19,8 @@ export default function InfoNotice({
     <section id="info" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">이용시간 안내</h2>
-          <p className="text-lg text-gray-600">운영 시간을 확인하고 방문 계획을 세우세요</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{settings.info_title}</h2>
+          <p className="text-lg text-gray-600">{settings.info_subtitle}</p>
         </div>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-white rounded-xl shadow-lg p-8">
@@ -28,7 +28,7 @@ export default function InfoNotice({
               <div className="w-16 h-16 flex items-center justify-center bg-primary/10 rounded-full">
                 <i className="ri-time-line text-3xl text-primary"></i>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">물놀이장 운영시간</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{settings.info_pool_card_title}</h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
@@ -54,7 +54,7 @@ export default function InfoNotice({
               <div className="w-16 h-16 flex items-center justify-center bg-secondary/10 rounded-full">
                 <i className="ri-service-line text-3xl text-secondary"></i>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">부속시설 운영시간</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{settings.info_facility_card_title}</h3>
             </div>
             <div className="space-y-4">
               {attractions.map((t) => (
@@ -67,7 +67,7 @@ export default function InfoNotice({
                 </div>
               ))}
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">카바나 이용</span>
+                <span className="font-semibold text-gray-900">케노피 이용</span>
                 <span className="text-gray-700">{settings.cabana_open_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3">

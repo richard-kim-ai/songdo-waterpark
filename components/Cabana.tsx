@@ -6,14 +6,26 @@ const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
 export default function Cabana({
   zones,
+  sectionTitle,
+  sectionSubtitle,
+  diagramTitle,
+  tableTitle,
+  noticeTitle,
   cabanaNotice,
   diagramUrl,
   bookingUrl,
+  bookingButtonLabel,
 }: {
   zones: CabanaZone[];
+  sectionTitle: string;
+  sectionSubtitle: string;
+  diagramTitle: string;
+  tableTitle: string;
+  noticeTitle: string;
   cabanaNotice: string;
   diagramUrl: string;
   bookingUrl: string;
+  bookingButtonLabel: string;
 }) {
   // 관리자에서 구역명을 바꿔도 깨지지 않도록, A/B/C/썬배드 구분은 이름 문자열이 아니라
   // 정렬 순서(sort_order, 이미 정렬되어 전달됨)로 판단합니다.
@@ -23,18 +35,18 @@ export default function Cabana({
     <section id="cabana" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">카바나 예약</h2>
-          <p className="text-lg text-gray-600">프라이빗한 공간에서 편안한 휴식을 즐기세요</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid lg:grid-cols-2 gap-12">
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">카바나 배치도</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
             <div className="relative bg-blue-50 rounded-lg p-8 aspect-square">
               <div className="absolute inset-0 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={diagramUrl}
-                  alt="카바나 배치도"
+                  alt={diagramTitle}
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -105,7 +117,7 @@ export default function Cabana({
             </div>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">구역별 금액 안내</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">{tableTitle}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -166,7 +178,7 @@ export default function Cabana({
                   <i className="ri-information-line text-xl text-primary"></i>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900 mb-2">안내사항</p>
+                  <p className="text-sm font-semibold text-gray-900 mb-2">{noticeTitle}</p>
                   <ul className="text-sm text-gray-700 space-y-1">
                     {cabanaNotice
                       .split('\n')
@@ -185,11 +197,11 @@ export default function Cabana({
                 rel="noopener noreferrer"
                 className="block text-center w-full mt-6 px-6 py-4 bg-primary text-white font-bold text-lg !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
               >
-                카바나 예약하기
+                {bookingButtonLabel}
               </a>
             ) : (
               <button className="w-full mt-6 px-6 py-4 bg-primary text-white font-bold text-lg !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-                카바나 예약하기
+                {bookingButtonLabel}
               </button>
             )}
           </div>

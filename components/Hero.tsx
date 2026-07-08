@@ -4,10 +4,14 @@ export default function Hero({
   heroUrl,
   title,
   subtitle,
+  ctaTicketLabel,
+  ctaCabanaLabel,
 }: {
   heroUrl: string;
   title: string;
   subtitle: string;
+  ctaTicketLabel: string;
+  ctaCabanaLabel: string;
 }) {
   return (
     <section
@@ -28,13 +32,13 @@ export default function Hero({
               href="#pricing"
               className="px-8 py-4 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
             >
-              입장권 구매하기
+              {ctaTicketLabel}
             </a>
             <a
               href="#cabana"
               className="px-8 py-4 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
             >
-              카바나 예약하기
+              {ctaCabanaLabel}
             </a>
           </div>
         </div>
