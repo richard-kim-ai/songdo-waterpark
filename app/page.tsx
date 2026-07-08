@@ -101,11 +101,18 @@ export default async function Home() {
           seasonPassNotice={settings.pricing_season_notice ?? ''}
           entryLimitNotice={settings.pricing_entry_limit_notice ?? ''}
         />
-        <Facilities tickets={tickets} trainUrl={siteImages.train} carUrl={siteImages.car} />
+        <Facilities
+          tickets={tickets}
+          trainUrl={siteImages.train}
+          carUrl={siteImages.car}
+          rideButtonLabel={settings.facilities_ride_button_label ?? ''}
+          packageButtonLabel={settings.facilities_package_button_label ?? ''}
+        />
         <Cabana
           zones={zones}
           cabanaNotice={settings.cabana_notice ?? ''}
           diagramUrl={siteImages.cabana_diagram}
+          bookingUrl={settings.cabana_booking_url ?? ''}
         />
         <FacilityLayout masterUrl={siteImages.layout_master} cabanaUrl={siteImages.layout_cabana} />
         <InfoNotice settings={settings} tickets={tickets} />

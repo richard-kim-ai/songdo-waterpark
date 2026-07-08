@@ -6,10 +6,14 @@ export default function Facilities({
   tickets,
   trainUrl,
   carUrl,
+  rideButtonLabel,
+  packageButtonLabel,
 }: {
   tickets: TicketType[];
   trainUrl: string;
   carUrl: string;
+  rideButtonLabel: string;
+  packageButtonLabel: string;
 }) {
   // 관리자에서 이름을 바꿔도 깨지지 않도록, 놀이기구 이미지/패키지 여부는 이름 문자열이
   // 아니라 정렬 순서(등록 순서상 마지막 = 패키지, 그 앞은 개별 놀이기구)로 판단합니다.
@@ -53,11 +57,11 @@ export default function Facilities({
                     rel="noopener noreferrer"
                     className="block text-center w-full px-6 py-3 bg-gray-100 text-gray-900 font-semibold !rounded-button hover:bg-gray-200 transition-all whitespace-nowrap cursor-pointer"
                   >
-                    이용권 구매
+                    {rideButtonLabel}
                   </a>
                 ) : (
                   <button className="w-full px-6 py-3 bg-gray-100 text-gray-900 font-semibold !rounded-button hover:bg-gray-200 transition-all whitespace-nowrap cursor-pointer">
-                    이용권 구매
+                    {rideButtonLabel}
                   </button>
                 )}
               </div>
@@ -93,11 +97,11 @@ export default function Facilities({
                   rel="noopener noreferrer"
                   className="block text-center w-full px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
                 >
-                  패키지 구매
+                  {packageButtonLabel}
                 </a>
               ) : (
                 <button className="w-full px-6 py-3 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-                  패키지 구매
+                  {packageButtonLabel}
                 </button>
               )}
             </div>
