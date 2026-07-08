@@ -6,12 +6,18 @@ export default function Facilities({
   tickets,
   trainUrl,
   carUrl,
+  sectionTitle,
+  sectionSubtitle,
+  packageDesc,
   rideButtonLabel,
   packageButtonLabel,
 }: {
   tickets: TicketType[];
   trainUrl: string;
   carUrl: string;
+  sectionTitle: string;
+  sectionSubtitle: string;
+  packageDesc: string;
   rideButtonLabel: string;
   packageButtonLabel: string;
 }) {
@@ -26,8 +32,8 @@ export default function Facilities({
     <section id="facilities" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">부속 놀이시설</h2>
-          <p className="text-lg text-gray-600">아이들이 좋아하는 신나는 놀이기구</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
           {rides.map((t, i) => (
@@ -75,7 +81,7 @@ export default function Facilities({
               <h3 className="text-2xl font-bold text-gray-900 mb-3 text-center">
                 {packageTicket.name}
               </h3>
-              <p className="text-gray-600 mb-6 text-center">두 가지 놀이기구를 모두 즐기세요</p>
+              <p className="text-gray-600 mb-6 text-center">{packageDesc}</p>
               <div className="flex items-baseline gap-2 mb-6 justify-center">
                 <span className="text-4xl font-bold text-secondary">
                   {packageTicket.price.toLocaleString('ko-KR')}

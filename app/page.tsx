@@ -86,15 +86,33 @@ export default async function Home() {
   return (
     <>
       <PopupModal popups={popups} />
-      <Header logoUrl={siteImages.logo} />
+      <Header
+        logoUrl={siteImages.logo}
+        navLabels={{
+          pricing: settings.nav_pricing_label ?? '',
+          cabana: settings.nav_cabana_label ?? '',
+          facilities: settings.nav_facilities_label ?? '',
+          info: settings.nav_info_label ?? '',
+          gallery: settings.nav_gallery_label ?? '',
+        }}
+      />
       <main>
         <Hero
           heroUrl={siteImages.hero}
           title={settings.hero_title ?? ''}
           subtitle={settings.hero_subtitle ?? ''}
+          ctaTicketLabel={settings.hero_cta_ticket_label ?? ''}
+          ctaCabanaLabel={settings.hero_cta_cabana_label ?? ''}
         />
         <Pricing
           tickets={tickets}
+          sectionTitle={settings.pricing_title ?? ''}
+          sectionSubtitle={settings.pricing_subtitle ?? ''}
+          poolSectionTitle={settings.pricing_pool_section_title ?? ''}
+          purchaseNotice={settings.pricing_purchase_notice ?? ''}
+          familySectionTitle={settings.pricing_family_section_title ?? ''}
+          generalButtonLabel={settings.pricing_general_button_label ?? ''}
+          familyButtonLabel={settings.pricing_family_button_label ?? ''}
           benefitTitle={settings.benefit_title ?? ''}
           benefitSubtitle={settings.benefit_subtitle ?? ''}
           benefitNote={settings.benefit_note ?? ''}
@@ -105,23 +123,47 @@ export default async function Home() {
           tickets={tickets}
           trainUrl={siteImages.train}
           carUrl={siteImages.car}
+          sectionTitle={settings.facilities_title ?? ''}
+          sectionSubtitle={settings.facilities_subtitle ?? ''}
+          packageDesc={settings.facilities_package_desc ?? ''}
           rideButtonLabel={settings.facilities_ride_button_label ?? ''}
           packageButtonLabel={settings.facilities_package_button_label ?? ''}
         />
         <Cabana
           zones={zones}
+          sectionTitle={settings.cabana_title ?? ''}
+          sectionSubtitle={settings.cabana_subtitle ?? ''}
+          diagramTitle={settings.cabana_diagram_title ?? ''}
+          tableTitle={settings.cabana_table_title ?? ''}
+          noticeTitle={settings.cabana_notice_title ?? ''}
           cabanaNotice={settings.cabana_notice ?? ''}
           diagramUrl={siteImages.cabana_diagram}
           bookingUrl={settings.cabana_booking_url ?? ''}
+          bookingButtonLabel={settings.cabana_booking_button_label ?? ''}
         />
-        <FacilityLayout masterUrl={siteImages.layout_master} cabanaUrl={siteImages.layout_cabana} />
+        <FacilityLayout
+          masterUrl={siteImages.layout_master}
+          cabanaUrl={siteImages.layout_cabana}
+          sectionTitle={settings.layout_title ?? ''}
+          sectionSubtitle={settings.layout_subtitle ?? ''}
+          tabTotalLabel={settings.layout_tab_total_label ?? ''}
+          tabCabanaLabel={settings.layout_tab_cabana_label ?? ''}
+        />
         <InfoNotice settings={settings} tickets={tickets} />
         <SafetyRules
           imageUrl={siteImages.safety_rules}
           title={settings.safety_title ?? ''}
           subtitle={settings.safety_subtitle ?? ''}
+          bannerTitle={settings.safety_banner_title ?? ''}
+          rulesText={settings.safety_rules_text ?? ''}
+          extraTitle={settings.safety_extra_title ?? ''}
+          extraItemsText={settings.safety_extra_items ?? ''}
         />
-        <Gallery images={galleryImages} />
+        <Gallery
+          images={galleryImages}
+          sectionTitle={settings.gallery_title ?? ''}
+          sectionSubtitle={settings.gallery_subtitle ?? ''}
+        />
         <FaqAccordion
           title={settings.faq_title ?? ''}
           subtitle={settings.faq_subtitle ?? ''}
@@ -131,6 +173,11 @@ export default async function Home() {
       <Footer
         logoUrl={siteImages.logo}
         mapUrl={siteImages.map}
+        tagline={settings.footer_tagline ?? ''}
+        addressTitle={settings.footer_address_title ?? ''}
+        hoursTitle={settings.footer_hours_title ?? ''}
+        termsLabel={settings.footer_terms_label ?? ''}
+        privacyLabel={settings.footer_privacy_label ?? ''}
         address={settings.footer_address ?? ''}
         phone={settings.footer_phone ?? ''}
         email={settings.footer_email ?? ''}
@@ -139,7 +186,10 @@ export default async function Home() {
         poolWeekdayHours={settings.pool_weekday_hours ?? ''}
         poolWeekendHours={settings.pool_weekend_hours ?? ''}
       />
-      <MobileNav />
+      <MobileNav
+        ticketLabel={settings.mobile_nav_ticket_label ?? ''}
+        cabanaLabel={settings.mobile_nav_cabana_label ?? ''}
+      />
       <ScrollToTop />
     </>
   );

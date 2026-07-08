@@ -3,16 +3,14 @@
 import { useState, useTransition } from 'react';
 import { upsertSiteSetting } from '@/app/admin/actions';
 
-function Field({
+function LabelField({
   settingKey,
   label,
   initialValue,
-  placeholder,
 }: {
   settingKey: string;
   label: string;
   initialValue: string;
-  placeholder?: string;
 }) {
   const [value, setValue] = useState(initialValue);
   const [pending, startTransition] = useTransition();
@@ -37,7 +35,6 @@ function Field({
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
       />
       <button
@@ -51,27 +48,26 @@ function Field({
   );
 }
 
-export default function CabanaBookingUrl({
-  initialUrl,
-  initialButtonLabel,
+export default function PricingButtonLabels({
+  generalButtonLabel,
+  familyButtonLabel,
 }: {
-  initialUrl: string;
-  initialButtonLabel: string;
+  generalButtonLabel: string;
+  familyButtonLabel: string;
 }) {
   return (
     <div className="mt-10">
-      <h2 className="text-lg font-bold text-gray-900 mb-4">케노피 예약 버튼</h2>
+      <h2 className="text-lg font-bold text-gray-900 mb-4">버튼 명칭</h2>
       <div className="space-y-4">
-        <Field
-          settingKey="cabana_booking_button_label"
-          label="예약 버튼 명칭"
-          initialValue={initialButtonLabel}
+        <LabelField
+          settingKey="pricing_general_button_label"
+          label="일반 입장권 구매 버튼 명칭"
+          initialValue={generalButtonLabel}
         />
-        <Field
-          settingKey="cabana_booking_url"
-          label="예약 버튼 연결 URL"
-          initialValue={initialUrl}
-          placeholder="https://..."
+        <LabelField
+          settingKey="pricing_family_button_label"
+          label="가족 패키지 구매 버튼 명칭"
+          initialValue={familyButtonLabel}
         />
       </div>
     </div>

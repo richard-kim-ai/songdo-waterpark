@@ -3,13 +3,21 @@ import type { Database } from '@/types/database';
 
 type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
 
-export default function Gallery({ images }: { images: GalleryImage[] }) {
+export default function Gallery({
+  images,
+  sectionTitle,
+  sectionSubtitle,
+}: {
+  images: GalleryImage[];
+  sectionTitle: string;
+  sectionSubtitle: string;
+}) {
   return (
     <section id="gallery" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">포토 갤러리</h2>
-          <p className="text-lg text-gray-600">송도국제캠핑장 물놀이장의 생생한 모습</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {images.map((item) => (

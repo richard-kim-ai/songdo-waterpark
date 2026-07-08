@@ -3,6 +3,11 @@ import Link from 'next/link';
 export default function Footer({
   logoUrl,
   mapUrl,
+  tagline,
+  addressTitle,
+  hoursTitle,
+  termsLabel,
+  privacyLabel,
   address,
   phone,
   email,
@@ -13,6 +18,11 @@ export default function Footer({
 }: {
   logoUrl: string;
   mapUrl: string;
+  tagline: string;
+  addressTitle: string;
+  hoursTitle: string;
+  termsLabel: string;
+  privacyLabel: string;
   address: string;
   phone: string;
   email: string;
@@ -28,12 +38,10 @@ export default function Footer({
           <div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl} alt="송도국제캠핑장" className="h-24 w-auto mb-6" />
-            <p className="text-gray-400 leading-relaxed">
-              송도국제캠핑장 물놀이장에서 가족과 함께 특별한 여름 추억을 만들어보세요
-            </p>
+            <p className="text-gray-400 leading-relaxed">{tagline}</p>
           </div>
           <div>
-            <h4 className="font-bold text-lg mb-6">찾아오시는 길</h4>
+            <h4 className="font-bold text-lg mb-6">{addressTitle}</h4>
             <div className="space-y-3 text-gray-400">
               <div className="flex items-start gap-3">
                 <div className="w-5 h-5 flex items-center justify-center">
@@ -56,7 +64,7 @@ export default function Footer({
             </div>
           </div>
           <div>
-            <h4 className="font-bold text-lg mb-6">운영 시간</h4>
+            <h4 className="font-bold text-lg mb-6">{hoursTitle}</h4>
             <div className="space-y-3 text-gray-400">
               <p>하계 시즌: {poolSeason}</p>
               <p>평일: {poolWeekdayHours}</p>
@@ -92,10 +100,10 @@ export default function Footer({
           <p className="text-gray-400 text-sm">{copyright}</p>
           <div className="flex gap-6 text-sm">
             <a href="#" className="text-gray-400 hover:text-white transition-colors cursor-pointer">
-              이용약관
+              {termsLabel}
             </a>
             <a href="#" className="text-gray-400 hover:text-white transition-colors cursor-pointer">
-              개인정보처리방침
+              {privacyLabel}
             </a>
             <Link
               href="/admin"
