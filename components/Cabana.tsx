@@ -41,35 +41,13 @@ export default function Cabana({
         <div className="grid gap-12">
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
-            <div className="relative bg-blue-50 rounded-lg p-8 aspect-square">
-              <div className="absolute inset-0 flex items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={diagramUrl}
-                  alt={diagramTitle}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              {a && (
-                <div className="absolute top-2 left-2 sm:top-12 sm:left-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-primary">{a.name}</span>
-                </div>
-              )}
-              {b && (
-                <div className="absolute top-2 right-2 sm:top-12 sm:right-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-primary">{b.name}</span>
-                </div>
-              )}
-              {c && (
-                <div className="absolute bottom-2 left-2 sm:bottom-24 sm:left-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-secondary">{c.name}</span>
-                </div>
-              )}
-              {sunbed && (
-                <div className="absolute bottom-2 right-2 sm:bottom-24 sm:right-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-gray-900">{sunbed.name}</span>
-                </div>
-              )}
+            <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={diagramUrl}
+                alt={diagramTitle}
+                className="w-full h-full object-cover object-top"
+              />
             </div>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
