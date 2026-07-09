@@ -137,7 +137,7 @@ export default async function Home() {
           tableTitle={settings.cabana_table_title ?? ''}
           noticeTitle={settings.cabana_notice_title ?? ''}
           cabanaNotice={settings.cabana_notice ?? ''}
-          diagramUrl={siteImages.cabana_diagram}
+          diagramUrl={siteImages.layout_cabana}
           bookingUrl={settings.cabana_booking_url ?? ''}
           bookingButtonLabel={settings.cabana_booking_button_label ?? ''}
         />

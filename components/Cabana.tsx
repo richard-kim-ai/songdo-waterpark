@@ -38,82 +38,16 @@ export default function Cabana({
           <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
           <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
-        <div className="grid lg:grid-cols-2 gap-12">
+        <div className="grid gap-12">
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
-            <div className="relative bg-blue-50 rounded-lg p-8 aspect-square">
-              <div className="absolute inset-0 flex items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={diagramUrl}
-                  alt={diagramTitle}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              {a && (
-                <div className="absolute top-2 left-2 sm:top-12 sm:left-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-primary">{a.name}</span>
-                </div>
-              )}
-              {b && (
-                <div className="absolute top-2 right-2 sm:top-12 sm:right-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-primary">{b.name}</span>
-                </div>
-              )}
-              {c && (
-                <div className="absolute bottom-2 left-2 sm:bottom-24 sm:left-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-secondary">{c.name}</span>
-                </div>
-              )}
-              {sunbed && (
-                <div className="absolute bottom-2 right-2 sm:bottom-24 sm:right-12 bg-white rounded-lg shadow-md px-2 py-1 sm:px-4 sm:py-2">
-                  <span className="text-xs sm:text-base font-semibold text-gray-900">{sunbed.name}</span>
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              {a && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-4 h-4 bg-primary rounded"></div>
-                    <span className="font-semibold text-gray-900">{a.name}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {a.unit_count}개 / 주말 {won(a.weekend_price)} / 주중 {won(a.weekday_price)}
-                  </p>
-                </div>
-              )}
-              {b && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-4 h-4 bg-primary rounded"></div>
-                    <span className="font-semibold text-gray-900">{b.name}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {b.unit_count}개 / 주말 {won(b.weekend_price)} / 주중 {won(b.weekday_price)}
-                  </p>
-                </div>
-              )}
-              {c && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-4 h-4 bg-secondary rounded"></div>
-                    <span className="font-semibold text-gray-900">{c.name}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {c.unit_count}개 / 주말 {won(c.weekend_price)} / 주중 {won(c.weekday_price)}
-                  </p>
-                </div>
-              )}
-              {sunbed && (
-                <div className="bg-gradient-to-r from-secondary/10 to-secondary/5 rounded-lg p-4 border border-secondary/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-4 h-4 bg-secondary/50 rounded"></div>
-                    <span className="font-semibold text-gray-900">{sunbed.name}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">{won(sunbed.weekday_price)} / 개당 이용</p>
-                </div>
-              )}
+            <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={diagramUrl}
+                alt={diagramTitle}
+                className="w-full h-full object-cover object-top"
+              />
             </div>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
