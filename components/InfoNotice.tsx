@@ -5,9 +5,11 @@ type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 export default function InfoNotice({
   settings,
   tickets,
+  parkingImageUrl,
 }: {
   settings: Record<string, string>;
   tickets: TicketType[];
+  parkingImageUrl: string;
 }) {
   // 관리자에서 이름을 바꿔도 깨지지 않도록, 패키지 이용권 제외는 이름 문자열이 아니라
   // 정렬 순서상 마지막 항목(등록 순서상 패키지)으로 판단합니다. (Facilities.tsx와 동일한 규칙)
@@ -77,6 +79,18 @@ export default function InfoNotice({
             </div>
           </div>
         </div>
+        {parkingImageUrl && (
+          <div className="mt-8 bg-white rounded-xl shadow-lg p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 flex items-center justify-center bg-primary/10 rounded-full">
+                <i className="ri-parking-box-line text-3xl text-primary"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900">{settings.info_parking_title}</h3>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={parkingImageUrl} alt={settings.info_parking_title} className="w-full rounded-lg" />
+          </div>
+        )}
       </div>
     </section>
   );

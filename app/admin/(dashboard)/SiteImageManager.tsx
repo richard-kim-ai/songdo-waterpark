@@ -19,12 +19,18 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
       onSubmit={onSubmit}
       className="bg-white rounded-xl shadow p-6 flex flex-col md:flex-row md:items-center gap-6"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={currentUrl}
-        alt={SITE_IMAGE_LABEL[imageKey]}
-        className="w-40 h-28 object-contain rounded-lg border border-gray-200 bg-gray-50 shrink-0"
-      />
+      {currentUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={currentUrl}
+          alt={SITE_IMAGE_LABEL[imageKey]}
+          className="w-40 h-28 object-contain rounded-lg border border-gray-200 bg-gray-50 shrink-0"
+        />
+      ) : (
+        <div className="w-40 h-28 flex items-center justify-center text-xs text-gray-400 rounded-lg border border-gray-200 bg-gray-50 shrink-0">
+          이미지 없음
+        </div>
+      )}
       <div className="flex-1">
         <h3 className="font-bold text-gray-900 mb-1">{SITE_IMAGE_LABEL[imageKey]}</h3>
         <p className="text-xs text-gray-400 mb-3">{imageKey}</p>

@@ -35,6 +35,7 @@ export const SITE_IMAGE_KEYS = [
   'car',
   'safety_rules',
   'map',
+  'parking_info',
 ] as const;
 
 export type SiteImageKey = (typeof SITE_IMAGE_KEYS)[number];
@@ -55,6 +56,7 @@ export const SITE_IMAGE_DEFAULT_PATH: Record<SiteImageKey, string> = {
   car: 'car.jpg',
   safety_rules: 'safety-rules.jpeg',
   map: 'map-placeholder.png',
+  parking_info: '',
 };
 
 export const SITE_IMAGE_LABEL: Record<SiteImageKey, string> = {
@@ -66,6 +68,7 @@ export const SITE_IMAGE_LABEL: Record<SiteImageKey, string> = {
   car: '마이카 이미지',
   safety_rules: '안전수칙 이미지',
   map: '오시는 길 지도',
+  parking_info: '주차 안내 이미지',
 };
 
 export type SiteImages = Record<SiteImageKey, string>;
@@ -78,7 +81,7 @@ export function resolveSiteImages(settings: Record<string, string>): SiteImages 
   const result = {} as SiteImages;
   for (const key of SITE_IMAGE_KEYS) {
     const path = settings[siteImageSettingKey(key)] || SITE_IMAGE_DEFAULT_PATH[key];
-    result[key] = publicUrl(path);
+    result[key] = path ? publicUrl(path) : '';
   }
   return result;
 }

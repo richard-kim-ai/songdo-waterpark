@@ -149,7 +149,11 @@ export default async function Home() {
           tabTotalLabel={settings.layout_tab_total_label ?? ''}
           tabCabanaLabel={settings.layout_tab_cabana_label ?? ''}
         />
-        <InfoNotice settings={settings} tickets={tickets} />
+        <InfoNotice
+          settings={settings}
+          tickets={tickets}
+          parkingImageUrl={siteImages.parking_info}
+        />
         <SafetyRules
           imageUrl={siteImages.safety_rules}
           title={settings.safety_title ?? ''}
