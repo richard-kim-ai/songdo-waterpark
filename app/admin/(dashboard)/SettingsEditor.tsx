@@ -100,6 +100,11 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
       { key: 'cabana_open_hours', label: '케노피 이용시간' },
       { key: 'cabana_usage_unit', label: '케노피 이용 단위 안내' },
       { key: 'cabana_notice', label: '케노피 안내사항 (줄바꿈으로 구분)', multiline: true },
+      {
+        key: 'info_parking_title',
+        label: '주차 안내 카드 제목',
+        hint: '이미지는 "그외 이미지 관리" 메뉴에서 업로드합니다. 이미지를 등록하지 않으면 이 카드는 표시되지 않습니다.',
+      },
     ],
   },
   {
