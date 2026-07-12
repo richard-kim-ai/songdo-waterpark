@@ -8,8 +8,7 @@ type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 
 function CabanaRow({ zone }: { zone: CabanaZone }) {
   const [name, setName] = useState(zone.name);
-  const [weekdayPrice, setWeekdayPrice] = useState(String(zone.weekday_price));
-  const [weekendPrice, setWeekendPrice] = useState(String(zone.weekend_price));
+  const [price, setPrice] = useState(String(zone.weekday_price));
   const [unitCount, setUnitCount] = useState(String(zone.unit_count));
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -17,10 +16,11 @@ function CabanaRow({ zone }: { zone: CabanaZone }) {
   function handleSave() {
     setSaved(false);
     startTransition(async () => {
+      const numericPrice = Number(price) || 0;
       await upsertCabanaZone(zone.id, {
         name,
-        weekday_price: Number(weekdayPrice) || 0,
-        weekend_price: Number(weekendPrice) || 0,
+        weekday_price: numericPrice,
+        weekend_price: numericPrice,
         unit_count: Number(unitCount) || 0,
       });
       setSaved(true);
@@ -40,7 +40,7 @@ function CabanaRow({ zone }: { zone: CabanaZone }) {
         onChange={(e) => setName(e.target.value)}
         className="w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
       />
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">개수(EA)</label>
           <input
@@ -51,20 +51,11 @@ function CabanaRow({ zone }: { zone: CabanaZone }) {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">주중 요금(원)</label>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">성수기 요금(원)</label>
           <input
             type="number"
-            value={weekdayPrice}
-            onChange={(e) => setWeekdayPrice(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">주말 요금(원)</label>
-          <input
-            type="number"
-            value={weekendPrice}
-            onChange={(e) => setWeekendPrice(e.target.value)}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
