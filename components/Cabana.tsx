@@ -63,10 +63,7 @@ export default function Cabana({
                       개수 (EA)
                     </th>
                     <th className="px-6 py-4 font-bold text-base border border-primary/20 text-right">
-                      주말 요금
-                    </th>
-                    <th className="px-6 py-4 font-bold text-base border border-primary/20 text-right">
-                      주중 요금
+                      성수기 요금
                     </th>
                   </tr>
                 </thead>
@@ -78,9 +75,6 @@ export default function Cabana({
                       </td>
                       <td className="px-6 py-4 border border-gray-200 text-center text-primary font-bold">
                         {z!.unit_count}
-                      </td>
-                      <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
-                        {won(z!.weekend_price)}
                       </td>
                       <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
                         {won(z!.weekday_price)}
@@ -95,10 +89,7 @@ export default function Cabana({
                       <td className="px-6 py-4 border border-gray-200 text-center font-bold text-secondary">
                         {sunbed.unit_count}
                       </td>
-                      <td
-                        className="px-6 py-4 border border-gray-200 text-center font-bold text-gray-900"
-                        colSpan={2}
-                      >
+                      <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
                         {won(sunbed.weekday_price)} / 개당 이용
                       </td>
                     </tr>
