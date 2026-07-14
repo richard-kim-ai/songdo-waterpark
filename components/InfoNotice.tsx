@@ -30,27 +30,27 @@ export default function InfoNotice({
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">운영 시즌</span>
+                <span className="font-semibold text-gray-900">{settings.info_pool_season_label}</span>
                 <span className="text-gray-700">{settings.pool_season}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">평일 운영</span>
+                <span className="font-semibold text-gray-900">{settings.info_pool_weekday_label}</span>
                 <span className="text-gray-700">{settings.pool_weekday_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">주말 운영</span>
+                <span className="font-semibold text-gray-900">{settings.info_pool_weekend_label}</span>
                 <span className="text-gray-700">{settings.pool_weekend_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">입장 마감</span>
+                <span className="font-semibold text-gray-900">{settings.info_pool_last_entry_label}</span>
                 <span className="text-secondary font-semibold">{settings.pool_last_entry}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="font-semibold text-gray-900">케노피 이용</span>
+                <span className="font-semibold text-gray-900">{settings.info_cabana_open_label}</span>
                 <span className="text-gray-700">{settings.cabana_open_hours}</span>
               </div>
               <div className="flex items-center justify-between py-3">
-                <span className="font-semibold text-gray-900">이용 시간</span>
+                <span className="font-semibold text-gray-900">{settings.info_cabana_usage_label}</span>
                 <span className="text-secondary font-semibold">{settings.cabana_usage_unit}</span>
               </div>
             </div>
