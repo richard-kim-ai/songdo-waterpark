@@ -22,6 +22,8 @@ export default function Facilities({
   const attractions = tickets.filter((t) => t.category === 'attraction');
   const RIDE_IMAGES = [trainUrl, carUrl, squirrelTubUrl];
 
+  if (attractions.length === 0) return null;
+
   return (
     <section id="facilities" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">

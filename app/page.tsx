@@ -46,7 +46,7 @@ async function getData() {
     { data: popups },
     { data: galleryImages },
   ] = await Promise.all([
-    supabase.from('ticket_types').select('*').order('sort_order'),
+    supabase.from('ticket_types').select('*').eq('is_active', true).order('sort_order'),
     supabase.from('cabana_zones').select('*').order('sort_order'),
     supabase.from('site_settings').select('*'),
     supabase
