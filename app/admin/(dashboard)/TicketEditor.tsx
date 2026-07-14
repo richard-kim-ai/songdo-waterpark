@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { upsertTicket } from '@/app/admin/actions';
+import { useRouter } from 'next/navigation';
+import { upsertTicket, createTicket } from '@/app/admin/actions';
 import type { Database } from '@/types/database';
 
 type TicketType = Database['public']['Tables']['ticket_types']['Row'];
@@ -12,6 +13,7 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
   const [price, setPrice] = useState(String(ticket.price));
   const [purchaseUrl, setPurchaseUrl] = useState(ticket.purchase_url ?? '');
   const [usageHours, setUsageHours] = useState(ticket.usage_hours ?? '');
+  const [isActive, setIsActive] = useState(ticket.is_active ?? true);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
 
@@ -24,6 +26,7 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
         price: Number(price) || 0,
         purchase_url: purchaseUrl,
         usage_hours: usageHours,
+        is_active: isActive,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -82,6 +85,14 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
           </div>
         )}
       </div>
+      <label className="flex items-center gap-2 text-sm text-gray-700 mt-4">
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+        />
+        노출 (홈페이지에 표시)
+      </label>
       <button
         onClick={handleSave}
         disabled={pending}
@@ -93,13 +104,41 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
   );
 }
 
+function AddTicketButton({ category, nextSortOrder }: { category: string; nextSortOrder: number }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createTicket(category, nextSortOrder);
+      router.refresh();
+    });
+  }
+
+  return (
+    <button
+      onClick={handleAdd}
+      disabled={pending}
+      className="w-full px-6 py-3 bg-white border-2 border-dashed border-gray-300 text-gray-600 font-semibold !rounded-button hover:border-primary hover:text-primary transition-all disabled:opacity-50 cursor-pointer"
+    >
+      {pending ? '추가 중...' : '+ 새 놀이기구 추가'}
+    </button>
+  );
+}
+
 export default function TicketEditor({
   tickets,
   showUsageHours = false,
+  allowAdd = false,
+  category,
 }: {
   tickets: TicketType[];
   showUsageHours?: boolean;
+  allowAdd?: boolean;
+  category?: string;
 }) {
+  const nextSortOrder = Math.max(0, ...tickets.map((t) => t.sort_order)) + 1;
+
   return (
     <div className="space-y-4">
       {tickets.map((t) => (
@@ -107,6 +146,9 @@ export default function TicketEditor({
       ))}
       {tickets.length === 0 && (
         <p className="text-gray-500 bg-white rounded-xl p-6 shadow">항목이 없습니다.</p>
+      )}
+      {allowAdd && category && (
+        <AddTicketButton category={category} nextSortOrder={nextSortOrder} />
       )}
     </div>
   );

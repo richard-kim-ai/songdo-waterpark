@@ -63,6 +63,7 @@ export default function Pricing({
           <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
 
+        {general.length > 0 && (
         <div className="mb-16">
           <h3 className="text-2xl font-bold text-gray-900 mb-8">{poolSectionTitle}</h3>
           <p className="text-base text-gray-600 mb-6">{purchaseNotice}</p>
@@ -116,7 +117,9 @@ export default function Pricing({
             </div>
           </div>
         </div>
+        )}
 
+        {family.length > 0 && (
         <div className="mb-16">
           <h3 className="text-2xl font-bold text-gray-900 mb-8">{familySectionTitle}</h3>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -167,6 +170,7 @@ export default function Pricing({
             })}
           </div>
         </div>
+        )}
 
         <div className="bg-gradient-to-r from-primary to-secondary rounded-xl shadow-xl p-8 text-center text-white">
           <div className="w-20 h-20 flex items-center justify-center bg-white/20 rounded-full mx-auto mb-6">

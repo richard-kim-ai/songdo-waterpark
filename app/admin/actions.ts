@@ -19,6 +19,7 @@ export async function upsertTicket(
     price: number;
     purchase_url: string | null;
     usage_hours: string | null;
+    is_active: boolean;
   }
 ) {
   const { supabase } = await requireAdmin();
@@ -31,6 +32,7 @@ export async function upsertTicket(
       price: data.price,
       purchase_url: data.purchase_url || null,
       usage_hours: data.usage_hours || null,
+      is_active: data.is_active,
     })
     .eq('id', id);
 
@@ -38,6 +40,26 @@ export async function upsertTicket(
 
   revalidateSite();
   revalidatePath('/admin/tickets');
+  revalidatePath('/admin/facilities');
+}
+
+export async function createTicket(category: string, sortOrder: number) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.from('ticket_types').insert({
+    category,
+    name: '새 놀이기구',
+    description: '',
+    price: 0,
+    purchase_url: null,
+    usage_hours: '',
+    is_active: true,
+    sort_order: sortOrder,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
   revalidatePath('/admin/facilities');
 }
 

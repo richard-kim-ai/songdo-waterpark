@@ -11,6 +11,7 @@ export type Database = {
           purchase_url: string | null;
           usage_hours: string | null;
           sort_order: number;
+          is_active: boolean;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['ticket_types']['Row']>;
