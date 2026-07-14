@@ -18,6 +18,10 @@ export default function FacilityLayout({
   tabCabanaLabel: string;
 }) {
   const [tab, setTab] = useState<'total' | 'cabana'>('total');
+  const [zoomed, setZoomed] = useState<{ url: string; alt: string } | null>(null);
+
+  const activeUrl = tab === 'total' ? masterUrl : cabanaUrl;
+  const activeAlt = tab === 'total' ? tabTotalLabel : tabCabanaLabel;
 
   return (
     <section id="layout" className="py-20 bg-white">
@@ -50,28 +54,49 @@ export default function FacilityLayout({
             </button>
           </div>
           <div className="p-8">
-            {tab === 'total' ? (
-              <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={masterUrl}
-                  alt={tabTotalLabel}
-                  className="w-full h-full object-cover object-top"
-                />
+            <button
+              type="button"
+              onClick={() => setZoomed({ url: activeUrl, alt: activeAlt })}
+              className="relative w-full bg-white rounded-lg overflow-hidden aspect-[1500/400] border border-gray-100 cursor-zoom-in group"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activeUrl}
+                alt={activeAlt}
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                <div className="w-10 h-10 flex items-center justify-center bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity">
+                  <i className="ri-zoom-in-line text-xl text-gray-700"></i>
+                </div>
               </div>
-            ) : (
-              <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={cabanaUrl}
-                  alt={tabCabanaLabel}
-                  className="w-full h-full object-cover object-top"
-                />
-              </div>
-            )}
+            </button>
           </div>
         </div>
       </div>
+
+      {zoomed && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 cursor-zoom-out"
+          onClick={() => setZoomed(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setZoomed(null)}
+            aria-label="닫기"
+            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center bg-white/90 rounded-full shadow hover:bg-white transition-colors cursor-pointer"
+          >
+            <i className="ri-close-line text-2xl"></i>
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomed.url}
+            alt={zoomed.alt}
+            className="max-w-full max-h-full object-contain rounded-lg cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </section>
   );
 }
