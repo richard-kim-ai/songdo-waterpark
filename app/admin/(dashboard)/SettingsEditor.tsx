@@ -17,6 +17,8 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
       { key: 'hero_subtitle', label: '메인 설명 문구 (제목 아래 작은 글씨)', multiline: true },
       { key: 'hero_cta_ticket_label', label: '입장권 버튼 문구' },
       { key: 'hero_cta_cabana_label', label: '케노피 버튼 문구' },
+      { key: 'hero_cta_camping_label', label: '캠핑장 예약 버튼 문구' },
+      { key: 'hero_cta_camping_url', label: '캠핑장 예약 버튼 연결 URL' },
     ],
   },
   {

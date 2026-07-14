@@ -103,6 +103,8 @@ export default async function Home() {
           subtitle={settings.hero_subtitle ?? ''}
           ctaTicketLabel={settings.hero_cta_ticket_label ?? ''}
           ctaCabanaLabel={settings.hero_cta_cabana_label ?? ''}
+          ctaCampingLabel={settings.hero_cta_camping_label ?? ''}
+          ctaCampingUrl={settings.hero_cta_camping_url ?? ''}
         />
         <Pricing
           tickets={tickets}

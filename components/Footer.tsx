@@ -36,8 +36,10 @@ export default function Footer({
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-3 gap-12 mb-12">
           <div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="송도국제캠핑장" className="h-24 w-auto mb-6" />
+            <Link href="/">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="송도국제캠핑장" className="h-24 w-auto mb-6 cursor-pointer" />
+            </Link>
             <p className="text-gray-400 leading-relaxed">{tagline}</p>
           </div>
           <div>

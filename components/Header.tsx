@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 export type NavLabels = {
   pricing: string;
@@ -31,8 +32,10 @@ export default function Header({
     <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-sm z-50">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="송도국제캠핑장" className="h-16 w-auto" />
+          <Link href="/">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt="송도국제캠핑장" className="h-16 w-auto cursor-pointer" />
+          </Link>
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
               <a
