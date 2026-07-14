@@ -125,11 +125,10 @@ export default async function Home() {
           tickets={tickets}
           trainUrl={siteImages.train}
           carUrl={siteImages.car}
+          squirrelTubUrl={siteImages.squirrel_tub}
           sectionTitle={settings.facilities_title ?? ''}
           sectionSubtitle={settings.facilities_subtitle ?? ''}
-          packageDesc={settings.facilities_package_desc ?? ''}
           rideButtonLabel={settings.facilities_ride_button_label ?? ''}
-          packageButtonLabel={settings.facilities_package_button_label ?? ''}
         />
         <Cabana
           zones={zones}

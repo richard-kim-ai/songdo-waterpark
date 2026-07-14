@@ -50,10 +50,8 @@ function LabelField({
 
 export default function FacilitiesButtonLabels({
   rideButtonLabel,
-  packageButtonLabel,
 }: {
   rideButtonLabel: string;
-  packageButtonLabel: string;
 }) {
   return (
     <div className="mt-10">
@@ -61,13 +59,8 @@ export default function FacilitiesButtonLabels({
       <div className="space-y-4">
         <LabelField
           settingKey="facilities_ride_button_label"
-          label="개별 놀이기구 구매 버튼 명칭"
+          label="놀이기구 구매 버튼 명칭"
           initialValue={rideButtonLabel}
-        />
-        <LabelField
-          settingKey="facilities_package_button_label"
-          label="패키지 구매 버튼 명칭"
-          initialValue={packageButtonLabel}
         />
       </div>
     </div>

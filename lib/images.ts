@@ -36,6 +36,7 @@ export const SITE_IMAGE_KEYS = [
   'safety_rules',
   'map',
   'parking_info',
+  'squirrel_tub',
 ] as const;
 
 export type SiteImageKey = (typeof SITE_IMAGE_KEYS)[number];
@@ -57,6 +58,7 @@ export const SITE_IMAGE_DEFAULT_PATH: Record<SiteImageKey, string> = {
   safety_rules: 'safety-rules.jpeg',
   map: 'map-placeholder.png',
   parking_info: '',
+  squirrel_tub: '',
 };
 
 export const SITE_IMAGE_LABEL: Record<SiteImageKey, string> = {
@@ -69,6 +71,7 @@ export const SITE_IMAGE_LABEL: Record<SiteImageKey, string> = {
   safety_rules: '안전수칙 이미지',
   map: '오시는 길 지도',
   parking_info: '주차 안내 이미지',
+  squirrel_tub: '다람쥐통 이미지',
 };
 
 export type SiteImages = Record<SiteImageKey, string>;
