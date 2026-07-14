@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { updateSiteImage } from '@/app/admin/actions';
 import { useResizingFormAction } from '@/lib/admin/useResizingFormAction';
 import {
@@ -13,6 +14,7 @@ import {
 function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; currentUrl: string }) {
   const action = updateSiteImage.bind(null, siteImageSettingKey(imageKey));
   const { pending, onSubmit } = useResizingFormAction(action, { reset: true });
+  const [dimensions, setDimensions] = useState<string | null>(null);
 
   return (
     <form
@@ -24,6 +26,10 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
         <img
           src={currentUrl}
           alt={SITE_IMAGE_LABEL[imageKey]}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            setDimensions(`${img.naturalWidth} × ${img.naturalHeight}px`);
+          }}
           className="w-40 h-28 object-contain rounded-lg border border-gray-200 bg-gray-50 shrink-0"
         />
       ) : (
@@ -33,7 +39,10 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
       )}
       <div className="flex-1">
         <h3 className="font-bold text-gray-900 mb-1">{SITE_IMAGE_LABEL[imageKey]}</h3>
-        <p className="text-xs text-gray-400 mb-3">{imageKey}</p>
+        <p className="text-xs text-gray-400 mb-3">
+          {imageKey}
+          {dimensions && ` · ${dimensions}`}
+        </p>
         <input
           type="file"
           name="image"

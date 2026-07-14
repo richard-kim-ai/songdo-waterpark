@@ -61,11 +61,10 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
   },
   {
     title: '부속시설 섹션',
-    description: '구매 버튼 문구는 "부속시설 & 패키지" 메뉴에서 수정합니다.',
+    description: '구매 버튼 문구는 "부속시설 관리" 메뉴에서 수정합니다.',
     fields: [
       { key: 'facilities_title', label: '섹션 제목' },
       { key: 'facilities_subtitle', label: '섹션 설명' },
-      { key: 'facilities_package_desc', label: '패키지 카드 설명 문구' },
     ],
   },
   {

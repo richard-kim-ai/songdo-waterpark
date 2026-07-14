@@ -7,7 +7,7 @@ import { signOutAdmin } from '@/app/admin/actions';
 const MENU = [
   { href: '/admin/popups', icon: 'ri-megaphone-line', label: '팝업 생성 관리' },
   { href: '/admin/tickets', icon: 'ri-ticket-line', label: '입장권 및 링크 관리' },
-  { href: '/admin/facilities', icon: 'ri-rollercoaster-line', label: '부속시설 & 패키지' },
+  { href: '/admin/facilities', icon: 'ri-rollercoaster-line', label: '부속시설 관리' },
   { href: '/admin/cabana', icon: 'ri-home-heart-line', label: '케노피 금액 수정' },
   { href: '/admin/gallery', icon: 'ri-image-line', label: '포토갤러리 관리' },
   { href: '/admin/site-images', icon: 'ri-image-add-line', label: '그외 이미지 관리' },
