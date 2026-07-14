@@ -6,12 +6,16 @@ export default function Hero({
   subtitle,
   ctaTicketLabel,
   ctaCabanaLabel,
+  ctaCampingLabel,
+  ctaCampingUrl,
 }: {
   heroUrl: string;
   title: string;
   subtitle: string;
   ctaTicketLabel: string;
   ctaCabanaLabel: string;
+  ctaCampingLabel: string;
+  ctaCampingUrl: string;
 }) {
   return (
     <section
@@ -40,6 +44,20 @@ export default function Hero({
             >
               {ctaCabanaLabel}
             </a>
+            {ctaCampingUrl ? (
+              <a
+                href={ctaCampingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-8 py-4 bg-gray-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+              >
+                {ctaCampingLabel}
+              </a>
+            ) : (
+              <button className="px-8 py-4 bg-gray-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
+                {ctaCampingLabel}
+              </button>
+            )}
           </div>
         </div>
       </div>
