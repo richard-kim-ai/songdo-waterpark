@@ -15,7 +15,7 @@ export default async function CabanaAdminPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">케노피 금액 수정</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">케노피 판매 관리</h1>
       <CabanaEditor zones={zones ?? []} />
       <CabanaBookingUrl
         initialUrl={settings.cabana_booking_url ?? ''}
