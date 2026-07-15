@@ -89,6 +89,7 @@ export type Database = {
           image_path: string | null;
           link_url: string | null;
           is_active: boolean;
+          show_together: boolean;
           start_date: string | null;
           end_date: string | null;
           sort_order: number;
