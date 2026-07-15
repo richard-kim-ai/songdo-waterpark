@@ -5,7 +5,7 @@
 export type ResizeOptions = {
   /** 가로/세로 중 긴 변의 최대 픽셀 (기본 1600) */
   maxDimension?: number;
-  /** JPEG 압축 품질 0~1 (기본 0.82) */
+  /** WebP/JPEG 압축 품질 0~1 (기본 0.82) */
   quality?: number;
 };
 
@@ -15,7 +15,7 @@ const SKIP_TYPES = new Set(['image/svg+xml', 'image/gif']);
 /**
  * 이미지 파일을 웹용 크기로 리사이즈/압축한 새 File을 반환.
  * - 긴 변이 maxDimension을 넘으면 비율 유지 축소
- * - PNG는 투명도 보존을 위해 PNG로, 그 외는 JPEG로 인코딩
+ * - 기본은 WebP(투명도 보존 + 고압축), 미지원 브라우저는 PNG/JPEG로 폴백
  * - 디코딩 실패(예: HEIC 미지원)나 결과가 더 크면 원본을 그대로 반환
  */
 export async function resizeImageFile(file: File, opts: ResizeOptions = {}): Promise<File> {
@@ -45,17 +45,27 @@ export async function resizeImageFile(file: File, opts: ResizeOptions = {}): Pro
     ctx.drawImage(bitmap, 0, 0, width, height);
     bitmap.close?.();
 
-    const isPng = file.type === 'image/png';
-    const outType = isPng ? 'image/png' : 'image/jpeg';
-
-    const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob((b) => resolve(b), outType, isPng ? undefined : quality)
+    // 우선 WebP로 인코딩(투명도 지원 + JPEG/PNG 대비 용량 절감).
+    // 미지원 브라우저는 toBlob이 PNG로 폴백하므로 결과 타입을 확인해 걸러냄.
+    let blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/webp', quality)
     );
+    let outType = 'image/webp';
+    let ext = 'webp';
+
+    if (!blob || blob.type !== 'image/webp') {
+      const isPng = file.type === 'image/png';
+      outType = isPng ? 'image/png' : 'image/jpeg';
+      ext = isPng ? 'png' : 'jpg';
+      blob = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), outType, isPng ? undefined : quality)
+      );
+    }
+
     if (!blob || blob.size >= file.size) {
       return file; // 인코딩 실패 또는 원본이 더 작으면 원본 사용
     }
 
-    const ext = isPng ? 'png' : 'jpg';
     const baseName = file.name.replace(/\.[^.]+$/, '') || 'image';
     return new File([blob], `${baseName}.${ext}`, {
       type: outType,
