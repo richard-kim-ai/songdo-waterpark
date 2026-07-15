@@ -91,6 +91,10 @@ function PopupRow({ popup }: { popup: Popup }) {
             <input type="checkbox" name="is_active" defaultChecked={popup.is_active} />
             활성화 (홈페이지에 노출)
           </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" name="show_together" defaultChecked={popup.show_together} />
+            동시 노출 (PC에서 다른 팝업과 나란히 표시, 모바일은 순차 노출)
+          </label>
         </div>
       </div>
       <div className="flex gap-3">
@@ -178,6 +182,10 @@ export default function PopupManager({ popups }: { popups: Popup[] }) {
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" name="is_active" defaultChecked />
             활성화 (홈페이지에 노출)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" name="show_together" />
+            동시 노출 (PC에서 다른 팝업과 나란히 표시, 모바일은 순차 노출)
           </label>
           <div className="md:col-span-2">
             <button

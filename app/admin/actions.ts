@@ -128,6 +128,7 @@ export async function createPopup(formData: FormData) {
   const title = String(formData.get('title') ?? '');
   const linkUrl = String(formData.get('link_url') ?? '') || null;
   const isActive = formData.get('is_active') === 'on';
+  const showTogether = formData.get('show_together') === 'on';
   const startDate = String(formData.get('start_date') ?? '') || null;
   const endDate = String(formData.get('end_date') ?? '') || null;
   const sortOrder = Number(formData.get('sort_order') ?? 0);
@@ -142,6 +143,7 @@ export async function createPopup(formData: FormData) {
     title,
     link_url: linkUrl,
     is_active: isActive,
+    show_together: showTogether,
     start_date: startDate,
     end_date: endDate,
     sort_order: sortOrder,
@@ -160,6 +162,7 @@ export async function updatePopup(id: string, formData: FormData) {
   const title = String(formData.get('title') ?? '');
   const linkUrl = String(formData.get('link_url') ?? '') || null;
   const isActive = formData.get('is_active') === 'on';
+  const showTogether = formData.get('show_together') === 'on';
   const startDate = String(formData.get('start_date') ?? '') || null;
   const endDate = String(formData.get('end_date') ?? '') || null;
   const sortOrder = Number(formData.get('sort_order') ?? 0);
@@ -169,6 +172,7 @@ export async function updatePopup(id: string, formData: FormData) {
     title,
     link_url: linkUrl,
     is_active: isActive,
+    show_together: showTogether,
     start_date: startDate,
     end_date: endDate,
     sort_order: sortOrder,
