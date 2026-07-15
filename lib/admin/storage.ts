@@ -13,6 +13,8 @@ export async function uploadImage(
 
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type,
+    // 파일명이 UUID라 내용이 바뀌면 경로도 바뀜(불변) → 1년 캐시로 재방문 트래픽 절감
+    cacheControl: '31536000',
   });
 
   if (error) {
