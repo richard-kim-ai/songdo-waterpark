@@ -34,11 +34,23 @@ function useIsDesktop() {
   return isDesktop;
 }
 
-function PopupCard({ popup, onClose }: { popup: Popup; onClose: (dontShowToday: boolean) => void }) {
+function PopupCard({
+  popup,
+  onClose,
+  compact,
+}: {
+  popup: Popup;
+  onClose: (dontShowToday: boolean) => void;
+  compact?: boolean;
+}) {
   const [dontShowToday, setDontShowToday] = useState(false);
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div
+      className={`bg-white rounded-xl shadow-2xl overflow-hidden ${
+        compact ? 'w-[22rem]' : 'w-full max-w-md'
+      }`}
+    >
       <div className="relative">
         {popup.image_path &&
           (popup.link_url ? (
@@ -115,11 +127,12 @@ export default function PopupModal({ popups }: { popups: Popup[] }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className={showTogether ? 'flex flex-wrap justify-center gap-6' : ''}>
+      <div className={showTogether ? 'flex flex-row flex-nowrap justify-start gap-6' : ''}>
         {visiblePopups.map((popup) => (
           <PopupCard
             key={popup.id}
             popup={popup}
+            compact={showTogether}
             onClose={(dontShowToday) => handleClose(popup.id, dontShowToday)}
           />
         ))}
