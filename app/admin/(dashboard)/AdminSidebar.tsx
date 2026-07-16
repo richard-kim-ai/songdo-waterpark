@@ -12,6 +12,7 @@ const MENU = [
   { href: '/admin/gallery', icon: 'ri-image-line', label: '포토갤러리 관리' },
   { href: '/admin/site-images', icon: 'ri-image-add-line', label: '그외 이미지 관리' },
   { href: '/admin/copy', icon: 'ri-edit-2-line', label: '카피 수정' },
+  { href: '/admin/usage', icon: 'ri-dashboard-line', label: '사용량 & 트래픽' },
 ];
 
 export default function AdminSidebar({ logoUrl }: { logoUrl: string }) {

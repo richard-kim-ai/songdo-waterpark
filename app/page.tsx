@@ -16,6 +16,7 @@ import Footer from '@/components/Footer';
 import MobileNav from '@/components/MobileNav';
 import PopupModal from '@/components/PopupModal';
 import ScrollToTop from '@/components/ScrollToTop';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 import { resolveSiteImages } from '@/lib/images';
 import type { Database } from '@/types/database';
 
@@ -131,6 +132,7 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <GoogleAnalytics measurementId={settings.ga_measurement_id ?? ''} />
       <PopupModal popups={popups} />
       <Header
         logoUrl={siteImages.logo}
