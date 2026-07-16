@@ -1,4 +1,7 @@
+import { cache } from 'react';
+import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from '@/lib/site';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import Pricing from '@/components/Pricing';
@@ -23,7 +26,8 @@ type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 type Popup = Database['public']['Tables']['popups']['Row'];
 type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
 
-async function getData() {
+// generateMetadata와 페이지 렌더가 같은 요청 내에서 DB를 한 번만 조회하도록 캐시.
+const getData = cache(async function getData() {
   // Supabase 환경변수가 아직 설정되지 않았다면 빈 배열을 반환합니다.
   // (개발 초기 단계에서도 npm run dev가 에러 없이 동작하도록 하는 안전장치)
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -68,6 +72,17 @@ async function getData() {
     popups: popups ?? [],
     galleryImages: galleryImages ?? [],
   };
+});
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { settings } = await getData();
+  const siteImages = resolveSiteImages(settings);
+  const ogImage = siteImages.hero || siteImages.logo;
+
+  return {
+    openGraph: ogImage ? { images: [{ url: ogImage, width: 1200, height: 630, alt: SITE_NAME }] } : {},
+    twitter: ogImage ? { images: [ogImage] } : {},
+  };
 }
 
 const FAQ_ITEM_COUNT = 5;
@@ -83,8 +98,39 @@ export default async function Home() {
     };
   });
 
+  // 구글 리치 결과용 구조화 데이터(schema.org) — 지역 물놀이 시설 정보
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'AmusementPark',
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    image: siteImages.hero || siteImages.logo || undefined,
+    ...(settings.footer_phone ? { telephone: settings.footer_phone } : {}),
+    ...(settings.footer_email ? { email: settings.footer_email } : {}),
+    ...(settings.footer_address
+      ? {
+          address: {
+            '@type': 'PostalAddress',
+            addressCountry: 'KR',
+            addressLocality: '인천광역시',
+            streetAddress: settings.footer_address,
+          },
+        }
+      : {}),
+    ...(settings.pool_weekday_hours
+      ? {
+          openingHours: `Mo-Su ${settings.pool_weekday_hours.replace(/\s*~\s*/, '-')}`,
+        }
+      : {}),
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <PopupModal popups={popups} />
       <Header
         logoUrl={siteImages.logo}
