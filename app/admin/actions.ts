@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/admin/auth';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadImage, removeImage } from '@/lib/admin/storage';
 import type { Database } from '@/types/database';
 
@@ -255,6 +256,38 @@ export async function deleteGalleryImage(id: string, imagePath: string) {
 
   revalidateSite();
   revalidatePath('/admin/gallery');
+}
+
+// ---------- 고객 게시판(문의) ----------
+export async function replyInquiry(id: string, reply: string) {
+  await requireAdmin();
+  // inquiries는 RLS 전면 차단 → 서비스롤로 접근
+  const admin = createAdminClient();
+
+  const trimmed = reply.trim();
+  const { error } = await admin
+    .from('inquiries')
+    .update({
+      reply: trimmed || null,
+      replied_at: trimmed ? new Date().toISOString() : null,
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/inquiries');
+}
+
+export async function deleteInquiry(id: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin.from('inquiries').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/inquiries');
 }
 
 // ---------- 인증 ----------

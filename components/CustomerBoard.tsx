@@ -1,0 +1,298 @@
+'use client';
+
+import { useEffect, useState, useTransition } from 'react';
+import {
+  listInquiries,
+  createInquiry,
+  viewInquiry,
+  type InquiryListItem,
+  type InquiryDetail,
+} from '@/app/board/actions';
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(
+    d.getDate()
+  ).padStart(2, '0')}`;
+}
+
+export default function CustomerBoard() {
+  const [posts, setPosts] = useState<InquiryListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showWrite, setShowWrite] = useState(false);
+  const [viewTarget, setViewTarget] = useState<InquiryListItem | null>(null);
+
+  async function refresh() {
+    setLoading(true);
+    setPosts(await listInquiries());
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  return (
+    <section id="board" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="text-center mb-10">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">고객 게시판</h2>
+          <p className="text-lg text-gray-600">
+            궁금한 점을 남겨주시면 확인 후 답변드립니다. (비밀글 · 작성 시 정한 아이디와
+            비밀번호로 답변을 확인하세요)
+          </p>
+        </div>
+
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setShowWrite(true)}
+            className="px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+          >
+            <i className="ri-pencil-line mr-1"></i> 문의 작성
+          </button>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-6 py-4 bg-gray-50 border-b text-sm font-bold text-gray-600">
+            <span>게시자 아이디</span>
+            <span className="w-24 text-center">작성일</span>
+            <span className="w-20 text-center">상태</span>
+          </div>
+
+          {loading ? (
+            <p className="px-6 py-10 text-center text-gray-400">불러오는 중...</p>
+          ) : posts.length === 0 ? (
+            <p className="px-6 py-10 text-center text-gray-400">
+              등록된 문의가 없습니다. 첫 문의를 남겨보세요.
+            </p>
+          ) : (
+            posts.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setViewTarget(p)}
+                className="w-full grid grid-cols-[1fr_auto_auto] gap-4 px-6 py-4 border-b last:border-b-0 items-center text-left hover:bg-blue-50/40 transition-colors cursor-pointer"
+              >
+                <span className="flex items-center gap-2 font-medium text-gray-900 min-w-0">
+                  <i className="ri-lock-line text-gray-400 shrink-0"></i>
+                  <span className="truncate">{p.author_id}</span>
+                </span>
+                <span className="w-24 text-center text-sm text-gray-500">
+                  {formatDate(p.created_at)}
+                </span>
+                <span className="w-20 text-center">
+                  {p.is_answered ? (
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                      답변완료
+                    </span>
+                  ) : (
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+                      답변대기
+                    </span>
+                  )}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {showWrite && (
+        <WriteModal
+          onClose={() => setShowWrite(false)}
+          onDone={() => {
+            setShowWrite(false);
+            refresh();
+          }}
+        />
+      )}
+      {viewTarget && <ViewModal target={viewTarget} onClose={() => setViewTarget(null)} />}
+    </section>
+  );
+}
+
+function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [authorId, setAuthorId] = useState('');
+  const [password, setPassword] = useState('');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [error, setError] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit() {
+    setError('');
+    startTransition(async () => {
+      const res = await createInquiry({ authorId, password, title, content });
+      if (res.ok) {
+        onDone();
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="font-bold text-lg text-gray-900">문의 작성 (비밀글)</h3>
+          <button onClick={onClose} aria-label="닫기" className="cursor-pointer">
+            <i className="ri-close-line text-2xl text-gray-500"></i>
+          </button>
+        </div>
+        <div className="p-6 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">아이디</label>
+              <input
+                value={authorId}
+                onChange={(e) => setAuthorId(e.target.value)}
+                maxLength={20}
+                placeholder="표시될 아이디"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">비밀번호</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                maxLength={100}
+                placeholder="답변 확인용 (4자 이상)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">제목</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={100}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">내용</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={5}
+              maxLength={2000}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            제목·내용은 비공개이며, 목록에는 아이디만 표시됩니다. 답변은 작성한 아이디와
+            비밀번호로 확인할 수 있으니 비밀번호를 기억해주세요.
+          </p>
+          {error && <p className="text-sm text-red-600 font-semibold">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 text-gray-600 font-semibold !rounded-button hover:bg-gray-100 transition-all cursor-pointer"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={pending}
+            className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {pending ? '등록 중...' : '등록'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewModal({ target, onClose }: { target: InquiryListItem; onClose: () => void }) {
+  const [password, setPassword] = useState('');
+  const [detail, setDetail] = useState<InquiryDetail | null>(null);
+  const [error, setError] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  function handleVerify() {
+    setError('');
+    startTransition(async () => {
+      const res = await viewInquiry(target.id, password);
+      if (res.ok) {
+        setDetail(res.data);
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="font-bold text-lg text-gray-900">
+            <i className="ri-lock-line mr-1 text-gray-400"></i>
+            {target.author_id} 님의 문의
+          </h3>
+          <button onClick={onClose} aria-label="닫기" className="cursor-pointer">
+            <i className="ri-close-line text-2xl text-gray-500"></i>
+          </button>
+        </div>
+
+        {!detail ? (
+          <div className="p-6 space-y-3">
+            <p className="text-sm text-gray-600">
+              비밀글입니다. 작성 시 설정한 비밀번호를 입력하면 내용과 답변을 확인할 수 있습니다.
+            </p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
+              placeholder="비밀번호"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {error && <p className="text-sm text-red-600 font-semibold">{error}</p>}
+            <button
+              onClick={handleVerify}
+              disabled={pending}
+              className="w-full px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {pending ? '확인 중...' : '확인'}
+            </button>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{formatDate(detail.created_at)}</p>
+              <h4 className="text-lg font-bold text-gray-900">{detail.title}</h4>
+              <p className="text-gray-700 whitespace-pre-wrap mt-2">{detail.content}</p>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-4">
+              <p className="text-sm font-bold text-primary mb-2">
+                <i className="ri-customer-service-2-line mr-1"></i> 관리자 답변
+              </p>
+              {detail.reply ? (
+                <p className="text-gray-700 whitespace-pre-wrap">{detail.reply}</p>
+              ) : (
+                <p className="text-gray-400">아직 답변이 등록되지 않았습니다.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
