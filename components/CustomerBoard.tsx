@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { publicUrl } from '@/lib/images';
+import { resizeImageFile } from '@/lib/admin/resizeImage';
 import {
   listInquiries,
   createInquiry,
@@ -8,6 +10,10 @@ import {
   type InquiryListItem,
   type InquiryDetail,
 } from '@/app/board/actions';
+
+const MAX_IMAGES = 3;
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 원본 10MB 제한
+const MAX_TOTAL_UPLOAD = 4 * 1024 * 1024; // 압축 후 전송 합계 안전 한도
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -53,10 +59,11 @@ export default function CustomerBoard() {
         </div>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-6 py-4 bg-gray-50 border-b text-sm font-bold text-gray-600">
-            <span>게시자 아이디</span>
-            <span className="w-24 text-center">작성일</span>
-            <span className="w-20 text-center">상태</span>
+          <div className="grid grid-cols-[6rem_1fr_5rem_4rem] sm:grid-cols-[8rem_1fr_6rem_5rem] gap-3 px-4 sm:px-6 py-4 bg-gray-50 border-b text-sm font-bold text-gray-600">
+            <span>아이디</span>
+            <span>제목</span>
+            <span className="text-center">작성일</span>
+            <span className="text-center">상태</span>
           </div>
 
           {loading ? (
@@ -70,16 +77,15 @@ export default function CustomerBoard() {
               <button
                 key={p.id}
                 onClick={() => setViewTarget(p)}
-                className="w-full grid grid-cols-[1fr_auto_auto] gap-4 px-6 py-4 border-b last:border-b-0 items-center text-left hover:bg-blue-50/40 transition-colors cursor-pointer"
+                className="w-full grid grid-cols-[6rem_1fr_5rem_4rem] sm:grid-cols-[8rem_1fr_6rem_5rem] gap-3 px-4 sm:px-6 py-4 border-b last:border-b-0 items-center text-left hover:bg-blue-50/40 transition-colors cursor-pointer"
               >
-                <span className="flex items-center gap-2 font-medium text-gray-900 min-w-0">
+                <span className="font-medium text-gray-900 truncate">{p.author_id}</span>
+                <span className="flex items-center gap-2 text-gray-700 min-w-0">
                   <i className="ri-lock-line text-gray-400 shrink-0"></i>
-                  <span className="truncate">{p.author_id}</span>
+                  <span className="truncate">{p.title}</span>
                 </span>
-                <span className="w-24 text-center text-sm text-gray-500">
-                  {formatDate(p.created_at)}
-                </span>
-                <span className="w-20 text-center">
+                <span className="text-center text-sm text-gray-500">{formatDate(p.created_at)}</span>
+                <span className="text-center">
                   {p.is_answered ? (
                     <span className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
                       답변완료
@@ -115,13 +121,55 @@ function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
   const [password, setPassword] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [images, setImages] = useState<File[]>([]);
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
+
+  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    setError('');
+    const selected = Array.from(e.target.files ?? []);
+    e.target.value = ''; // 같은 파일 재선택 허용
+    const merged = [...images];
+    for (const f of selected) {
+      if (merged.length >= MAX_IMAGES) {
+        setError('이미지는 최대 3장까지 첨부할 수 있습니다.');
+        break;
+      }
+      if (f.size > MAX_FILE_BYTES) {
+        setError('이미지는 장당 10MB 이하만 업로드할 수 있습니다.');
+        continue;
+      }
+      merged.push(f);
+    }
+    setImages(merged.slice(0, MAX_IMAGES));
+  }
+
+  function removeImage(idx: number) {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   function handleSubmit() {
     setError('');
     startTransition(async () => {
-      const res = await createInquiry({ authorId, password, title, content });
+      // 기존 이미지 업로드와 동일한 압축(리사이즈→WebP) 적용
+      const compressed: File[] = [];
+      for (const f of images) {
+        compressed.push(await resizeImageFile(f));
+      }
+      const total = compressed.reduce((sum, f) => sum + f.size, 0);
+      if (total > MAX_TOTAL_UPLOAD) {
+        setError('첨부 이미지 용량이 큽니다. 사진 수를 줄이거나 더 작은 이미지를 사용해주세요.');
+        return;
+      }
+
+      const fd = new FormData();
+      fd.set('authorId', authorId);
+      fd.set('password', password);
+      fd.set('title', title);
+      fd.set('content', content);
+      compressed.forEach((f) => fd.append('images', f));
+
+      const res = await createInquiry(fd);
       if (res.ok) {
         onDone();
       } else {
@@ -136,16 +184,16 @@ function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h3 className="font-bold text-lg text-gray-900">문의 작성 (비밀글)</h3>
           <button onClick={onClose} aria-label="닫기" className="cursor-pointer">
             <i className="ri-close-line text-2xl text-gray-500"></i>
           </button>
         </div>
-        <div className="p-6 space-y-3">
+        <div className="p-6 space-y-3 overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">아이디</label>
@@ -188,13 +236,49 @@ function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              사진 첨부 (최대 3장 · 장당 10MB 이하)
+            </label>
+            {images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {images.map((f, i) => (
+                  <div key={i} className="relative w-20 h-20">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={URL.createObjectURL(f)}
+                      alt={`첨부 ${i + 1}`}
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      aria-label="삭제"
+                      className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center bg-gray-800 text-white rounded-full text-xs cursor-pointer"
+                    >
+                      <i className="ri-close-line"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {images.length < MAX_IMAGES && (
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFiles}
+                className="block text-sm text-gray-600"
+              />
+            )}
+          </div>
           <p className="text-xs text-gray-500">
-            제목·내용은 비공개이며, 목록에는 아이디만 표시됩니다. 답변은 작성한 아이디와
+            내용·사진은 비공개이며, 목록에는 아이디와 제목만 표시됩니다. 답변은 작성한 아이디와
             비밀번호로 확인할 수 있으니 비밀번호를 기억해주세요.
           </p>
           {error && <p className="text-sm text-red-600 font-semibold">{error}</p>}
         </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 text-gray-600 font-semibold !rounded-button hover:bg-gray-100 transition-all cursor-pointer"
@@ -242,11 +326,11 @@ function ViewModal({ target, onClose }: { target: InquiryListItem; onClose: () =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h3 className="font-bold text-lg text-gray-900">
+          <h3 className="font-bold text-lg text-gray-900 truncate">
             <i className="ri-lock-line mr-1 text-gray-400"></i>
-            {target.author_id} 님의 문의
+            {target.title}
           </h3>
-          <button onClick={onClose} aria-label="닫기" className="cursor-pointer">
+          <button onClick={onClose} aria-label="닫기" className="cursor-pointer shrink-0">
             <i className="ri-close-line text-2xl text-gray-500"></i>
           </button>
         </div>
@@ -276,10 +360,26 @@ function ViewModal({ target, onClose }: { target: InquiryListItem; onClose: () =
         ) : (
           <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
-              <p className="text-xs text-gray-400 mb-1">{formatDate(detail.created_at)}</p>
+              <p className="text-xs text-gray-400 mb-1">
+                {detail.author_id} · {formatDate(detail.created_at)}
+              </p>
               <h4 className="text-lg font-bold text-gray-900">{detail.title}</h4>
               <p className="text-gray-700 whitespace-pre-wrap mt-2">{detail.content}</p>
             </div>
+            {detail.image_paths.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {detail.image_paths.map((path, i) => (
+                  <a key={i} href={publicUrl(path)} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={publicUrl(path)}
+                      alt={`첨부 ${i + 1}`}
+                      className="w-full aspect-square object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm font-bold text-primary mb-2">
                 <i className="ri-customer-service-2-line mr-1"></i> 관리자 답변
