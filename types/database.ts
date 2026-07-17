@@ -111,6 +111,21 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['gallery_images']['Row']>;
         Relationships: [];
       };
+      inquiries: {
+        Row: {
+          id: string;
+          author_id: string;
+          password_hash: string;
+          title: string;
+          content: string;
+          reply: string | null;
+          replied_at: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['inquiries']['Row']>;
+        Update: Partial<Database['public']['Tables']['inquiries']['Row']>;
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
     Functions: Record<never, never>;

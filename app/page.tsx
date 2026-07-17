@@ -17,6 +17,7 @@ import MobileNav from '@/components/MobileNav';
 import PopupModal from '@/components/PopupModal';
 import ScrollToTop from '@/components/ScrollToTop';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import CustomerBoard from '@/components/CustomerBoard';
 import { resolveSiteImages } from '@/lib/images';
 import type { Database } from '@/types/database';
 
@@ -222,6 +223,7 @@ export default async function Home() {
           subtitle={settings.faq_subtitle ?? ''}
           items={faqItems}
         />
+        <CustomerBoard />
       </main>
       <Footer
         logoUrl={siteImages.logo}
