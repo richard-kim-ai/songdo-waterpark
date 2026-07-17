@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { replyInquiry, deleteInquiry } from '@/app/admin/actions';
+import { publicUrl } from '@/lib/images';
 import type { Database } from '@/types/database';
 
 type Inquiry = Database['public']['Tables']['inquiries']['Row'];
@@ -57,9 +58,23 @@ function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
       </div>
 
       <h3 className="font-bold text-gray-900 mb-1">{inquiry.title}</h3>
-      <p className="text-gray-700 whitespace-pre-wrap mb-4 bg-gray-50 rounded-lg p-3">
+      <p className="text-gray-700 whitespace-pre-wrap mb-3 bg-gray-50 rounded-lg p-3">
         {inquiry.content}
       </p>
+      {inquiry.image_paths?.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {inquiry.image_paths.map((path, i) => (
+            <a key={i} href={publicUrl(path)} target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={publicUrl(path)}
+                alt={`첨부 ${i + 1}`}
+                className="w-24 h-24 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+              />
+            </a>
+          ))}
+        </div>
+      )}
 
       <label className="block text-xs font-semibold text-gray-600 mb-1">답변</label>
       <textarea

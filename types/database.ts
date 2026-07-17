@@ -118,6 +118,7 @@ export type Database = {
           password_hash: string;
           title: string;
           content: string;
+          image_paths: string[];
           reply: string | null;
           replied_at: string | null;
           created_at: string;
