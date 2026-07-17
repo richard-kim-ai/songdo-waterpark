@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // ⚠️ 본인의 Supabase 프로젝트 URL과 Anon Key로 변경하세요.
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project-id.supabase.co";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://nhduqqzplmglnfhuxbne.supabase.co";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oZHVxcXpwbG1nbG5maHV4Ym5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTcwMDksImV4cCI6MjA5ODgzMzAwOX0.AAb4OG77vQZHpcibKmxmUMZo7i2xftcLRpoLdfZj6JQ";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
