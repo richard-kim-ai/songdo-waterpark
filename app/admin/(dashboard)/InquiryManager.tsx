@@ -17,7 +17,15 @@ function formatDateTime(iso: string) {
   )}`;
 }
 
-function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
+function InquiryRow({
+  inquiry,
+  expanded,
+  onToggle,
+}: {
+  inquiry: Inquiry;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const [reply, setReply] = useState(inquiry.reply ?? '');
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -39,11 +47,15 @@ function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-gray-900">{inquiry.author_id}</span>
-          <span className="text-xs text-gray-400">{formatDateTime(inquiry.created_at)}</span>
+    <div className="bg-white rounded-xl shadow overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full grid grid-cols-[6rem_1fr_9rem_5rem] gap-3 px-6 py-4 items-center text-left hover:bg-gray-50 transition-colors cursor-pointer"
+      >
+        <span className="font-bold text-gray-900 truncate">{inquiry.author_id}</span>
+        <span className="text-gray-700 truncate">{inquiry.title}</span>
+        <span className="text-xs text-gray-400 text-center">{formatDateTime(inquiry.created_at)}</span>
+        <span className="flex items-center justify-center gap-2">
           {inquiry.reply ? (
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
               답변완료
@@ -53,62 +65,83 @@ function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
               답변대기
             </span>
           )}
-        </div>
-        {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}
-      </div>
+          <i className={`ri-arrow-down-s-line text-xl text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}></i>
+        </span>
+      </button>
 
-      <h3 className="font-bold text-gray-900 mb-1">{inquiry.title}</h3>
-      <p className="text-gray-700 whitespace-pre-wrap mb-3 bg-gray-50 rounded-lg p-3">
-        {inquiry.content}
-      </p>
-      {inquiry.image_paths?.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {inquiry.image_paths.map((path, i) => (
-            <a key={i} href={publicUrl(path)} target="_blank" rel="noopener noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={publicUrl(path)}
-                alt={`첨부 ${i + 1}`}
-                className="w-24 h-24 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
-              />
-            </a>
-          ))}
+      {expanded && (
+        <div className="px-6 pb-6 pt-2 border-t border-gray-100">
+          <p className="text-gray-700 whitespace-pre-wrap mb-3 bg-gray-50 rounded-lg p-3">
+            {inquiry.content}
+          </p>
+          {inquiry.image_paths?.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {inquiry.image_paths.map((path, i) => (
+                <a key={i} href={publicUrl(path)} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={publicUrl(path)}
+                    alt={`첨부 ${i + 1}`}
+                    className="w-24 h-24 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-semibold text-gray-600">답변</label>
+            {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}
+          </div>
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            rows={3}
+            placeholder="답변을 입력하면 작성자가 아이디·비밀번호로 확인할 수 있습니다."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleSave}
+              disabled={pending}
+              className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {pending ? '저장 중...' : '답변 저장'}
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={pending}
+              className="px-6 py-2 bg-red-50 text-red-600 font-semibold !rounded-button hover:bg-red-100 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              삭제
+            </button>
+          </div>
         </div>
       )}
-
-      <label className="block text-xs font-semibold text-gray-600 mb-1">답변</label>
-      <textarea
-        value={reply}
-        onChange={(e) => setReply(e.target.value)}
-        rows={3}
-        placeholder="답변을 입력하면 작성자가 아이디·비밀번호로 확인할 수 있습니다."
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-      />
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={handleSave}
-          disabled={pending}
-          className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
-        >
-          {pending ? '저장 중...' : '답변 저장'}
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={pending}
-          className="px-6 py-2 bg-red-50 text-red-600 font-semibold !rounded-button hover:bg-red-100 transition-all disabled:opacity-50 cursor-pointer"
-        >
-          삭제
-        </button>
-      </div>
     </div>
   );
 }
 
 export default function InquiryManager({ inquiries }: { inquiries: Inquiry[] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   return (
     <div className="space-y-4">
+      {inquiries.length > 0 && (
+        <div className="grid grid-cols-[6rem_1fr_9rem_5rem] gap-3 px-6 py-2 text-xs font-bold text-gray-500">
+          <span>아이디</span>
+          <span>제목</span>
+          <span className="text-center">작성일시</span>
+          <span className="text-center">상태</span>
+        </div>
+      )}
       {inquiries.map((q) => (
-        <InquiryRow key={q.id} inquiry={q} />
+        <InquiryRow
+          key={q.id}
+          inquiry={q}
+          expanded={expandedId === q.id}
+          onToggle={() => setExpandedId((cur) => (cur === q.id ? null : q.id))}
+        />
       ))}
       {inquiries.length === 0 && (
         <p className="text-gray-500 bg-white rounded-xl p-6 shadow">등록된 문의가 없습니다.</p>

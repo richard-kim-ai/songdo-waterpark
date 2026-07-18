@@ -47,6 +47,8 @@ export async function createInquiry(
   const content = String(formData.get('content') ?? '').trim();
 
   if (!authorId || authorId.length > 20) return { ok: false, error: '아이디는 1~20자로 입력해주세요.' };
+  if (!/^[A-Za-z0-9]+$/.test(authorId))
+    return { ok: false, error: '아이디는 영문과 숫자만 사용할 수 있습니다.' };
   if (password.length < 4 || password.length > 100)
     return { ok: false, error: '비밀번호는 4자 이상 입력해주세요.' };
   if (!title || title.length > 100) return { ok: false, error: '제목은 1~100자로 입력해주세요.' };

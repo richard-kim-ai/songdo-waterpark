@@ -22,6 +22,12 @@ function formatDate(iso: string) {
   ).padStart(2, '0')}`;
 }
 
+// 목록·미확인 상태에서는 제목 앞 3글자만 보이고 나머지는 가려서 표시
+function maskTitle(title: string) {
+  if (title.length <= 3) return title;
+  return `${title.slice(0, 3)}***`;
+}
+
 export default function CustomerBoard({
   sectionTitle,
   sectionSubtitle,
@@ -85,7 +91,7 @@ export default function CustomerBoard({
                 <span className="font-medium text-gray-900 truncate">{p.author_id}</span>
                 <span className="flex items-center gap-2 text-gray-700 min-w-0">
                   <i className="ri-lock-line text-gray-400 shrink-0"></i>
-                  <span className="truncate">{p.title}</span>
+                  <span className="truncate">{maskTitle(p.title)}</span>
                 </span>
                 <span className="text-center text-sm text-gray-500">{formatDate(p.created_at)}</span>
                 <span className="text-center">
@@ -202,11 +208,12 @@ function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
               <label className="block text-xs font-semibold text-gray-600 mb-1">아이디</label>
               <input
                 value={authorId}
-                onChange={(e) => setAuthorId(e.target.value)}
+                onChange={(e) => setAuthorId(e.target.value.replace(/[^A-Za-z0-9]/g, ''))}
                 maxLength={20}
-                placeholder="표시될 아이디"
+                placeholder="영문+숫자"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              <p className="text-xs text-gray-400 mt-1">영문과 숫자만 사용 가능</p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">비밀번호</label>
@@ -236,7 +243,10 @@ function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
               onChange={(e) => setContent(e.target.value)}
               rows={5}
               maxLength={2000}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={
+                '예) 케노피 예약 관련 문의드립니다. 8월 5일 방문 예정이며 인원은 성인 4명입니다. 예약 가능한지 확인 부탁드립니다.\n\n※ 별도로 회신(문자·이메일)을 받고 싶으시면 핸드폰 번호 또는 이메일 주소를 함께 남겨주세요.'
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-gray-300"
             />
           </div>
           <div>
@@ -331,7 +341,7 @@ function ViewModal({ target, onClose }: { target: InquiryListItem; onClose: () =
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="font-bold text-lg text-gray-900 truncate">
             <i className="ri-lock-line mr-1 text-gray-400"></i>
-            {target.title}
+            {maskTitle(target.title)}
           </h3>
           <button onClick={onClose} aria-label="닫기" className="cursor-pointer shrink-0">
             <i className="ri-close-line text-2xl text-gray-500"></i>
