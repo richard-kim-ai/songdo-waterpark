@@ -161,6 +161,13 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     ],
   },
   {
+    title: '고객 게시판 섹션',
+    fields: [
+      { key: 'board_title', label: '섹션 제목' },
+      { key: 'board_subtitle', label: '섹션 설명' },
+    ],
+  },
+  {
     title: '푸터',
     fields: [
       { key: 'footer_tagline', label: '로고 아래 소개 문구' },

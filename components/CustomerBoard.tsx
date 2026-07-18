@@ -22,7 +22,13 @@ function formatDate(iso: string) {
   ).padStart(2, '0')}`;
 }
 
-export default function CustomerBoard() {
+export default function CustomerBoard({
+  sectionTitle,
+  sectionSubtitle,
+}: {
+  sectionTitle: string;
+  sectionSubtitle: string;
+}) {
   const [posts, setPosts] = useState<InquiryListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWrite, setShowWrite] = useState(false);
@@ -42,11 +48,8 @@ export default function CustomerBoard() {
     <section id="board" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
       <div className="max-w-5xl mx-auto px-6">
         <div className="text-center mb-10">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">고객 게시판</h2>
-          <p className="text-lg text-gray-600">
-            궁금한 점을 남겨주시면 확인 후 답변드립니다. (비밀글 · 작성 시 정한 아이디와
-            비밀번호로 답변을 확인하세요)
-          </p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
 
         <div className="flex justify-end mb-4">
