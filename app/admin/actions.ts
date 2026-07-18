@@ -314,10 +314,37 @@ export async function updateCabanaReservation(
     time_type: string;
     is_camping: boolean;
     has_admission: boolean;
+    cabana_no: number;
   }
 ) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > 60) {
+    throw new Error('케노피 번호는 1~60 사이로 입력해주세요.');
+  }
+
+  const { data: current, error: fetchError } = await admin
+    .from('cabana_reservations')
+    .select('reservation_date')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (fetchError || !current) throw new Error('예약을 찾을 수 없습니다.');
+
+  const { data: others } = await admin
+    .from('cabana_reservations')
+    .select('time_type')
+    .eq('reservation_date', current.reservation_date)
+    .eq('cabana_no', data.cabana_no)
+    .neq('id', id);
+
+  const conflict = (others ?? []).some(
+    (r) => r.time_type === '종일' || data.time_type === '종일' || r.time_type === data.time_type
+  );
+  if (conflict) {
+    throw new Error(`${data.cabana_no}번 케노피는 해당 타임에 이미 다른 예약이 있습니다.`);
+  }
 
   const { error } = await admin
     .from('cabana_reservations')
@@ -328,6 +355,7 @@ export async function updateCabanaReservation(
       time_type: data.time_type,
       is_camping: data.is_camping,
       has_admission: data.is_camping ? true : data.has_admission,
+      cabana_no: data.cabana_no,
     })
     .eq('id', id);
 

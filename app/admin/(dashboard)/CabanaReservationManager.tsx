@@ -84,6 +84,9 @@ export default function CabanaReservationManager({
             const matches = reservations.filter((r) => r.cabana_no === cabanaNo);
             const isFull = matches.some((r) => r.time_type === '종일') || matches.length >= 2;
             const isPart = matches.length === 1 && matches[0].time_type !== '종일';
+            const hasDay = matches.some((r) => r.time_type === '주간');
+            const hasNight = matches.some((r) => r.time_type === '야간');
+            const hasFullDay = matches.some((r) => r.time_type === '종일');
 
             let color = 'bg-gray-100 text-gray-600 border-gray-200';
             if (isFull) color = 'bg-red-500 text-white border-red-500';
@@ -96,11 +99,25 @@ export default function CabanaReservationManager({
                   setSelectedCabana(cabanaNo);
                   setEditing(null);
                 }}
-                className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer ${color} ${
+                className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer flex flex-col items-center justify-center ${color} ${
                   selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
                 }`}
               >
-                {cabanaNo}
+                <span>{cabanaNo}</span>
+                <span className="flex justify-center gap-0.5 mt-0.5">
+                  <span
+                    title="주간"
+                    className={`w-1.5 h-1.5 rounded-full ${hasDay ? 'bg-white' : 'bg-white/25'}`}
+                  />
+                  <span
+                    title="야간"
+                    className={`w-1.5 h-1.5 rounded-full ${hasNight ? 'bg-white' : 'bg-white/25'}`}
+                  />
+                  <span
+                    title="종일"
+                    className={`w-1.5 h-1.5 rounded-full ${hasFullDay ? 'bg-white' : 'bg-white/25'}`}
+                  />
+                </span>
               </button>
             );
           })}
@@ -118,6 +135,7 @@ export default function CabanaReservationManager({
             <span className="w-3 h-3 rounded bg-red-500 inline-block"></span>
             마감
           </span>
+          <span className="ml-2 border-l pl-4">점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)</span>
         </div>
       </div>
 
@@ -199,21 +217,29 @@ function EditPanel({
   const [phone, setPhone] = useState(reservation.phone);
   const [guestCount, setGuestCount] = useState(reservation.guest_count);
   const [timeType, setTimeType] = useState(reservation.time_type);
+  const [cabanaNo, setCabanaNo] = useState(reservation.cabana_no);
   const [isCamping, setIsCamping] = useState(reservation.is_camping);
   const [hasAdmission, setHasAdmission] = useState(reservation.has_admission);
+  const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
   function handleSave() {
+    setError('');
     startTransition(async () => {
-      await updateCabanaReservation(reservation.id, {
-        name,
-        phone,
-        guest_count: guestCount,
-        time_type: timeType,
-        is_camping: isCamping,
-        has_admission: hasAdmission,
-      });
-      onSaved();
+      try {
+        await updateCabanaReservation(reservation.id, {
+          name,
+          phone,
+          guest_count: guestCount,
+          time_type: timeType,
+          is_camping: isCamping,
+          has_admission: hasAdmission,
+          cabana_no: cabanaNo,
+        });
+        onSaved();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.');
+      }
     });
   }
 
@@ -267,7 +293,19 @@ function EditPanel({
             <option value="종일">종일</option>
           </select>
         </label>
+        <label className="text-sm text-gray-600">
+          케노피 번호 (1~60)
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={cabanaNo}
+            onChange={(e) => setCabanaNo(Number(e.target.value) || 1)}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
       </div>
+      {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
       <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-700">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
