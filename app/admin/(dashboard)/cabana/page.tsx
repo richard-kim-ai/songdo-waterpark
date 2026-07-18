@@ -9,7 +9,7 @@ export default async function CabanaAdminPage() {
     supabase
       .from('site_settings')
       .select('key,value')
-      .in('key', ['cabana_booking_url', 'cabana_booking_button_label']),
+      .in('key', ['cabana_booking_url', 'cabana_booking_button_label', 'cabana_booking_enabled']),
   ]);
   const settings = Object.fromEntries((settingsRows ?? []).map((s) => [s.key, s.value]));
 
@@ -20,6 +20,7 @@ export default async function CabanaAdminPage() {
       <CabanaBookingUrl
         initialUrl={settings.cabana_booking_url ?? ''}
         initialButtonLabel={settings.cabana_booking_button_label ?? ''}
+        initialEnabled={settings.cabana_booking_enabled === 'true'}
       />
     </div>
   );

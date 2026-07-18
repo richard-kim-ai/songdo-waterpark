@@ -190,6 +190,7 @@ export default async function Home() {
           diagramUrl={siteImages.layout_cabana}
           bookingUrl={settings.cabana_booking_url ?? ''}
           bookingButtonLabel={settings.cabana_booking_button_label ?? ''}
+          bookingEnabled={settings.cabana_booking_enabled === 'true'}
         />
         <FacilityLayout
           masterUrl={siteImages.layout_master}

@@ -16,6 +16,7 @@ export default function Cabana({
   diagramUrl,
   bookingUrl,
   bookingButtonLabel,
+  bookingEnabled,
 }: {
   zones: CabanaZone[];
   sectionTitle: string;
@@ -27,6 +28,7 @@ export default function Cabana({
   diagramUrl: string;
   bookingUrl: string;
   bookingButtonLabel: string;
+  bookingEnabled: boolean;
 }) {
   // 관리자에서 구역명을 바꿔도 깨지지 않도록, A/B/C/썬배드 구분은 이름 문자열이 아니라
   // 정렬 순서(sort_order, 이미 정렬되어 전달됨)로 판단합니다.
@@ -125,8 +127,15 @@ export default function Cabana({
               >
                 {bookingButtonLabel}
               </a>
-            ) : (
+            ) : bookingEnabled ? (
               <CabanaReservationModal buttonLabel={bookingButtonLabel} />
+            ) : (
+              <button
+                disabled
+                className="w-full mt-6 px-6 py-4 bg-gray-300 text-white font-bold text-lg !rounded-button whitespace-nowrap cursor-not-allowed"
+              >
+                {bookingButtonLabel}
+              </button>
             )}
           </div>
         </div>
