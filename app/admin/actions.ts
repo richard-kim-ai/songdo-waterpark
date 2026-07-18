@@ -290,6 +290,62 @@ export async function deleteInquiry(id: string) {
   revalidatePath('/admin/inquiries');
 }
 
+// ---------- 케노피 실시간 예약 ----------
+export async function listCabanaReservationsForDate(date: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from('cabana_reservations')
+    .select('*')
+    .eq('reservation_date', date)
+    .order('cabana_no');
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function updateCabanaReservation(
+  id: string,
+  data: {
+    name: string;
+    phone: string;
+    guest_count: number;
+    time_type: string;
+    is_camping: boolean;
+    has_admission: boolean;
+  }
+) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from('cabana_reservations')
+    .update({
+      name: data.name,
+      phone: data.phone,
+      guest_count: data.guest_count,
+      time_type: data.time_type,
+      is_camping: data.is_camping,
+      has_admission: data.is_camping ? true : data.has_admission,
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/cabana-reservations');
+}
+
+export async function cancelCabanaReservation(id: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin.from('cabana_reservations').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/cabana-reservations');
+}
+
 // ---------- 인증 ----------
 export async function signOutAdmin() {
   const { supabase } = await requireAdmin();

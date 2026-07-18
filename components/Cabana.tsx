@@ -1,4 +1,5 @@
 import type { Database } from '@/types/database';
+import CabanaReservationModal from './CabanaReservationModal';
 
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 
@@ -125,9 +126,7 @@ export default function Cabana({
                 {bookingButtonLabel}
               </a>
             ) : (
-              <button className="w-full mt-6 px-6 py-4 bg-primary text-white font-bold text-lg !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
-                {bookingButtonLabel}
-              </button>
+              <CabanaReservationModal buttonLabel={bookingButtonLabel} />
             )}
           </div>
         </div>
