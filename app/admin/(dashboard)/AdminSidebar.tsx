@@ -9,6 +9,7 @@ const MENU = [
   { href: '/admin/tickets', icon: 'ri-ticket-line', label: '입장권 및 링크 관리' },
   { href: '/admin/facilities', icon: 'ri-rollercoaster-line', label: '부속시설 관리' },
   { href: '/admin/cabana', icon: 'ri-home-heart-line', label: '케노피 판매 관리' },
+  { href: '/admin/cabana-reservations', icon: 'ri-calendar-check-line', label: '케노피 예약 관리' },
   { href: '/admin/gallery', icon: 'ri-image-line', label: '포토갤러리 관리' },
   { href: '/admin/site-images', icon: 'ri-image-add-line', label: '그외 이미지 관리' },
   { href: '/admin/copy', icon: 'ri-edit-2-line', label: '카피 수정' },
@@ -28,7 +29,7 @@ export default function AdminSidebar({ logoUrl }: { logoUrl: string }) {
       </div>
       <nav className="flex-1 p-4 space-y-1">
         {MENU.map((item) => {
-          const active = pathname?.startsWith(item.href);
+          const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}

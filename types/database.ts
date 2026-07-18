@@ -51,12 +51,15 @@ export type Database = {
       cabana_reservations: {
         Row: {
           id: string;
-          zone_id: string;
+          reservation_no: string;
           reservation_date: string;
-          customer_name: string;
-          customer_phone: string;
-          sunbed_count: number;
-          status: string; // 'pending' | 'confirmed' | 'cancelled'
+          cabana_no: number;
+          time_type: string; // '주간' | '야간' | '종일'
+          name: string;
+          phone: string;
+          guest_count: number;
+          is_camping: boolean;
+          has_admission: boolean;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;
