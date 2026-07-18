@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendNotificationMail } from '@/lib/mail';
 import type { Database } from '@/types/database';
 
 const TOTAL_CABANAS = 60;
@@ -96,6 +97,20 @@ export async function createCabanaReservation(
   });
 
   if (error) return { ok: false, error: '예약 처리 중 오류가 발생했습니다.' };
+
+  await sendNotificationMail(
+    `[케노피 예약] ${name}님 · ${timeType} · 예약번호 ${reservationNo}`,
+    [
+      `예약일자: ${reservationDate}`,
+      `이용권: ${timeType}`,
+      `예약자: ${name}`,
+      `연락처: ${phone}`,
+      `인원수: ${guestCount}명`,
+      `캠핑장 이용: ${isCamping ? '예' : '아니오'}`,
+      `배정 케노피: ${assignedCabana}번 (현장 배정은 선착순)`,
+      `예약번호: ${reservationNo}`,
+    ].join('\n')
+  );
 
   revalidatePath('/admin/cabana-reservations');
   return { ok: true, reservationNo, cabanaNo: assignedCabana };
