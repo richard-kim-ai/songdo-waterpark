@@ -223,7 +223,10 @@ export default async function Home() {
           subtitle={settings.faq_subtitle ?? ''}
           items={faqItems}
         />
-        <CustomerBoard />
+        <CustomerBoard
+          sectionTitle={settings.board_title ?? ''}
+          sectionSubtitle={settings.board_subtitle ?? ''}
+        />
       </main>
       <Footer
         logoUrl={siteImages.logo}
