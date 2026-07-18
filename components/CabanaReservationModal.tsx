@@ -93,9 +93,14 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
           <div className="p-6 space-y-4">
             <div className="bg-blue-50 rounded-lg p-4 text-center">
               <p className="text-gray-700">예약이 완료되었습니다!</p>
-              <p className="text-2xl font-bold text-primary mt-2">{result.cabanaNo}번 케노피</p>
+              <p className="text-2xl font-bold text-primary mt-2">
+                {name} · {timeType} 이용권
+              </p>
               <p className="text-sm text-gray-500 mt-1">예약번호 {result.reservationNo}</p>
             </div>
+            <p className="text-xs text-gray-500 text-center">
+              예약번호를 가지고 현장에서 결제 시 케노피 위치는 선착순으로 배정됩니다.
+            </p>
             <button
               onClick={onClose}
               className="w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
