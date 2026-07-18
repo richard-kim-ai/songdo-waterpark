@@ -243,7 +243,10 @@ function WriteModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
               onChange={(e) => setContent(e.target.value)}
               rows={5}
               maxLength={2000}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={
+                '예) 케노피 예약 관련 문의드립니다. 8월 5일 방문 예정이며 인원은 성인 4명입니다. 예약 가능한지 확인 부탁드립니다.\n\n※ 별도로 회신(문자·이메일)을 받고 싶으시면 핸드폰 번호 또는 이메일 주소를 함께 남겨주세요.'
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-gray-300"
             />
           </div>
           <div>
