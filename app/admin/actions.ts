@@ -341,6 +341,60 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   return { dateCounts, typeCounts, priceByType };
 }
 
+function generateReservationNo(dateStr: string) {
+  const cleanDate = dateStr.replace(/-/g, '').slice(2);
+  const randomStr = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `R${cleanDate}${randomStr}`;
+}
+
+export async function createCabanaReservationAdmin(data: {
+  reservation_date: string;
+  cabana_no: number;
+  time_type: string;
+  name: string;
+  phone: string;
+  guest_count: number;
+  is_camping: boolean;
+  has_admission: boolean;
+}) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > 60) {
+    throw new Error('케노피 번호는 1~60 사이로 입력해주세요.');
+  }
+  if (!data.name.trim()) throw new Error('예약자 성함을 입력해주세요.');
+  if (!data.phone.trim()) throw new Error('연락처를 입력해주세요.');
+
+  const { data: others } = await admin
+    .from('cabana_reservations')
+    .select('time_type')
+    .eq('reservation_date', data.reservation_date)
+    .eq('cabana_no', data.cabana_no);
+
+  const conflict = (others ?? []).some(
+    (r) => r.time_type === '종일' || data.time_type === '종일' || r.time_type === data.time_type
+  );
+  if (conflict) {
+    throw new Error(`${data.cabana_no}번 케노피는 해당 타임에 이미 예약이 있습니다.`);
+  }
+
+  const { error } = await admin.from('cabana_reservations').insert({
+    reservation_no: generateReservationNo(data.reservation_date),
+    reservation_date: data.reservation_date,
+    cabana_no: data.cabana_no,
+    time_type: data.time_type,
+    name: data.name.trim(),
+    phone: data.phone.trim(),
+    guest_count: data.guest_count,
+    is_camping: data.is_camping,
+    has_admission: data.is_camping ? true : data.has_admission,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/cabana-reservations');
+}
+
 export async function updateCabanaReservation(
   id: string,
   data: {

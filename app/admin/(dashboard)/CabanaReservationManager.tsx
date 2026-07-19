@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   listCabanaReservationsForDate,
   getCabanaMonthSummary,
+  createCabanaReservationAdmin,
   updateCabanaReservation,
   cancelCabanaReservation,
 } from '@/app/admin/actions';
@@ -32,6 +33,7 @@ export default function CabanaReservationManager({
   const [loading, setLoading] = useState(false);
   const [selectedCabana, setSelectedCabana] = useState<number | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const [monthCursor, setMonthCursor] = useState(() => {
     const [y, m] = initialDate.split('-').map(Number);
@@ -199,6 +201,7 @@ export default function CabanaReservationManager({
                   onClick={() => {
                     setSelectedCabana(cabanaNo);
                     setEditing(null);
+                    setCreating(false);
                   }}
                   className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer flex flex-col items-center justify-center ${color} ${
                     selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
@@ -244,7 +247,10 @@ export default function CabanaReservationManager({
       {selectedCabana && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => setSelectedCabana(null)}
+          onClick={() => {
+            setSelectedCabana(null);
+            setCreating(false);
+          }}
         >
           <div
             className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 md:p-6"
@@ -253,7 +259,10 @@ export default function CabanaReservationManager({
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
               <button
-                onClick={() => setSelectedCabana(null)}
+                onClick={() => {
+                  setSelectedCabana(null);
+                  setCreating(false);
+                }}
                 aria-label="닫기"
                 className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
@@ -261,38 +270,76 @@ export default function CabanaReservationManager({
               </button>
             </div>
 
-            <div className="grid gap-2">
-              {(() => {
-                const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
-                if (cabanaMatches.length === 0) {
-                  return (
-                    <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
-                      예약 없음 (공석)
-                    </div>
-                  );
-                }
-                return cabanaMatches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
-                  >
-                    <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
-                      [{match.time_type}]
-                    </span>
-                    <button
-                      onClick={() => setEditing(match)}
-                      className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
-                    >
-                      <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
-                      예약번호 {match.reservation_no}
-                      {match.is_camping && (
-                        <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
-                      )}
-                    </button>
+            {(() => {
+              const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
+              const takenTypes = new Set(cabanaMatches.map((r) => r.time_type));
+              const isFullyBooked =
+                takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'));
+              const availableTypes = TIME_TYPES.filter((t) => {
+                if (t === '종일') return cabanaMatches.length === 0;
+                return !takenTypes.has(t) && !takenTypes.has('종일');
+              });
+
+              return (
+                <>
+                  <div className="grid gap-2">
+                    {cabanaMatches.length === 0 ? (
+                      <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
+                        예약 없음 (공석)
+                      </div>
+                    ) : (
+                      cabanaMatches.map((match) => (
+                        <div
+                          key={match.id}
+                          className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
+                        >
+                          <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                            [{match.time_type}]
+                          </span>
+                          <button
+                            onClick={() => {
+                              setEditing(match);
+                              setCreating(false);
+                            }}
+                            className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                          >
+                            <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
+                            예약번호 {match.reservation_no}
+                            {match.is_camping && (
+                              <span className="ml-2 text-xs text-primary font-semibold">
+                                캠핑객
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ));
-              })()}
-            </div>
+
+                  {!isFullyBooked && !editing && !creating && (
+                    <button
+                      onClick={() => setCreating(true)}
+                      className="w-full mt-3 px-4 py-2 border border-dashed border-primary/40 text-primary text-sm font-semibold rounded-lg hover:bg-primary/5 transition-all cursor-pointer"
+                    >
+                      <i className="ri-add-line mr-1"></i> 새 예약 등록
+                    </button>
+                  )}
+
+                  {creating && (
+                    <CreatePanel
+                      cabanaNo={selectedCabana!}
+                      reservationDate={date}
+                      availableTypes={availableTypes}
+                      onCancel={() => setCreating(false)}
+                      onCreated={() => {
+                        setCreating(false);
+                        refresh();
+                      }}
+                    />
+                  )}
+                </>
+              );
+            })()}
 
             {editing && (
               <EditPanel
@@ -446,6 +493,145 @@ function ReservationCalendar({
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function CreatePanel({
+  cabanaNo,
+  reservationDate,
+  availableTypes,
+  onCancel,
+  onCreated,
+}: {
+  cabanaNo: number;
+  reservationDate: string;
+  availableTypes: readonly string[];
+  onCancel: () => void;
+  onCreated: () => void;
+}) {
+  const [timeType, setTimeType] = useState(availableTypes[0] ?? '주간');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [guestCount, setGuestCount] = useState(1);
+  const [isCamping, setIsCamping] = useState(false);
+  const [hasAdmission, setHasAdmission] = useState(false);
+  const [error, setError] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  function handleCreate() {
+    setError('');
+    if (!name.trim() || !phone.trim()) {
+      setError('예약자 성함과 연락처를 입력해주세요.');
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await createCabanaReservationAdmin({
+          reservation_date: reservationDate,
+          cabana_no: cabanaNo,
+          time_type: timeType,
+          name: name.trim(),
+          phone: phone.trim(),
+          guest_count: guestCount,
+          is_camping: isCamping,
+          has_admission: hasAdmission,
+        });
+        onCreated();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '등록 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
+  return (
+    <div className="mt-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-primary/20">
+      <h4 className="font-bold text-gray-900 mb-3">
+        {cabanaNo}번 케노피 · {reservationDate} 새 예약 등록
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <label className="text-sm text-gray-600">
+          타임 구분
+          <select
+            value={timeType}
+            onChange={(e) => setTimeType(e.target.value)}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {availableTypes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm text-gray-600">
+          인원수
+          <input
+            type="number"
+            min={1}
+            value={guestCount}
+            onChange={(e) => setGuestCount(Number(e.target.value) || 1)}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
+        <label className="text-sm text-gray-600">
+          고객성함
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="홍길동"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
+        <label className="text-sm text-gray-600">
+          연락처
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="010-0000-0000"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
+      </div>
+      {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
+      <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-700">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isCamping}
+            onChange={(e) => {
+              setIsCamping(e.target.checked);
+              if (e.target.checked) setHasAdmission(true);
+            }}
+          />
+          캠핑객 소속 유무
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hasAdmission}
+            disabled={isCamping}
+            onChange={(e) => setHasAdmission(e.target.checked)}
+          />
+          입장권 지급/확인 유무
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleCreate}
+          disabled={pending}
+          className="px-5 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+        >
+          {pending ? '등록 중...' : '예약 등록'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={pending}
+          className="px-5 py-2 text-gray-600 font-semibold !rounded-button hover:bg-gray-100 transition-all cursor-pointer"
+        >
+          취소
+        </button>
       </div>
     </div>
   );
