@@ -4,15 +4,26 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   listCabanaReservationsForDate,
   getCabanaMonthSummary,
+  createCabanaReservationAdmin,
   updateCabanaReservation,
   cancelCabanaReservation,
 } from '@/app/admin/actions';
+import { DISCOUNT_TYPES, DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
 
 type Reservation = Database['public']['Tables']['cabana_reservations']['Row'];
 
 const TOTAL_CABANAS = 60;
 const TIME_TYPES = ['주간', '야간', '종일'] as const;
+
+type CategorySummary = Record<string, { count: number; revenue: number }>;
+type MonthSummary = {
+  dateCounts: Record<string, number>;
+  byType: CategorySummary;
+  byCategory: CategorySummary;
+  priceByType: Record<string, number>;
+};
+const EMPTY_SUMMARY: MonthSummary = { dateCounts: {}, byType: {}, byCategory: {}, priceByType: {} };
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -32,16 +43,13 @@ export default function CabanaReservationManager({
   const [loading, setLoading] = useState(false);
   const [selectedCabana, setSelectedCabana] = useState<number | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const [monthCursor, setMonthCursor] = useState(() => {
     const [y, m] = initialDate.split('-').map(Number);
     return new Date(y, m - 1, 1);
   });
-  const [monthSummary, setMonthSummary] = useState<{
-    dateCounts: Record<string, number>;
-    typeCounts: Record<string, number>;
-    priceByType: Record<string, number>;
-  }>({ dateCounts: {}, typeCounts: {}, priceByType: {} });
+  const [monthSummary, setMonthSummary] = useState<MonthSummary>(EMPTY_SUMMARY);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
   const posRef = useRef<HTMLDivElement>(null);
@@ -74,6 +82,7 @@ export default function CabanaReservationManager({
     setSummaryLoading(true);
     getCabanaMonthSummary(monthStart, monthEnd)
       .then(setMonthSummary)
+      .catch(() => setMonthSummary(EMPTY_SUMMARY))
       .finally(() => setSummaryLoading(false));
   }, [monthCursor]);
 
@@ -112,7 +121,9 @@ export default function CabanaReservationManager({
     getCabanaMonthSummary(
       toDateStr(new Date(year, month, 1)),
       toDateStr(new Date(year, month + 1, 0))
-    ).then(setMonthSummary);
+    )
+      .then(setMonthSummary)
+      .catch(() => setMonthSummary(EMPTY_SUMMARY));
   }
 
   return (
@@ -130,8 +141,8 @@ export default function CabanaReservationManager({
         </div>
         <div className="flex-1">
           <SalesDashboard
-            typeCounts={monthSummary.typeCounts}
-            priceByType={monthSummary.priceByType}
+            byType={monthSummary.byType}
+            byCategory={monthSummary.byCategory}
             loading={summaryLoading}
           />
         </div>
@@ -199,6 +210,7 @@ export default function CabanaReservationManager({
                   onClick={() => {
                     setSelectedCabana(cabanaNo);
                     setEditing(null);
+                    setCreating(false);
                   }}
                   className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer flex flex-col items-center justify-center ${color} ${
                     selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
@@ -244,7 +256,10 @@ export default function CabanaReservationManager({
       {selectedCabana && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => setSelectedCabana(null)}
+          onClick={() => {
+            setSelectedCabana(null);
+            setCreating(false);
+          }}
         >
           <div
             className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 md:p-6"
@@ -253,7 +268,10 @@ export default function CabanaReservationManager({
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
               <button
-                onClick={() => setSelectedCabana(null)}
+                onClick={() => {
+                  setSelectedCabana(null);
+                  setCreating(false);
+                }}
                 aria-label="닫기"
                 className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
@@ -261,42 +279,82 @@ export default function CabanaReservationManager({
               </button>
             </div>
 
-            <div className="grid gap-2">
-              {(() => {
-                const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
-                if (cabanaMatches.length === 0) {
-                  return (
-                    <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
-                      예약 없음 (공석)
-                    </div>
-                  );
-                }
-                return cabanaMatches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
-                  >
-                    <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
-                      [{match.time_type}]
-                    </span>
-                    <button
-                      onClick={() => setEditing(match)}
-                      className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
-                    >
-                      <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
-                      예약번호 {match.reservation_no}
-                      {match.is_camping && (
-                        <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
-                      )}
-                    </button>
+            {(() => {
+              const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
+              const takenTypes = new Set(cabanaMatches.map((r) => r.time_type));
+              const isFullyBooked =
+                takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'));
+              const availableTypes = TIME_TYPES.filter((t) => {
+                if (t === '종일') return cabanaMatches.length === 0;
+                return !takenTypes.has(t) && !takenTypes.has('종일');
+              });
+
+              return (
+                <>
+                  <div className="grid gap-2">
+                    {cabanaMatches.length === 0 ? (
+                      <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
+                        예약 없음 (공석)
+                      </div>
+                    ) : (
+                      cabanaMatches.map((match) => (
+                        <div
+                          key={match.id}
+                          className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
+                        >
+                          <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                            [{match.time_type}]
+                          </span>
+                          <button
+                            onClick={() => {
+                              setEditing(match);
+                              setCreating(false);
+                            }}
+                            className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                          >
+                            <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
+                            예약번호 {match.reservation_no}
+                            {match.is_camping && (
+                              <span className="ml-2 text-xs text-primary font-semibold">
+                                캠핑객
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ));
-              })()}
-            </div>
+
+                  {!isFullyBooked && !editing && !creating && (
+                    <button
+                      onClick={() => setCreating(true)}
+                      className="w-full mt-3 px-4 py-2 border border-dashed border-primary/40 text-primary text-sm font-semibold rounded-lg hover:bg-primary/5 transition-all cursor-pointer"
+                    >
+                      <i className="ri-add-line mr-1"></i> 새 예약 등록
+                    </button>
+                  )}
+
+                  {creating && (
+                    <CreatePanel
+                      cabanaNo={selectedCabana!}
+                      reservationDate={date}
+                      availableTypes={availableTypes}
+                      priceByType={monthSummary.priceByType}
+                      onCancel={() => setCreating(false)}
+                      onCreated={() => {
+                        setCreating(false);
+                        refresh();
+                      }}
+                    />
+                  )}
+                </>
+              );
+            })()}
 
             {editing && (
               <EditPanel
                 reservation={editing}
+                priceByType={monthSummary.priceByType}
                 onCancelEdit={() => setEditing(null)}
                 onSaved={() => {
                   setEditing(null);
@@ -317,34 +375,45 @@ export default function CabanaReservationManager({
 }
 
 function SalesDashboard({
-  typeCounts,
-  priceByType,
+  byType,
+  byCategory,
   loading,
 }: {
-  typeCounts: Record<string, number>;
-  priceByType: Record<string, number>;
+  byType: CategorySummary;
+  byCategory: CategorySummary;
   loading: boolean;
 }) {
-  const totalCount = TIME_TYPES.reduce((sum, t) => sum + (typeCounts[t] ?? 0), 0);
-  const totalRevenue = TIME_TYPES.reduce(
-    (sum, t) => sum + (typeCounts[t] ?? 0) * (priceByType[t] ?? 0),
-    0
-  );
+  const totalCount = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.count ?? 0), 0);
+  const totalRevenue = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.revenue ?? 0), 0);
 
   return (
     <div className={`bg-white rounded-xl shadow p-4 md:p-6 h-full ${loading ? 'opacity-50' : ''}`}>
       <h3 className="font-bold text-gray-900 mb-4">이번 달 판매 현황 (총판매량)</h3>
+
+      <p className="text-xs font-semibold text-gray-500 mb-2">타임별</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {TIME_TYPES.map((type) => (
           <div key={type} className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm font-semibold text-gray-600">{type}권</p>
-            <p className="text-2xl font-bold text-primary mt-1">{typeCounts[type] ?? 0}건</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {won((typeCounts[type] ?? 0) * (priceByType[type] ?? 0))}
-            </p>
+            <p className="text-2xl font-bold text-primary mt-1">{byType[type]?.count ?? 0}건</p>
+            <p className="text-xs text-gray-500 mt-1">{won(byType[type]?.revenue ?? 0)}</p>
           </div>
         ))}
       </div>
+
+      <p className="text-xs font-semibold text-gray-500 mb-2">구분별</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        {DISCOUNT_TYPES.map((category) => (
+          <div key={category} className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm font-semibold text-gray-600">{category}</p>
+            <p className="text-2xl font-bold text-primary mt-1">
+              {byCategory[category]?.count ?? 0}건
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{won(byCategory[category]?.revenue ?? 0)}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between border-t pt-4">
         <span className="font-bold text-gray-900">총 판매 수량 / 판매액</span>
         <span className="text-right">
@@ -451,13 +520,224 @@ function ReservationCalendar({
   );
 }
 
+function DiscountTypeToggle({
+  discountType,
+  onChange,
+}: {
+  discountType: DiscountType;
+  onChange: (t: DiscountType) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm text-gray-600 mb-1">예약 구분</label>
+      <div className="flex flex-wrap gap-2">
+        {(['단체', '장애인/유공자'] as const).map((t) => {
+          const active = discountType === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onChange(active ? '일반' : t)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer ${
+                active
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {t} ({Math.round((1 - DISCOUNT_MULTIPLIER[t]) * 100)}% 할인)
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PricePreview({
+  timeType,
+  discountType,
+  priceByType,
+}: {
+  timeType: string;
+  discountType: DiscountType;
+  priceByType: Record<string, number>;
+}) {
+  const basePrice = priceByType[timeType] ?? 0;
+  const finalPrice = Math.round(basePrice * DISCOUNT_MULTIPLIER[discountType]);
+
+  return (
+    <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-gray-200">
+      <span className="text-sm text-gray-500">예상 결제 금액 ({discountType})</span>
+      <span className="text-right">
+        {discountType !== '일반' && (
+          <span className="text-xs text-gray-400 line-through mr-2">{won(basePrice)}</span>
+        )}
+        <span className="font-bold text-primary">{won(finalPrice)}</span>
+      </span>
+    </div>
+  );
+}
+
+function CreatePanel({
+  cabanaNo,
+  reservationDate,
+  availableTypes,
+  priceByType,
+  onCancel,
+  onCreated,
+}: {
+  cabanaNo: number;
+  reservationDate: string;
+  availableTypes: readonly string[];
+  priceByType: Record<string, number>;
+  onCancel: () => void;
+  onCreated: () => void;
+}) {
+  const [timeType, setTimeType] = useState(availableTypes[0] ?? '주간');
+  const [discountType, setDiscountType] = useState<DiscountType>('일반');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [guestCount, setGuestCount] = useState(1);
+  const [isCamping, setIsCamping] = useState(false);
+  const [hasAdmission, setHasAdmission] = useState(false);
+  const [error, setError] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  function handleCreate() {
+    setError('');
+    if (!name.trim() || !phone.trim()) {
+      setError('예약자 성함과 연락처를 입력해주세요.');
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await createCabanaReservationAdmin({
+          reservation_date: reservationDate,
+          cabana_no: cabanaNo,
+          time_type: timeType,
+          name: name.trim(),
+          phone: phone.trim(),
+          guest_count: guestCount,
+          is_camping: isCamping,
+          has_admission: hasAdmission,
+          discount_type: discountType,
+        });
+        onCreated();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '등록 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
+  return (
+    <div className="mt-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-primary/20">
+      <h4 className="font-bold text-gray-900 mb-3">
+        {cabanaNo}번 케노피 · {reservationDate} 새 예약 등록
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <label className="text-sm text-gray-600">
+          타임 구분
+          <select
+            value={timeType}
+            onChange={(e) => setTimeType(e.target.value)}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {availableTypes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm text-gray-600">
+          인원수
+          <input
+            type="number"
+            min={1}
+            value={guestCount}
+            onChange={(e) => setGuestCount(Number(e.target.value) || 1)}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
+        <label className="text-sm text-gray-600">
+          고객성함
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="홍길동"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
+        <label className="text-sm text-gray-600">
+          연락처
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="010-0000-0000"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </label>
+      </div>
+
+      <div className="mb-3">
+        <DiscountTypeToggle discountType={discountType} onChange={setDiscountType} />
+      </div>
+      <div className="mb-3">
+        <PricePreview timeType={timeType} discountType={discountType} priceByType={priceByType} />
+      </div>
+
+      {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
+      <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-700">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isCamping}
+            onChange={(e) => {
+              setIsCamping(e.target.checked);
+              if (e.target.checked) setHasAdmission(true);
+            }}
+          />
+          캠핑객 예약
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hasAdmission}
+            disabled={isCamping}
+            onChange={(e) => setHasAdmission(e.target.checked)}
+          />
+          입장권 지급/확인 유무
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleCreate}
+          disabled={pending}
+          className="px-5 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+        >
+          {pending ? '등록 중...' : '예약 등록'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={pending}
+          className="px-5 py-2 text-gray-600 font-semibold !rounded-button hover:bg-gray-100 transition-all cursor-pointer"
+        >
+          취소
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EditPanel({
   reservation,
+  priceByType,
   onCancelEdit,
   onSaved,
   onCancelled,
 }: {
   reservation: Reservation;
+  priceByType: Record<string, number>;
   onCancelEdit: () => void;
   onSaved: () => void;
   onCancelled: () => void;
@@ -469,6 +749,9 @@ function EditPanel({
   const [cabanaNo, setCabanaNo] = useState(reservation.cabana_no);
   const [isCamping, setIsCamping] = useState(reservation.is_camping);
   const [hasAdmission, setHasAdmission] = useState(reservation.has_admission);
+  const [discountType, setDiscountType] = useState<DiscountType>(
+    (reservation.discount_type as DiscountType) ?? '일반'
+  );
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -484,6 +767,7 @@ function EditPanel({
           is_camping: isCamping,
           has_admission: hasAdmission,
           cabana_no: cabanaNo,
+          discount_type: discountType,
         });
         onSaved();
       } catch (err) {
@@ -554,6 +838,14 @@ function EditPanel({
           />
         </label>
       </div>
+
+      <div className="mb-3">
+        <DiscountTypeToggle discountType={discountType} onChange={setDiscountType} />
+      </div>
+      <div className="mb-3">
+        <PricePreview timeType={timeType} discountType={discountType} priceByType={priceByType} />
+      </div>
+
       {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
       <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-700">
         <label className="flex items-center gap-2 cursor-pointer">
@@ -565,7 +857,7 @@ function EditPanel({
               if (e.target.checked) setHasAdmission(true);
             }}
           />
-          캠핑객 소속 유무
+          캠핑객 예약
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
