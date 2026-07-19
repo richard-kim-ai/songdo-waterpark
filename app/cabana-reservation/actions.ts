@@ -18,13 +18,16 @@ export async function getCabanaAvailability(date: string) {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from('cabana_reservations')
-    .select('time_type')
+    .select('time_type, cabana_no')
     .eq('reservation_date', date);
 
   const reservations = data ?? [];
   const dayLeft = Math.max(0, TOTAL_CABANAS - countBooked(reservations, '주간'));
   const nightLeft = Math.max(0, TOTAL_CABANAS - countBooked(reservations, '야간'));
-  const fullDayLeft = Math.min(dayLeft, nightLeft);
+  // 종일 예약은 완전히 비어있는(주간/야간 어느 쪽도 예약되지 않은) 케노피만 배정 가능하므로
+  // 잔여 수량도 min(주간잔여, 야간잔여)가 아니라 실제로 아무 예약도 없는 케노피 수로 계산해야 함.
+  const bookedCabanaNos = new Set(reservations.map((r) => r.cabana_no));
+  const fullDayLeft = Math.max(0, TOTAL_CABANAS - bookedCabanaNos.size);
 
   return { dayLeft, nightLeft, fullDayLeft };
 }

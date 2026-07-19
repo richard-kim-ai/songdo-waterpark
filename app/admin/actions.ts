@@ -305,6 +305,26 @@ export async function listCabanaReservationsForDate(date: string) {
   return data ?? [];
 }
 
+// 캘린더 대시보드용: 기간 내 날짜별 예약 건수
+export async function listCabanaReservationDateCounts(startDate: string, endDate: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from('cabana_reservations')
+    .select('reservation_date')
+    .gte('reservation_date', startDate)
+    .lte('reservation_date', endDate);
+
+  if (error) throw new Error(error.message);
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    counts[row.reservation_date] = (counts[row.reservation_date] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function updateCabanaReservation(
   id: string,
   data: {

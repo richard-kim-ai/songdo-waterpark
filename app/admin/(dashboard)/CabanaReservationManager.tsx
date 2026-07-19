@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import {
   listCabanaReservationsForDate,
+  listCabanaReservationDateCounts,
   updateCabanaReservation,
   cancelCabanaReservation,
 } from '@/app/admin/actions';
@@ -11,7 +12,10 @@ import type { Database } from '@/types/database';
 type Reservation = Database['public']['Tables']['cabana_reservations']['Row'];
 
 const TOTAL_CABANAS = 60;
-const SLOTS: Array<'주간' | '야간' | '종일'> = ['주간', '야간', '종일'];
+
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function CabanaReservationManager({
   initialDate,
@@ -41,7 +45,11 @@ export default function CabanaReservationManager({
   const nightBooked = reservations.filter((r) => r.time_type === '야간' || r.time_type === '종일').length;
   const dayLeft = Math.max(0, TOTAL_CABANAS - dayBooked);
   const nightLeft = Math.max(0, TOTAL_CABANAS - nightBooked);
-  const fullDayLeft = Math.min(dayLeft, nightLeft);
+  // 종일 예약은 완전히 비어있는 케노피만 배정 가능하므로 min(주간,야간)이 아니라
+  // 아무 예약도 없는 케노피 수로 계산 (주간/야간이 서로 다른 케노피에 흩어져 있으면
+  // min() 계산은 실제보다 종일 잔여를 과대평가함).
+  const bookedCabanaNos = new Set(reservations.map((r) => r.cabana_no));
+  const fullDayLeft = Math.max(0, TOTAL_CABANAS - bookedCabanaNos.size);
 
   function refresh() {
     listCabanaReservationsForDate(date).then((data) => setReservations(data as Reservation[]));
@@ -49,6 +57,8 @@ export default function CabanaReservationManager({
 
   return (
     <div>
+      <ReservationCalendar selectedDate={date} onSelectDate={setDate} />
+
       <div className="flex flex-wrap items-center gap-4 mb-6 bg-white rounded-xl shadow p-4">
         <label className="font-bold text-gray-700 text-sm">조회 일자</label>
         <input
@@ -152,33 +162,36 @@ export default function CabanaReservationManager({
           </div>
 
           <div className="grid gap-2">
-            {SLOTS.map((slot) => {
-              const match = reservations.find(
-                (r) => r.cabana_no === selectedCabana && (r.time_type === slot || r.time_type === '종일')
-              );
-              return (
+            {(() => {
+              const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
+              if (cabanaMatches.length === 0) {
+                return (
+                  <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
+                    예약 없음 (공석)
+                  </div>
+                );
+              }
+              return cabanaMatches.map((match) => (
                 <div
-                  key={slot}
+                  key={match.id}
                   className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
                 >
-                  <span className="font-bold text-sm text-gray-500 w-14 shrink-0">[{slot}]</span>
-                  {match ? (
-                    <button
-                      onClick={() => setEditing(match)}
-                      className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
-                    >
-                      <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
-                      예약번호 {match.reservation_no}
-                      {match.is_camping && (
-                        <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
-                      )}
-                    </button>
-                  ) : (
-                    <span className="flex-1 text-sm text-gray-400">예약 없음 (공석)</span>
-                  )}
+                  <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                    [{match.time_type}]
+                  </span>
+                  <button
+                    onClick={() => setEditing(match)}
+                    className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                  >
+                    <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
+                    예약번호 {match.reservation_no}
+                    {match.is_camping && (
+                      <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
+                    )}
+                  </button>
                 </div>
-              );
-            })}
+              ));
+            })()}
           </div>
 
           {editing && (
@@ -198,6 +211,119 @@ export default function CabanaReservationManager({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function ReservationCalendar({
+  selectedDate,
+  onSelectDate,
+}: {
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+}) {
+  const [cursor, setCursor] = useState(() => {
+    const [y, m] = selectedDate.split('-').map(Number);
+    return new Date(y, m - 1, 1);
+  });
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(false);
+
+  // 날짜 입력창에서 직접 다른 달로 이동했을 때만 캘린더도 그 달로 이동 (같은 달 안에서
+  // 날짜만 바뀔 때는 cursor를 그대로 유지해 불필요한 재조회를 막음)
+  useEffect(() => {
+    const [y, m] = selectedDate.split('-').map(Number);
+    setCursor((prev) =>
+      prev.getFullYear() === y && prev.getMonth() === m - 1 ? prev : new Date(y, m - 1, 1)
+    );
+  }, [selectedDate]);
+
+  useEffect(() => {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const monthStart = toDateStr(new Date(year, month, 1));
+    const monthEnd = toDateStr(new Date(year, month + 1, 0));
+    setLoading(true);
+    listCabanaReservationDateCounts(monthStart, monthEnd)
+      .then(setCounts)
+      .finally(() => setLoading(false));
+  }, [cursor]);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = new Date(year, month, 1).getDay();
+  const todayStr = toDateStr(new Date());
+  const totalThisMonth = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: startWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="bg-white rounded-xl shadow p-4 md:p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-gray-900">예약 현황 캘린더</h3>
+        <span className="text-xs text-gray-500">이번 달 예약 {totalThisMonth}건</span>
+      </div>
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setCursor(new Date(year, month - 1, 1))}
+          aria-label="이전 달"
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer"
+        >
+          <i className="ri-arrow-left-s-line text-xl"></i>
+        </button>
+        <span className="font-bold text-gray-800">
+          {year}년 {month + 1}월
+        </span>
+        <button
+          onClick={() => setCursor(new Date(year, month + 1, 1))}
+          aria-label="다음 달"
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer"
+        >
+          <i className="ri-arrow-right-s-line text-xl"></i>
+        </button>
+      </div>
+      <div className={`grid grid-cols-7 gap-1 ${loading ? 'opacity-50' : ''}`}>
+        {WEEKDAY_LABELS.map((d) => (
+          <div key={d} className="text-xs font-bold text-gray-400 text-center py-1">
+            {d}
+          </div>
+        ))}
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`empty-${i}`} />;
+          const dateStr = toDateStr(new Date(year, month, day));
+          const count = counts[dateStr] ?? 0;
+          const isSelected = dateStr === selectedDate;
+          const isToday = dateStr === todayStr;
+          return (
+            <button
+              key={dateStr}
+              onClick={() => onSelectDate(dateStr)}
+              className={`aspect-square rounded-lg text-sm flex flex-col items-center justify-center cursor-pointer transition-all ${
+                isSelected
+                  ? 'bg-primary text-white font-bold'
+                  : count > 0
+                    ? 'bg-primary/10 text-primary font-bold hover:bg-primary/20'
+                    : 'text-gray-600 hover:bg-gray-100'
+              } ${isToday && !isSelected ? 'ring-1 ring-primary/50' : ''}`}
+            >
+              <span>{day}</span>
+              {count > 0 && (
+                <span
+                  className={`text-[10px] leading-none mt-0.5 ${isSelected ? 'text-white' : 'text-primary'}`}
+                >
+                  {count}건
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
