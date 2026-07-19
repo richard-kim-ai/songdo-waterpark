@@ -1,3 +1,4 @@
+import { requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import CabanaReservationManager from '../CabanaReservationManager';
 
@@ -8,6 +9,7 @@ function today() {
 }
 
 export default async function CabanaReservationsAdminPage() {
+  await requirePagePermission('cabana-reservations');
   const admin = createAdminClient();
   const initialDate = today();
 

@@ -1,9 +1,11 @@
+import { requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import InquiryManager from '../InquiryManager';
 
 export const dynamic = 'force-dynamic';
 
 export default async function InquiriesAdminPage() {
+  await requirePagePermission('inquiries');
   const admin = createAdminClient();
   const { data: inquiries } = await admin
     .from('inquiries')

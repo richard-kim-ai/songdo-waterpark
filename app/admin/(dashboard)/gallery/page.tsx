@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import GalleryManager from '../GalleryManager';
 
 export default async function GalleryAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('gallery');
   const { data: images } = await supabase.from('gallery_images').select('*').order('sort_order');
 
   return (

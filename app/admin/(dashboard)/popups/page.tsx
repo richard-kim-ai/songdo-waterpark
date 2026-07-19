@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import PopupManager from '../PopupManager';
 
 export default async function PopupsAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('popups');
   const { data: popups } = await supabase.from('popups').select('*').order('sort_order');
 
   return (

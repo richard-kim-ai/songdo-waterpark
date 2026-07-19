@@ -1,3 +1,4 @@
+import { requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStorageUsage, getRowCounts, formatBytes } from '@/lib/admin/usage';
 import UsageSettingsEditor from '../UsageSettingsEditor';
@@ -16,6 +17,7 @@ function projectRef() {
 }
 
 export default async function UsageAdminPage() {
+  await requirePagePermission('usage');
   const admin = createAdminClient();
 
   const [storage, rowCounts, { data: settingsRows }] = await Promise.all([

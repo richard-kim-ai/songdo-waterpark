@@ -394,6 +394,115 @@ export async function cancelCabanaReservation(id: string) {
   revalidatePath('/admin/cabana-reservations');
 }
 
+// ---------- 관리자 사용자 관리 (슈퍼 관리자 전용) ----------
+export async function listAdminUsers() {
+  const { isSuperAdmin } = await requireAdmin();
+  if (!isSuperAdmin) throw new Error('권한이 없습니다.');
+
+  const admin = createAdminClient();
+
+  const { data: rows, error } = await admin
+    .from('admin_users')
+    .select('*')
+    .order('created_at');
+  if (error) throw new Error(error.message);
+
+  const { data: authData, error: authError } = await admin.auth.admin.listUsers();
+  if (authError) throw new Error(authError.message);
+  const emailMap = new Map(authData.users.map((u) => [u.id, u.email ?? '']));
+
+  return (rows ?? []).map((r) => ({
+    userId: r.user_id,
+    email: emailMap.get(r.user_id) ?? '(알 수 없음)',
+    isSuperAdmin: r.is_super_admin ?? true,
+    permissions: r.permissions ?? [],
+    createdAt: r.created_at,
+  }));
+}
+
+export async function createRestrictedAdmin(
+  email: string,
+  password: string,
+  permissions: string[]
+) {
+  const { isSuperAdmin } = await requireAdmin();
+  if (!isSuperAdmin) throw new Error('권한이 없습니다.');
+
+  const trimmedEmail = email.trim();
+  if (!trimmedEmail) throw new Error('이메일을 입력해주세요.');
+  if (password.length < 6) throw new Error('비밀번호는 6자 이상 입력해주세요.');
+  if (permissions.length === 0) throw new Error('최소 1개 이상의 관리 항목을 선택해주세요.');
+
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email: trimmedEmail,
+    password,
+    email_confirm: true,
+  });
+  if (error) throw new Error(error.message);
+
+  const { error: insertError } = await admin.from('admin_users').insert({
+    user_id: data.user.id,
+    is_super_admin: false,
+    permissions,
+  });
+  if (insertError) {
+    // admin_users 등록 실패 시 방금 만든 인증 계정도 함께 정리
+    await admin.auth.admin.deleteUser(data.user.id);
+    throw new Error(insertError.message);
+  }
+
+  revalidatePath('/admin/users');
+}
+
+export async function updateAdminPermissions(userId: string, permissions: string[]) {
+  const { isSuperAdmin } = await requireAdmin();
+  if (!isSuperAdmin) throw new Error('권한이 없습니다.');
+
+  const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from('admin_users')
+    .select('is_super_admin')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (target?.is_super_admin) throw new Error('최고 관리자의 권한은 수정할 수 없습니다.');
+
+  const { error } = await admin
+    .from('admin_users')
+    .update({ permissions })
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/users');
+}
+
+export async function deleteAdminUser(userId: string) {
+  const { isSuperAdmin, user } = await requireAdmin();
+  if (!isSuperAdmin) throw new Error('권한이 없습니다.');
+  if (user.id === userId) throw new Error('본인 계정은 삭제할 수 없습니다.');
+
+  const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from('admin_users')
+    .select('is_super_admin')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (target?.is_super_admin) throw new Error('최고 관리자 계정은 삭제할 수 없습니다.');
+
+  const { error: deleteRowError } = await admin
+    .from('admin_users')
+    .delete()
+    .eq('user_id', userId);
+  if (deleteRowError) throw new Error(deleteRowError.message);
+
+  await admin.auth.admin.deleteUser(userId);
+
+  revalidatePath('/admin/users');
+}
+
 // ---------- 인증 ----------
 export async function signOutAdmin() {
   const { supabase } = await requireAdmin();
