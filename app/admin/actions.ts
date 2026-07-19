@@ -315,7 +315,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   const [{ data: reservations, error }, { data: zones, error: zonesError }] = await Promise.all([
     admin
       .from('cabana_reservations')
-      .select('reservation_date, time_type, discount_type')
+      .select('reservation_date, time_type, discount_type, is_camping')
       .gte('reservation_date', startDate)
       .lte('reservation_date', endDate),
     admin.from('cabana_zones').select('name, weekday_price').order('sort_order').limit(3),
@@ -343,6 +343,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     단체: { count: 0, revenue: 0 },
     '장애인/유공자': { count: 0, revenue: 0 },
   };
+  const camping = { count: 0, revenue: 0 };
 
   for (const r of reservations ?? []) {
     dateCounts[r.reservation_date] = (dateCounts[r.reservation_date] ?? 0) + 1;
@@ -357,9 +358,14 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     const category = r.discount_type && r.discount_type in byCategory ? r.discount_type : '일반';
     byCategory[category].count += 1;
     byCategory[category].revenue += revenue;
+
+    if (r.is_camping) {
+      camping.count += 1;
+      camping.revenue += revenue;
+    }
   }
 
-  return { dateCounts, byType, byCategory, priceByType };
+  return { dateCounts, byType, byCategory, camping, priceByType };
 }
 
 function generateReservationNo(dateStr: string) {
