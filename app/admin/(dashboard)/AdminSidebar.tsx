@@ -3,22 +3,27 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOutAdmin } from '@/app/admin/actions';
+import { ADMIN_PAGES } from '@/lib/admin/pages';
 
-const MENU = [
-  { href: '/admin/popups', icon: 'ri-megaphone-line', label: '팝업 생성 관리' },
-  { href: '/admin/tickets', icon: 'ri-ticket-line', label: '입장권 및 링크 관리' },
-  { href: '/admin/facilities', icon: 'ri-rollercoaster-line', label: '부속시설 관리' },
-  { href: '/admin/cabana', icon: 'ri-home-heart-line', label: '케노피 판매 관리' },
-  { href: '/admin/cabana-reservations', icon: 'ri-calendar-check-line', label: '케노피 예약 관리' },
-  { href: '/admin/gallery', icon: 'ri-image-line', label: '포토갤러리 관리' },
-  { href: '/admin/site-images', icon: 'ri-image-add-line', label: '그외 이미지 관리' },
-  { href: '/admin/copy', icon: 'ri-edit-2-line', label: '카피 수정' },
-  { href: '/admin/inquiries', icon: 'ri-question-answer-line', label: '고객 게시판' },
-  { href: '/admin/usage', icon: 'ri-dashboard-line', label: '사용량 & 트래픽' },
-];
-
-export default function AdminSidebar({ logoUrl }: { logoUrl: string }) {
+export default function AdminSidebar({
+  logoUrl,
+  isSuperAdmin,
+  permissions,
+}: {
+  logoUrl: string;
+  isSuperAdmin: boolean;
+  permissions: string[];
+}) {
   const pathname = usePathname();
+
+  const visiblePages = isSuperAdmin
+    ? ADMIN_PAGES
+    : ADMIN_PAGES.filter((p) => permissions.includes(p.key));
+
+  const menu: { href: string; icon: string; label: string }[] = [...visiblePages];
+  if (isSuperAdmin) {
+    menu.push({ href: '/admin/users', icon: 'ri-user-settings-line', label: '사용자 관리' });
+  }
 
   return (
     <div className="w-64 bg-gray-900 text-white flex flex-col shrink-0">
@@ -28,7 +33,7 @@ export default function AdminSidebar({ logoUrl }: { logoUrl: string }) {
         <p className="text-sm text-gray-400 mt-1">물놀이장 관리자</p>
       </div>
       <nav className="flex-1 p-4 space-y-1">
-        {MENU.map((item) => {
+        {menu.map((item) => {
           const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
           return (
             <Link

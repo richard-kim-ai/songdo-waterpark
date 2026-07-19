@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import SettingsEditor from '../SettingsEditor';
 
 export default async function CopyAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('copy');
   const { data: settings } = await supabase.from('site_settings').select('*');
 
   return (

@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import TicketEditor from '../TicketEditor';
 import PricingButtonLabels from '../PricingButtonLabels';
 
 export default async function TicketsAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('tickets');
   const [{ data: tickets }, { data: settingsRows }] = await Promise.all([
     supabase
       .from('ticket_types')

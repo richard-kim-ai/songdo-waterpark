@@ -7,7 +7,7 @@ export default async function AdminDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { supabase } = await requireAdmin();
+  const { supabase, isSuperAdmin, permissions } = await requireAdmin();
 
   const { data: settingsRows } = await supabase.from('site_settings').select('key,value');
   const settings = Object.fromEntries((settingsRows ?? []).map((s) => [s.key, s.value]));
@@ -15,7 +15,11 @@ export default async function AdminDashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <AdminSidebar logoUrl={siteImages.logo} />
+      <AdminSidebar
+        logoUrl={siteImages.logo}
+        isSuperAdmin={isSuperAdmin}
+        permissions={permissions}
+      />
       <div className="flex-1 p-10 overflow-y-auto">{children}</div>
     </div>
   );

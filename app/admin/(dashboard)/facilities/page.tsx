@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import TicketEditor from '../TicketEditor';
 import FacilitiesButtonLabels from '../FacilitiesButtonLabels';
 
 export default async function FacilitiesAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('facilities');
   const [{ data: tickets }, { data: settingsRows }] = await Promise.all([
     supabase.from('ticket_types').select('*').eq('category', 'attraction').order('sort_order'),
     supabase

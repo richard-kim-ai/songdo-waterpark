@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import CabanaEditor from '../CabanaEditor';
 import CabanaBookingUrl from '../CabanaBookingUrl';
 
 export default async function CabanaAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('cabana');
   const [{ data: zones }, { data: settingsRows }] = await Promise.all([
     supabase.from('cabana_zones').select('*').order('sort_order'),
     supabase

@@ -69,6 +69,8 @@ export type Database = {
       admin_users: {
         Row: {
           user_id: string;
+          is_super_admin: boolean;
+          permissions: string[];
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['admin_users']['Row']>;

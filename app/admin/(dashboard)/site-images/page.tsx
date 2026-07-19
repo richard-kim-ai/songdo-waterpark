@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { requirePagePermission } from '@/lib/admin/auth';
 import { resolveSiteImages } from '@/lib/images';
 import SiteImageManager from '../SiteImageManager';
 
 export default async function SiteImagesAdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requirePagePermission('site-images');
   const { data: settingsRows } = await supabase.from('site_settings').select('key,value');
   const settings = Object.fromEntries((settingsRows ?? []).map((s) => [s.key, s.value]));
   const siteImages = resolveSiteImages(settings);
