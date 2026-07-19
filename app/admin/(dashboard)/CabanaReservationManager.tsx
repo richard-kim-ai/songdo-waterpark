@@ -21,9 +21,16 @@ type MonthSummary = {
   dateCounts: Record<string, number>;
   byType: CategorySummary;
   byCategory: CategorySummary;
+  camping: { count: number; revenue: number };
   priceByType: Record<string, number>;
 };
-const EMPTY_SUMMARY: MonthSummary = { dateCounts: {}, byType: {}, byCategory: {}, priceByType: {} };
+const EMPTY_SUMMARY: MonthSummary = {
+  dateCounts: {},
+  byType: {},
+  byCategory: {},
+  camping: { count: 0, revenue: 0 },
+  priceByType: {},
+};
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -143,6 +150,7 @@ export default function CabanaReservationManager({
           <SalesDashboard
             byType={monthSummary.byType}
             byCategory={monthSummary.byCategory}
+            camping={monthSummary.camping}
             loading={summaryLoading}
           />
         </div>
@@ -377,10 +385,12 @@ export default function CabanaReservationManager({
 function SalesDashboard({
   byType,
   byCategory,
+  camping,
   loading,
 }: {
   byType: CategorySummary;
   byCategory: CategorySummary;
+  camping: { count: number; revenue: number };
   loading: boolean;
 }) {
   const totalCount = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.count ?? 0), 0);
@@ -412,6 +422,17 @@ function SalesDashboard({
             <p className="text-xs text-gray-500 mt-1">{won(byCategory[category]?.revenue ?? 0)}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex items-center justify-between bg-primary/5 rounded-lg px-4 py-3 mb-4">
+        <span className="text-sm font-semibold text-gray-700">
+          <i className="ri-campfire-line mr-1 text-primary"></i>캠핑객 예약
+        </span>
+        <span className="text-right">
+          <span className="font-bold text-gray-900">{camping.count}건</span>
+          <span className="mx-2 text-gray-300">·</span>
+          <span className="font-bold text-primary">{won(camping.revenue)}</span>
+        </span>
       </div>
 
       <div className="flex items-center justify-between border-t pt-4">
@@ -784,6 +805,46 @@ function EditPanel({
     });
   }
 
+  function handlePrint() {
+    const price = Math.round((priceByType[timeType] ?? 0) * DISCOUNT_MULTIPLIER[discountType]);
+    const rows = [
+      ['예약번호', reservation.reservation_no],
+      ['이름', name],
+      ['전화번호', phone],
+      ['인원', `${guestCount}명`],
+      ['타임 구분', timeType],
+      ['케노피 번호', `${cabanaNo}번`],
+      ['할인 구분', discountType],
+      ['결제 금액', won(price)],
+    ];
+    const win = window.open('', '_blank', 'width=380,height=600');
+    if (!win) return;
+    win.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>케노피 예약 확인증</title>
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 24px; color: #111; }
+  h2 { text-align: center; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 10px 4px; border-bottom: 1px solid #eee; font-size: 14px; }
+  td:first-child { color: #666; width: 100px; }
+  td:last-child { font-weight: 600; }
+</style>
+</head>
+<body>
+  <h2>케노피 예약 확인증</h2>
+  <table>
+    ${rows.map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`).join('')}
+  </table>
+</body>
+</html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
   return (
     <div className="mt-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-primary/20">
       <h4 className="font-bold text-gray-900 mb-3">예약 정보 수정</h4>
@@ -883,6 +944,13 @@ function EditPanel({
           className="px-5 py-2 bg-red-50 text-red-600 font-semibold !rounded-button hover:bg-red-100 transition-all disabled:opacity-50 cursor-pointer"
         >
           예약 취소
+        </button>
+        <button
+          onClick={handlePrint}
+          disabled={pending}
+          className="px-5 py-2 bg-gray-900 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+        >
+          <i className="ri-printer-line mr-1"></i> 출력하기
         </button>
         <button
           onClick={onCancelEdit}
