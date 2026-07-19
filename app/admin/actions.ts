@@ -306,23 +306,39 @@ export async function listCabanaReservationsForDate(date: string) {
 }
 
 // 캘린더 대시보드용: 기간 내 날짜별 예약 건수
-export async function listCabanaReservationDateCounts(startDate: string, endDate: string) {
+// 캘린더 대시보드 + 판매 현황용: 기간 내 날짜별 건수, 타임별 건수, 타임별 단가
+export async function getCabanaMonthSummary(startDate: string, endDate: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from('cabana_reservations')
-    .select('reservation_date')
-    .gte('reservation_date', startDate)
-    .lte('reservation_date', endDate);
+  const [{ data: reservations, error }, { data: zones, error: zonesError }] = await Promise.all([
+    admin
+      .from('cabana_reservations')
+      .select('reservation_date, time_type')
+      .gte('reservation_date', startDate)
+      .lte('reservation_date', endDate),
+    admin.from('cabana_zones').select('name, weekday_price').order('sort_order').limit(3),
+  ]);
 
   if (error) throw new Error(error.message);
+  if (zonesError) throw new Error(zonesError.message);
 
-  const counts: Record<string, number> = {};
-  for (const row of data ?? []) {
-    counts[row.reservation_date] = (counts[row.reservation_date] ?? 0) + 1;
+  const dateCounts: Record<string, number> = {};
+  const typeCounts: Record<string, number> = { 주간: 0, 야간: 0, 종일: 0 };
+  for (const r of reservations ?? []) {
+    dateCounts[r.reservation_date] = (dateCounts[r.reservation_date] ?? 0) + 1;
+    if (r.time_type in typeCounts) typeCounts[r.time_type] += 1;
   }
-  return counts;
+
+  // cabana_zones는 정렬 순서상 [주간, 야간, 종일, 썬배드] 순으로 등록되어 있음 (Cabana.tsx와 동일한 규칙)
+  const zoneList = zones ?? [];
+  const priceByType: Record<string, number> = {
+    주간: zoneList[0]?.weekday_price ?? 0,
+    야간: zoneList[1]?.weekday_price ?? 0,
+    종일: zoneList[2]?.weekday_price ?? 0,
+  };
+
+  return { dateCounts, typeCounts, priceByType };
 }
 
 export async function updateCabanaReservation(
