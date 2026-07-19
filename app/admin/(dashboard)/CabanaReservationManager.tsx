@@ -150,65 +150,74 @@ export default function CabanaReservationManager({
       </div>
 
       {selectedCabana && (
-        <div className="mt-6 bg-white rounded-xl shadow p-4 md:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
-            <button
-              onClick={() => setSelectedCabana(null)}
-              className="text-gray-400 hover:text-gray-600 cursor-pointer"
-            >
-              <i className="ri-close-line text-2xl"></i>
-            </button>
-          </div>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setSelectedCabana(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 md:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
+              <button
+                onClick={() => setSelectedCabana(null)}
+                aria-label="닫기"
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <i className="ri-close-line text-2xl"></i>
+              </button>
+            </div>
 
-          <div className="grid gap-2">
-            {(() => {
-              const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
-              if (cabanaMatches.length === 0) {
-                return (
-                  <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
-                    예약 없음 (공석)
-                  </div>
-                );
-              }
-              return cabanaMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
-                >
-                  <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
-                    [{match.time_type}]
-                  </span>
-                  <button
-                    onClick={() => setEditing(match)}
-                    className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+            <div className="grid gap-2">
+              {(() => {
+                const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
+                if (cabanaMatches.length === 0) {
+                  return (
+                    <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
+                      예약 없음 (공석)
+                    </div>
+                  );
+                }
+                return cabanaMatches.map((match) => (
+                  <div
+                    key={match.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
                   >
-                    <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
-                    예약번호 {match.reservation_no}
-                    {match.is_camping && (
-                      <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
-                    )}
-                  </button>
-                </div>
-              ));
-            })()}
-          </div>
+                    <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                      [{match.time_type}]
+                    </span>
+                    <button
+                      onClick={() => setEditing(match)}
+                      className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                    >
+                      <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
+                      예약번호 {match.reservation_no}
+                      {match.is_camping && (
+                        <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
+                      )}
+                    </button>
+                  </div>
+                ));
+              })()}
+            </div>
 
-          {editing && (
-            <EditPanel
-              reservation={editing}
-              onCancelEdit={() => setEditing(null)}
-              onSaved={() => {
-                setEditing(null);
-                refresh();
-              }}
-              onCancelled={() => {
-                setEditing(null);
-                setSelectedCabana(null);
-                refresh();
-              }}
-            />
-          )}
+            {editing && (
+              <EditPanel
+                reservation={editing}
+                onCancelEdit={() => setEditing(null)}
+                onSaved={() => {
+                  setEditing(null);
+                  refresh();
+                }}
+                onCancelled={() => {
+                  setEditing(null);
+                  setSelectedCabana(null);
+                  refresh();
+                }}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
