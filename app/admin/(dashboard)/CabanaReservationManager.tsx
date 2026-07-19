@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   listCabanaReservationsForDate,
-  listCabanaReservationDateCounts,
+  getCabanaMonthSummary,
   updateCabanaReservation,
   cancelCabanaReservation,
 } from '@/app/admin/actions';
@@ -12,10 +12,13 @@ import type { Database } from '@/types/database';
 type Reservation = Database['public']['Tables']['cabana_reservations']['Row'];
 
 const TOTAL_CABANAS = 60;
+const TIME_TYPES = ['주간', '야간', '종일'] as const;
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
 export default function CabanaReservationManager({
   initialDate,
@@ -30,6 +33,20 @@ export default function CabanaReservationManager({
   const [selectedCabana, setSelectedCabana] = useState<number | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
 
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const [y, m] = initialDate.split('-').map(Number);
+    return new Date(y, m - 1, 1);
+  });
+  const [monthSummary, setMonthSummary] = useState<{
+    dateCounts: Record<string, number>;
+    typeCounts: Record<string, number>;
+    priceByType: Record<string, number>;
+  }>({ dateCounts: {}, typeCounts: {}, priceByType: {} });
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const posRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   useEffect(() => {
     if (date === initialDate && reservations === initialReservations) return;
     setLoading(true);
@@ -40,6 +57,43 @@ export default function CabanaReservationManager({
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
+
+  // 날짜 입력창에서 직접 다른 달로 이동했을 때만 캘린더/판매현황도 그 달로 이동
+  useEffect(() => {
+    const [y, m] = date.split('-').map(Number);
+    setMonthCursor((prev) =>
+      prev.getFullYear() === y && prev.getMonth() === m - 1 ? prev : new Date(y, m - 1, 1)
+    );
+  }, [date]);
+
+  useEffect(() => {
+    const year = monthCursor.getFullYear();
+    const month = monthCursor.getMonth();
+    const monthStart = toDateStr(new Date(year, month, 1));
+    const monthEnd = toDateStr(new Date(year, month + 1, 0));
+    setSummaryLoading(true);
+    getCabanaMonthSummary(monthStart, monthEnd)
+      .then(setMonthSummary)
+      .finally(() => setSummaryLoading(false));
+  }, [monthCursor]);
+
+  useEffect(() => {
+    function handleChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener('fullscreenchange', handleChange);
+    return () => document.removeEventListener('fullscreenchange', handleChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      posRef.current?.requestFullscreen().catch(() => {
+        // 브라우저/환경이 전체화면 API를 거부하는 경우 조용히 무시 (예: 임베드된 iframe)
+      });
+    }
+  }
 
   const dayBooked = reservations.filter((r) => r.time_type === '주간' || r.time_type === '종일').length;
   const nightBooked = reservations.filter((r) => r.time_type === '야간' || r.time_type === '종일').length;
@@ -53,99 +107,137 @@ export default function CabanaReservationManager({
 
   function refresh() {
     listCabanaReservationsForDate(date).then((data) => setReservations(data as Reservation[]));
+    const year = monthCursor.getFullYear();
+    const month = monthCursor.getMonth();
+    getCabanaMonthSummary(
+      toDateStr(new Date(year, month, 1)),
+      toDateStr(new Date(year, month + 1, 0))
+    ).then(setMonthSummary);
   }
 
   return (
     <div>
-      <ReservationCalendar selectedDate={date} onSelectDate={setDate} />
-
-      <div className="flex flex-wrap items-center gap-4 mb-6 bg-white rounded-xl shadow p-4">
-        <label className="font-bold text-gray-700 text-sm">조회 일자</label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        <div className="flex gap-4 text-sm ml-auto">
-          <span>
-            ☀️ 주간 잔여 <strong>{dayLeft}</strong>/{TOTAL_CABANAS}
-          </span>
-          <span>
-            🌙 야간 잔여 <strong>{nightLeft}</strong>/{TOTAL_CABANAS}
-          </span>
-          <span>
-            🎟️ 종일 가능 <strong>{fullDayLeft}</strong>/{TOTAL_CABANAS}
-          </span>
+      <div className="flex flex-col lg:flex-row gap-6 mb-6">
+        <div className="lg:w-72 shrink-0">
+          <ReservationCalendar
+            selectedDate={date}
+            onSelectDate={setDate}
+            cursor={monthCursor}
+            onCursorChange={setMonthCursor}
+            dateCounts={monthSummary.dateCounts}
+            loading={summaryLoading}
+          />
+        </div>
+        <div className="flex-1">
+          <SalesDashboard
+            typeCounts={monthSummary.typeCounts}
+            priceByType={monthSummary.priceByType}
+            loading={summaryLoading}
+          />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow p-4 md:p-6">
-        <p className="text-xs text-gray-500 mb-4">
-          케노피 번호를 누르면 해당 구역의 예약 정보를 확인·수정·취소할 수 있습니다.
-        </p>
-        <div
-          className={`grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3 ${
-            loading ? 'opacity-50 pointer-events-none' : ''
-          }`}
-        >
-          {Array.from({ length: TOTAL_CABANAS }, (_, i) => {
-            const cabanaNo = i + 1;
-            const matches = reservations.filter((r) => r.cabana_no === cabanaNo);
-            const isFull = matches.some((r) => r.time_type === '종일') || matches.length >= 2;
-            const isPart = matches.length === 1 && matches[0].time_type !== '종일';
-            const hasDay = matches.some((r) => r.time_type === '주간');
-            const hasNight = matches.some((r) => r.time_type === '야간');
-            const hasFullDay = matches.some((r) => r.time_type === '종일');
-
-            let color = 'bg-gray-100 text-gray-600 border-gray-200';
-            if (isFull) color = 'bg-red-500 text-white border-red-500';
-            else if (isPart) color = 'bg-amber-400 text-white border-amber-400';
-
-            return (
-              <button
-                key={cabanaNo}
-                onClick={() => {
-                  setSelectedCabana(cabanaNo);
-                  setEditing(null);
-                }}
-                className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer flex flex-col items-center justify-center ${color} ${
-                  selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
-                }`}
-              >
-                <span>{cabanaNo}</span>
-                <span className="flex justify-center gap-0.5 mt-0.5">
-                  <span
-                    title="주간"
-                    className={`w-1.5 h-1.5 rounded-full ${hasDay ? 'bg-white' : 'bg-white/25'}`}
-                  />
-                  <span
-                    title="야간"
-                    className={`w-1.5 h-1.5 rounded-full ${hasNight ? 'bg-white' : 'bg-white/25'}`}
-                  />
-                  <span
-                    title="종일"
-                    className={`w-1.5 h-1.5 rounded-full ${hasFullDay ? 'bg-white' : 'bg-white/25'}`}
-                  />
-                </span>
-              </button>
-            );
-          })}
+      <div
+        ref={posRef}
+        className={
+          isFullscreen ? 'fixed inset-0 z-50 bg-gray-100 overflow-y-auto p-6' : ''
+        }
+      >
+        <div className="flex flex-wrap items-center gap-4 mb-6 bg-white rounded-xl shadow p-4">
+          <label className="font-bold text-gray-700 text-sm">조회 일자</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <div className="flex gap-4 text-sm ml-auto">
+            <span>
+              ☀️ 주간 잔여 <strong>{dayLeft}</strong>/{TOTAL_CABANAS}
+            </span>
+            <span>
+              🌙 야간 잔여 <strong>{nightLeft}</strong>/{TOTAL_CABANAS}
+            </span>
+            <span>
+              🎟️ 종일 가능 <strong>{fullDayLeft}</strong>/{TOTAL_CABANAS}
+            </span>
+          </div>
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+          >
+            <i className={isFullscreen ? 'ri-fullscreen-exit-line' : 'ri-fullscreen-line'}></i>
+            {isFullscreen ? '전체화면 종료' : '전체화면 (POS 모드)'}
+          </button>
         </div>
-        <div className="flex gap-4 mt-4 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-gray-100 border border-gray-200 inline-block"></span>
-            공석
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-amber-400 inline-block"></span>
-            부분 예약
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-red-500 inline-block"></span>
-            마감
-          </span>
-          <span className="ml-2 border-l pl-4">점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)</span>
+
+        <div className="bg-white rounded-xl shadow p-4 md:p-6">
+          <p className="text-xs text-gray-500 mb-4">
+            케노피 번호를 누르면 해당 구역의 예약 정보를 확인·수정·취소할 수 있습니다.
+          </p>
+          <div
+            className={`grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3 ${
+              loading ? 'opacity-50 pointer-events-none' : ''
+            } ${isFullscreen ? 'xl:grid-cols-12' : ''}`}
+          >
+            {Array.from({ length: TOTAL_CABANAS }, (_, i) => {
+              const cabanaNo = i + 1;
+              const matches = reservations.filter((r) => r.cabana_no === cabanaNo);
+              const isFull = matches.some((r) => r.time_type === '종일') || matches.length >= 2;
+              const isPart = matches.length === 1 && matches[0].time_type !== '종일';
+              const hasDay = matches.some((r) => r.time_type === '주간');
+              const hasNight = matches.some((r) => r.time_type === '야간');
+              const hasFullDay = matches.some((r) => r.time_type === '종일');
+
+              let color = 'bg-gray-100 text-gray-600 border-gray-200';
+              if (isFull) color = 'bg-red-500 text-white border-red-500';
+              else if (isPart) color = 'bg-amber-400 text-white border-amber-400';
+
+              return (
+                <button
+                  key={cabanaNo}
+                  onClick={() => {
+                    setSelectedCabana(cabanaNo);
+                    setEditing(null);
+                  }}
+                  className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer flex flex-col items-center justify-center ${color} ${
+                    selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
+                  } ${isFullscreen ? 'md:text-lg min-h-[4rem]' : ''}`}
+                >
+                  <span>{cabanaNo}</span>
+                  <span className="flex justify-center gap-0.5 mt-0.5">
+                    <span
+                      title="주간"
+                      className={`w-1.5 h-1.5 rounded-full ${hasDay ? 'bg-white' : 'bg-white/25'}`}
+                    />
+                    <span
+                      title="야간"
+                      className={`w-1.5 h-1.5 rounded-full ${hasNight ? 'bg-white' : 'bg-white/25'}`}
+                    />
+                    <span
+                      title="종일"
+                      className={`w-1.5 h-1.5 rounded-full ${hasFullDay ? 'bg-white' : 'bg-white/25'}`}
+                    />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex gap-4 mt-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded bg-gray-100 border border-gray-200 inline-block"></span>
+              공석
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded bg-amber-400 inline-block"></span>
+              부분 예약
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded bg-red-500 inline-block"></span>
+              마감
+            </span>
+            <span className="ml-2 border-l pl-4">점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)</span>
+          </div>
         </div>
       </div>
 
@@ -224,48 +316,70 @@ export default function CabanaReservationManager({
   );
 }
 
+function SalesDashboard({
+  typeCounts,
+  priceByType,
+  loading,
+}: {
+  typeCounts: Record<string, number>;
+  priceByType: Record<string, number>;
+  loading: boolean;
+}) {
+  const totalCount = TIME_TYPES.reduce((sum, t) => sum + (typeCounts[t] ?? 0), 0);
+  const totalRevenue = TIME_TYPES.reduce(
+    (sum, t) => sum + (typeCounts[t] ?? 0) * (priceByType[t] ?? 0),
+    0
+  );
+
+  return (
+    <div className={`bg-white rounded-xl shadow p-4 md:p-6 h-full ${loading ? 'opacity-50' : ''}`}>
+      <h3 className="font-bold text-gray-900 mb-4">이번 달 판매 현황 (총판매량)</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        {TIME_TYPES.map((type) => (
+          <div key={type} className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm font-semibold text-gray-600">{type}권</p>
+            <p className="text-2xl font-bold text-primary mt-1">{typeCounts[type] ?? 0}건</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {won((typeCounts[type] ?? 0) * (priceByType[type] ?? 0))}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between border-t pt-4">
+        <span className="font-bold text-gray-900">총 판매 수량 / 판매액</span>
+        <span className="text-right">
+          <span className="font-bold text-gray-900">{totalCount}건</span>
+          <span className="mx-2 text-gray-300">·</span>
+          <span className="font-bold text-lg text-primary">{won(totalRevenue)}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 function ReservationCalendar({
   selectedDate,
   onSelectDate,
+  cursor,
+  onCursorChange,
+  dateCounts,
+  loading,
 }: {
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  cursor: Date;
+  onCursorChange: (cursor: Date) => void;
+  dateCounts: Record<string, number>;
+  loading: boolean;
 }) {
-  const [cursor, setCursor] = useState(() => {
-    const [y, m] = selectedDate.split('-').map(Number);
-    return new Date(y, m - 1, 1);
-  });
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(false);
-
-  // 날짜 입력창에서 직접 다른 달로 이동했을 때만 캘린더도 그 달로 이동 (같은 달 안에서
-  // 날짜만 바뀔 때는 cursor를 그대로 유지해 불필요한 재조회를 막음)
-  useEffect(() => {
-    const [y, m] = selectedDate.split('-').map(Number);
-    setCursor((prev) =>
-      prev.getFullYear() === y && prev.getMonth() === m - 1 ? prev : new Date(y, m - 1, 1)
-    );
-  }, [selectedDate]);
-
-  useEffect(() => {
-    const year = cursor.getFullYear();
-    const month = cursor.getMonth();
-    const monthStart = toDateStr(new Date(year, month, 1));
-    const monthEnd = toDateStr(new Date(year, month + 1, 0));
-    setLoading(true);
-    listCabanaReservationDateCounts(monthStart, monthEnd)
-      .then(setCounts)
-      .finally(() => setLoading(false));
-  }, [cursor]);
-
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startWeekday = new Date(year, month, 1).getDay();
   const todayStr = toDateStr(new Date());
-  const totalThisMonth = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const totalThisMonth = Object.values(dateCounts).reduce((sum, n) => sum + n, 0);
 
   const cells: (number | null)[] = [
     ...Array.from({ length: startWeekday }, () => null),
@@ -273,47 +387,47 @@ function ReservationCalendar({
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 md:p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-900">예약 현황 캘린더</h3>
-        <span className="text-xs text-gray-500">이번 달 예약 {totalThisMonth}건</span>
+    <div className={`bg-white rounded-xl shadow p-3 ${loading ? 'opacity-50' : ''}`}>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-bold text-gray-900">예약 캘린더</h3>
+        <span className="text-[10px] text-gray-500">이번 달 {totalThisMonth}건</span>
       </div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <button
-          onClick={() => setCursor(new Date(year, month - 1, 1))}
+          onClick={() => onCursorChange(new Date(year, month - 1, 1))}
           aria-label="이전 달"
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer"
+          className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer"
         >
-          <i className="ri-arrow-left-s-line text-xl"></i>
+          <i className="ri-arrow-left-s-line text-sm"></i>
         </button>
-        <span className="font-bold text-gray-800">
-          {year}년 {month + 1}월
+        <span className="text-xs font-bold text-gray-800">
+          {year}.{month + 1}
         </span>
         <button
-          onClick={() => setCursor(new Date(year, month + 1, 1))}
+          onClick={() => onCursorChange(new Date(year, month + 1, 1))}
           aria-label="다음 달"
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer"
+          className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer"
         >
-          <i className="ri-arrow-right-s-line text-xl"></i>
+          <i className="ri-arrow-right-s-line text-sm"></i>
         </button>
       </div>
-      <div className={`grid grid-cols-7 gap-1 ${loading ? 'opacity-50' : ''}`}>
+      <div className="grid grid-cols-7 gap-0.5">
         {WEEKDAY_LABELS.map((d) => (
-          <div key={d} className="text-xs font-bold text-gray-400 text-center py-1">
+          <div key={d} className="text-[9px] font-bold text-gray-400 text-center py-0.5">
             {d}
           </div>
         ))}
         {cells.map((day, i) => {
           if (day === null) return <div key={`empty-${i}`} />;
           const dateStr = toDateStr(new Date(year, month, day));
-          const count = counts[dateStr] ?? 0;
+          const count = dateCounts[dateStr] ?? 0;
           const isSelected = dateStr === selectedDate;
           const isToday = dateStr === todayStr;
           return (
             <button
               key={dateStr}
               onClick={() => onSelectDate(dateStr)}
-              className={`aspect-square rounded-lg text-sm flex flex-col items-center justify-center cursor-pointer transition-all ${
+              className={`aspect-square rounded text-[10px] flex flex-col items-center justify-center cursor-pointer transition-all ${
                 isSelected
                   ? 'bg-primary text-white font-bold'
                   : count > 0
@@ -324,9 +438,9 @@ function ReservationCalendar({
               <span>{day}</span>
               {count > 0 && (
                 <span
-                  className={`text-[10px] leading-none mt-0.5 ${isSelected ? 'text-white' : 'text-primary'}`}
+                  className={`text-[8px] leading-none ${isSelected ? 'text-white' : 'text-primary'}`}
                 >
-                  {count}건
+                  {count}
                 </span>
               )}
             </button>
