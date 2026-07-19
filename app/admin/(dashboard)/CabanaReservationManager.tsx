@@ -8,12 +8,22 @@ import {
   updateCabanaReservation,
   cancelCabanaReservation,
 } from '@/app/admin/actions';
+import { DISCOUNT_TYPES, DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
 
 type Reservation = Database['public']['Tables']['cabana_reservations']['Row'];
 
 const TOTAL_CABANAS = 60;
 const TIME_TYPES = ['주간', '야간', '종일'] as const;
+
+type CategorySummary = Record<string, { count: number; revenue: number }>;
+type MonthSummary = {
+  dateCounts: Record<string, number>;
+  byType: CategorySummary;
+  byCategory: CategorySummary;
+  priceByType: Record<string, number>;
+};
+const EMPTY_SUMMARY: MonthSummary = { dateCounts: {}, byType: {}, byCategory: {}, priceByType: {} };
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -39,11 +49,7 @@ export default function CabanaReservationManager({
     const [y, m] = initialDate.split('-').map(Number);
     return new Date(y, m - 1, 1);
   });
-  const [monthSummary, setMonthSummary] = useState<{
-    dateCounts: Record<string, number>;
-    typeCounts: Record<string, number>;
-    priceByType: Record<string, number>;
-  }>({ dateCounts: {}, typeCounts: {}, priceByType: {} });
+  const [monthSummary, setMonthSummary] = useState<MonthSummary>(EMPTY_SUMMARY);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
   const posRef = useRef<HTMLDivElement>(null);
@@ -76,6 +82,7 @@ export default function CabanaReservationManager({
     setSummaryLoading(true);
     getCabanaMonthSummary(monthStart, monthEnd)
       .then(setMonthSummary)
+      .catch(() => setMonthSummary(EMPTY_SUMMARY))
       .finally(() => setSummaryLoading(false));
   }, [monthCursor]);
 
@@ -114,7 +121,9 @@ export default function CabanaReservationManager({
     getCabanaMonthSummary(
       toDateStr(new Date(year, month, 1)),
       toDateStr(new Date(year, month + 1, 0))
-    ).then(setMonthSummary);
+    )
+      .then(setMonthSummary)
+      .catch(() => setMonthSummary(EMPTY_SUMMARY));
   }
 
   return (
@@ -132,8 +141,8 @@ export default function CabanaReservationManager({
         </div>
         <div className="flex-1">
           <SalesDashboard
-            typeCounts={monthSummary.typeCounts}
-            priceByType={monthSummary.priceByType}
+            byType={monthSummary.byType}
+            byCategory={monthSummary.byCategory}
             loading={summaryLoading}
           />
         </div>
@@ -330,6 +339,7 @@ export default function CabanaReservationManager({
                       cabanaNo={selectedCabana!}
                       reservationDate={date}
                       availableTypes={availableTypes}
+                      priceByType={monthSummary.priceByType}
                       onCancel={() => setCreating(false)}
                       onCreated={() => {
                         setCreating(false);
@@ -344,6 +354,7 @@ export default function CabanaReservationManager({
             {editing && (
               <EditPanel
                 reservation={editing}
+                priceByType={monthSummary.priceByType}
                 onCancelEdit={() => setEditing(null)}
                 onSaved={() => {
                   setEditing(null);
@@ -364,34 +375,45 @@ export default function CabanaReservationManager({
 }
 
 function SalesDashboard({
-  typeCounts,
-  priceByType,
+  byType,
+  byCategory,
   loading,
 }: {
-  typeCounts: Record<string, number>;
-  priceByType: Record<string, number>;
+  byType: CategorySummary;
+  byCategory: CategorySummary;
   loading: boolean;
 }) {
-  const totalCount = TIME_TYPES.reduce((sum, t) => sum + (typeCounts[t] ?? 0), 0);
-  const totalRevenue = TIME_TYPES.reduce(
-    (sum, t) => sum + (typeCounts[t] ?? 0) * (priceByType[t] ?? 0),
-    0
-  );
+  const totalCount = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.count ?? 0), 0);
+  const totalRevenue = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.revenue ?? 0), 0);
 
   return (
     <div className={`bg-white rounded-xl shadow p-4 md:p-6 h-full ${loading ? 'opacity-50' : ''}`}>
       <h3 className="font-bold text-gray-900 mb-4">이번 달 판매 현황 (총판매량)</h3>
+
+      <p className="text-xs font-semibold text-gray-500 mb-2">타임별</p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {TIME_TYPES.map((type) => (
           <div key={type} className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm font-semibold text-gray-600">{type}권</p>
-            <p className="text-2xl font-bold text-primary mt-1">{typeCounts[type] ?? 0}건</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {won((typeCounts[type] ?? 0) * (priceByType[type] ?? 0))}
-            </p>
+            <p className="text-2xl font-bold text-primary mt-1">{byType[type]?.count ?? 0}건</p>
+            <p className="text-xs text-gray-500 mt-1">{won(byType[type]?.revenue ?? 0)}</p>
           </div>
         ))}
       </div>
+
+      <p className="text-xs font-semibold text-gray-500 mb-2">구분별</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        {DISCOUNT_TYPES.map((category) => (
+          <div key={category} className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm font-semibold text-gray-600">{category}</p>
+            <p className="text-2xl font-bold text-primary mt-1">
+              {byCategory[category]?.count ?? 0}건
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{won(byCategory[category]?.revenue ?? 0)}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between border-t pt-4">
         <span className="font-bold text-gray-900">총 판매 수량 / 판매액</span>
         <span className="text-right">
@@ -498,20 +520,81 @@ function ReservationCalendar({
   );
 }
 
+function DiscountTypeToggle({
+  discountType,
+  onChange,
+}: {
+  discountType: DiscountType;
+  onChange: (t: DiscountType) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm text-gray-600 mb-1">예약 구분</label>
+      <div className="flex flex-wrap gap-2">
+        {(['단체', '장애인/유공자'] as const).map((t) => {
+          const active = discountType === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onChange(active ? '일반' : t)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all cursor-pointer ${
+                active
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {t} ({Math.round((1 - DISCOUNT_MULTIPLIER[t]) * 100)}% 할인)
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PricePreview({
+  timeType,
+  discountType,
+  priceByType,
+}: {
+  timeType: string;
+  discountType: DiscountType;
+  priceByType: Record<string, number>;
+}) {
+  const basePrice = priceByType[timeType] ?? 0;
+  const finalPrice = Math.round(basePrice * DISCOUNT_MULTIPLIER[discountType]);
+
+  return (
+    <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-gray-200">
+      <span className="text-sm text-gray-500">예상 결제 금액 ({discountType})</span>
+      <span className="text-right">
+        {discountType !== '일반' && (
+          <span className="text-xs text-gray-400 line-through mr-2">{won(basePrice)}</span>
+        )}
+        <span className="font-bold text-primary">{won(finalPrice)}</span>
+      </span>
+    </div>
+  );
+}
+
 function CreatePanel({
   cabanaNo,
   reservationDate,
   availableTypes,
+  priceByType,
   onCancel,
   onCreated,
 }: {
   cabanaNo: number;
   reservationDate: string;
   availableTypes: readonly string[];
+  priceByType: Record<string, number>;
   onCancel: () => void;
   onCreated: () => void;
 }) {
   const [timeType, setTimeType] = useState(availableTypes[0] ?? '주간');
+  const [discountType, setDiscountType] = useState<DiscountType>('일반');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [guestCount, setGuestCount] = useState(1);
@@ -537,6 +620,7 @@ function CreatePanel({
           guest_count: guestCount,
           is_camping: isCamping,
           has_admission: hasAdmission,
+          discount_type: discountType,
         });
         onCreated();
       } catch (err) {
@@ -594,6 +678,14 @@ function CreatePanel({
           />
         </label>
       </div>
+
+      <div className="mb-3">
+        <DiscountTypeToggle discountType={discountType} onChange={setDiscountType} />
+      </div>
+      <div className="mb-3">
+        <PricePreview timeType={timeType} discountType={discountType} priceByType={priceByType} />
+      </div>
+
       {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
       <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-700">
         <label className="flex items-center gap-2 cursor-pointer">
@@ -605,7 +697,7 @@ function CreatePanel({
               if (e.target.checked) setHasAdmission(true);
             }}
           />
-          캠핑객 소속 유무
+          캠핑객 예약
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -639,11 +731,13 @@ function CreatePanel({
 
 function EditPanel({
   reservation,
+  priceByType,
   onCancelEdit,
   onSaved,
   onCancelled,
 }: {
   reservation: Reservation;
+  priceByType: Record<string, number>;
   onCancelEdit: () => void;
   onSaved: () => void;
   onCancelled: () => void;
@@ -655,6 +749,9 @@ function EditPanel({
   const [cabanaNo, setCabanaNo] = useState(reservation.cabana_no);
   const [isCamping, setIsCamping] = useState(reservation.is_camping);
   const [hasAdmission, setHasAdmission] = useState(reservation.has_admission);
+  const [discountType, setDiscountType] = useState<DiscountType>(
+    (reservation.discount_type as DiscountType) ?? '일반'
+  );
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -670,6 +767,7 @@ function EditPanel({
           is_camping: isCamping,
           has_admission: hasAdmission,
           cabana_no: cabanaNo,
+          discount_type: discountType,
         });
         onSaved();
       } catch (err) {
@@ -740,6 +838,14 @@ function EditPanel({
           />
         </label>
       </div>
+
+      <div className="mb-3">
+        <DiscountTypeToggle discountType={discountType} onChange={setDiscountType} />
+      </div>
+      <div className="mb-3">
+        <PricePreview timeType={timeType} discountType={discountType} priceByType={priceByType} />
+      </div>
+
       {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
       <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-700">
         <label className="flex items-center gap-2 cursor-pointer">
@@ -751,7 +857,7 @@ function EditPanel({
               if (e.target.checked) setHasAdmission(true);
             }}
           />
-          캠핑객 소속 유무
+          캠핑객 예약
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input

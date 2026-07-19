@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadImage, removeImage } from '@/lib/admin/storage';
+import { DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
 
 function revalidateSite() {
@@ -314,7 +315,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   const [{ data: reservations, error }, { data: zones, error: zonesError }] = await Promise.all([
     admin
       .from('cabana_reservations')
-      .select('reservation_date, time_type')
+      .select('reservation_date, time_type, discount_type')
       .gte('reservation_date', startDate)
       .lte('reservation_date', endDate),
     admin.from('cabana_zones').select('name, weekday_price').order('sort_order').limit(3),
@@ -322,13 +323,6 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
 
   if (error) throw new Error(error.message);
   if (zonesError) throw new Error(zonesError.message);
-
-  const dateCounts: Record<string, number> = {};
-  const typeCounts: Record<string, number> = { 주간: 0, 야간: 0, 종일: 0 };
-  for (const r of reservations ?? []) {
-    dateCounts[r.reservation_date] = (dateCounts[r.reservation_date] ?? 0) + 1;
-    if (r.time_type in typeCounts) typeCounts[r.time_type] += 1;
-  }
 
   // cabana_zones는 정렬 순서상 [주간, 야간, 종일, 썬배드] 순으로 등록되어 있음 (Cabana.tsx와 동일한 규칙)
   const zoneList = zones ?? [];
@@ -338,7 +332,34 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     종일: zoneList[2]?.weekday_price ?? 0,
   };
 
-  return { dateCounts, typeCounts, priceByType };
+  const dateCounts: Record<string, number> = {};
+  const byType: Record<string, { count: number; revenue: number }> = {
+    주간: { count: 0, revenue: 0 },
+    야간: { count: 0, revenue: 0 },
+    종일: { count: 0, revenue: 0 },
+  };
+  const byCategory: Record<string, { count: number; revenue: number }> = {
+    일반: { count: 0, revenue: 0 },
+    단체: { count: 0, revenue: 0 },
+    '장애인/유공자': { count: 0, revenue: 0 },
+  };
+
+  for (const r of reservations ?? []) {
+    dateCounts[r.reservation_date] = (dateCounts[r.reservation_date] ?? 0) + 1;
+
+    const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
+    const revenue = (priceByType[r.time_type] ?? 0) * multiplier;
+
+    if (r.time_type in byType) {
+      byType[r.time_type].count += 1;
+      byType[r.time_type].revenue += revenue;
+    }
+    const category = r.discount_type && r.discount_type in byCategory ? r.discount_type : '일반';
+    byCategory[category].count += 1;
+    byCategory[category].revenue += revenue;
+  }
+
+  return { dateCounts, byType, byCategory, priceByType };
 }
 
 function generateReservationNo(dateStr: string) {
@@ -356,6 +377,7 @@ export async function createCabanaReservationAdmin(data: {
   guest_count: number;
   is_camping: boolean;
   has_admission: boolean;
+  discount_type: DiscountType;
 }) {
   await requireAdmin();
   const admin = createAdminClient();
@@ -389,6 +411,7 @@ export async function createCabanaReservationAdmin(data: {
     guest_count: data.guest_count,
     is_camping: data.is_camping,
     has_admission: data.is_camping ? true : data.has_admission,
+    discount_type: data.discount_type,
   });
   if (error) throw new Error(error.message);
 
@@ -405,6 +428,7 @@ export async function updateCabanaReservation(
     is_camping: boolean;
     has_admission: boolean;
     cabana_no: number;
+    discount_type: DiscountType;
   }
 ) {
   await requireAdmin();
@@ -446,6 +470,7 @@ export async function updateCabanaReservation(
       is_camping: data.is_camping,
       has_admission: data.is_camping ? true : data.has_admission,
       cabana_no: data.cabana_no,
+      discount_type: data.discount_type,
     })
     .eq('id', id);
 
