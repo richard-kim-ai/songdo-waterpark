@@ -259,125 +259,126 @@ export default function CabanaReservationManager({
             <span className="ml-2 border-l pl-4">점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)</span>
           </div>
         </div>
-      </div>
 
-      {selectedCabana && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => {
-            setSelectedCabana(null);
-            setCreating(false);
-          }}
-        >
+        {/* 전체화면(POS) 모드일 때도 상세/수정 팝업이 화면 위에 뜨도록 posRef 안쪽에 배치 */}
+        {selectedCabana && (
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 md:p-6"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+            onClick={() => {
+              setSelectedCabana(null);
+              setCreating(false);
+            }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
-              <button
-                onClick={() => {
-                  setSelectedCabana(null);
-                  setCreating(false);
-                }}
-                aria-label="닫기"
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <i className="ri-close-line text-2xl"></i>
-              </button>
-            </div>
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 md:p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
+                <button
+                  onClick={() => {
+                    setSelectedCabana(null);
+                    setCreating(false);
+                  }}
+                  aria-label="닫기"
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  <i className="ri-close-line text-2xl"></i>
+                </button>
+              </div>
 
-            {(() => {
-              const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
-              const takenTypes = new Set(cabanaMatches.map((r) => r.time_type));
-              const isFullyBooked =
-                takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'));
-              const availableTypes = TIME_TYPES.filter((t) => {
-                if (t === '종일') return cabanaMatches.length === 0;
-                return !takenTypes.has(t) && !takenTypes.has('종일');
-              });
+              {(() => {
+                const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
+                const takenTypes = new Set(cabanaMatches.map((r) => r.time_type));
+                const isFullyBooked =
+                  takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'));
+                const availableTypes = TIME_TYPES.filter((t) => {
+                  if (t === '종일') return cabanaMatches.length === 0;
+                  return !takenTypes.has(t) && !takenTypes.has('종일');
+                });
 
-              return (
-                <>
-                  <div className="grid gap-2">
-                    {cabanaMatches.length === 0 ? (
-                      <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
-                        예약 없음 (공석)
-                      </div>
-                    ) : (
-                      cabanaMatches.map((match) => (
-                        <div
-                          key={match.id}
-                          className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
-                        >
-                          <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
-                            [{match.time_type}]
-                          </span>
-                          <button
-                            onClick={() => {
-                              setEditing(match);
-                              setCreating(false);
-                            }}
-                            className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
-                          >
-                            <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
-                            예약번호 {match.reservation_no}
-                            {match.is_camping && (
-                              <span className="ml-2 text-xs text-primary font-semibold">
-                                캠핑객
-                              </span>
-                            )}
-                          </button>
+                return (
+                  <>
+                    <div className="grid gap-2">
+                      {cabanaMatches.length === 0 ? (
+                        <div className="px-4 py-3 rounded-lg bg-gray-50 text-sm text-gray-400">
+                          예약 없음 (공석)
                         </div>
-                      ))
+                      ) : (
+                        cabanaMatches.map((match) => (
+                          <div
+                            key={match.id}
+                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
+                          >
+                            <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                              [{match.time_type}]
+                            </span>
+                            <button
+                              onClick={() => {
+                                setEditing(match);
+                                setCreating(false);
+                              }}
+                              className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                            >
+                              <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
+                              예약번호 {match.reservation_no}
+                              {match.is_camping && (
+                                <span className="ml-2 text-xs text-primary font-semibold">
+                                  캠핑객
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {!isFullyBooked && !editing && !creating && (
+                      <button
+                        onClick={() => setCreating(true)}
+                        className="w-full mt-3 px-4 py-2 border border-dashed border-primary/40 text-primary text-sm font-semibold rounded-lg hover:bg-primary/5 transition-all cursor-pointer"
+                      >
+                        <i className="ri-add-line mr-1"></i> 새 예약 등록
+                      </button>
                     )}
-                  </div>
 
-                  {!isFullyBooked && !editing && !creating && (
-                    <button
-                      onClick={() => setCreating(true)}
-                      className="w-full mt-3 px-4 py-2 border border-dashed border-primary/40 text-primary text-sm font-semibold rounded-lg hover:bg-primary/5 transition-all cursor-pointer"
-                    >
-                      <i className="ri-add-line mr-1"></i> 새 예약 등록
-                    </button>
-                  )}
+                    {creating && (
+                      <CreatePanel
+                        cabanaNo={selectedCabana!}
+                        reservationDate={date}
+                        availableTypes={availableTypes}
+                        priceByType={monthSummary.priceByType}
+                        onCancel={() => setCreating(false)}
+                        onCreated={() => {
+                          setCreating(false);
+                          refresh();
+                        }}
+                      />
+                    )}
+                  </>
+                );
+              })()}
 
-                  {creating && (
-                    <CreatePanel
-                      cabanaNo={selectedCabana!}
-                      reservationDate={date}
-                      availableTypes={availableTypes}
-                      priceByType={monthSummary.priceByType}
-                      onCancel={() => setCreating(false)}
-                      onCreated={() => {
-                        setCreating(false);
-                        refresh();
-                      }}
-                    />
-                  )}
-                </>
-              );
-            })()}
-
-            {editing && (
-              <EditPanel
-                reservation={editing}
-                priceByType={monthSummary.priceByType}
-                onCancelEdit={() => setEditing(null)}
-                onSaved={() => {
-                  setEditing(null);
-                  refresh();
-                }}
-                onCancelled={() => {
-                  setEditing(null);
-                  setSelectedCabana(null);
-                  refresh();
-                }}
-              />
-            )}
+              {editing && (
+                <EditPanel
+                  reservation={editing}
+                  priceByType={monthSummary.priceByType}
+                  onCancelEdit={() => setEditing(null)}
+                  onSaved={() => {
+                    setEditing(null);
+                    refresh();
+                  }}
+                  onCancelled={() => {
+                    setEditing(null);
+                    setSelectedCabana(null);
+                    refresh();
+                  }}
+                />
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
