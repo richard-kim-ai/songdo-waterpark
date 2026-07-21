@@ -18,18 +18,20 @@ export async function getKakaoConfig() {
   const row = await getSettingsRow();
   return {
     restApiKey: row?.rest_api_key ?? '',
+    clientSecret: row?.client_secret ?? '',
     redirectUri: row?.redirect_uri ?? '',
     connected: !!(row?.access_token && row?.refresh_token),
   };
 }
 
-export async function saveKakaoConfig(restApiKey: string, redirectUri: string) {
+export async function saveKakaoConfig(restApiKey: string, clientSecret: string, redirectUri: string) {
   const admin = createAdminClient();
   const { error } = await admin
     .from('kakao_notify_settings')
     .upsert({
       id: 1,
       rest_api_key: restApiKey,
+      client_secret: clientSecret || null,
       redirect_uri: redirectUri,
       updated_at: new Date().toISOString(),
     });
@@ -89,6 +91,7 @@ export async function exchangeKakaoCode(code: string): Promise<{ ok: true } | { 
       client_id: row.rest_api_key,
       redirect_uri: row.redirect_uri,
       code,
+      ...(row.client_secret ? { client_secret: row.client_secret } : {}),
     }),
   });
 
@@ -115,6 +118,7 @@ async function getValidAccessToken(): Promise<string | null> {
       grant_type: 'refresh_token',
       client_id: row.rest_api_key,
       refresh_token: row.refresh_token,
+      ...(row.client_secret ? { client_secret: row.client_secret } : {}),
     }),
   });
 
