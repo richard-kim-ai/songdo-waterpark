@@ -32,6 +32,12 @@ export const ADMIN_PAGES = [
     icon: 'ri-question-answer-line',
   },
   { key: 'usage', href: '/admin/usage', label: '사용량 & 트래픽', icon: 'ri-dashboard-line' },
+  {
+    key: 'kakao',
+    href: '/admin/kakao',
+    label: '카카오톡 알림 설정',
+    icon: 'ri-kakao-talk-fill',
+  },
 ] as const;
 
 export type AdminPageKey = (typeof ADMIN_PAGES)[number]['key'];

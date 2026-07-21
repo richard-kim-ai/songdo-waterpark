@@ -117,6 +117,20 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['gallery_images']['Row']>;
         Relationships: [];
       };
+      kakao_notify_settings: {
+        Row: {
+          id: number;
+          rest_api_key: string | null;
+          redirect_uri: string | null;
+          access_token: string | null;
+          refresh_token: string | null;
+          token_expires_at: string | null;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['kakao_notify_settings']['Row']>;
+        Update: Partial<Database['public']['Tables']['kakao_notify_settings']['Row']>;
+        Relationships: [];
+      };
       inquiries: {
         Row: {
           id: string;

@@ -2,10 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requireAdmin } from '@/lib/admin/auth';
+import { requireAdmin, requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadImage, removeImage } from '@/lib/admin/storage';
 import { DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
+import { saveKakaoConfig, disconnectKakao, sendKakaoTestMessage } from '@/lib/kakao';
 import type { Database } from '@/types/database';
 
 function revalidateSite() {
@@ -602,6 +603,31 @@ export async function deleteAdminUser(userId: string) {
   await admin.auth.admin.deleteUser(userId);
 
   revalidatePath('/admin/users');
+}
+
+// ---------- 카카오톡 알림 연동 ----------
+export async function saveKakaoSettings(restApiKey: string, redirectUri: string) {
+  await requirePagePermission('kakao');
+  await saveKakaoConfig(restApiKey.trim(), redirectUri.trim());
+  revalidatePath('/admin/kakao');
+}
+
+export async function disconnectKakaoAction() {
+  await requirePagePermission('kakao');
+  await disconnectKakao();
+  revalidatePath('/admin/kakao');
+}
+
+export async function sendKakaoTestMessageAction(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  await requirePagePermission('kakao');
+  try {
+    await sendKakaoTestMessage();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : '발송 중 오류가 발생했습니다.' };
+  }
 }
 
 // ---------- 인증 ----------
