@@ -21,14 +21,14 @@ function PopupRow({ popup }: { popup: Popup }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-6 space-y-4">
-      <div className="flex items-start gap-4">
+    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-4 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row items-start gap-4">
         {popup.image_path && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={publicUrl(popup.image_path)}
             alt={popup.title}
-            className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+            className="w-24 h-24 object-cover rounded-lg border border-gray-200 shrink-0"
           />
         )}
         <div className="flex-1 grid md:grid-cols-2 gap-4">

@@ -20,7 +20,7 @@ export default async function AdminDashboardLayout({
         isSuperAdmin={isSuperAdmin}
         permissions={permissions}
       />
-      <div className="flex-1 p-10 overflow-y-auto">{children}</div>
+      <div className="flex-1 min-w-0 overflow-y-auto pt-14 px-4 pb-4 md:p-10">{children}</div>
     </div>
   );
 }
