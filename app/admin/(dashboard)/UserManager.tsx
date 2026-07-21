@@ -50,7 +50,7 @@ export default function UserManager({
       </div>
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="grid grid-cols-[1fr_7rem_1fr_6rem] gap-3 px-6 py-3 bg-gray-50 border-b text-xs font-bold text-gray-500">
+        <div className="hidden sm:grid grid-cols-[1fr_7rem_1fr_6rem] gap-3 px-6 py-3 bg-gray-50 border-b text-xs font-bold text-gray-500">
           <span>이메일</span>
           <span className="text-center">등급</span>
           <span>관리 가능 항목</span>
@@ -129,15 +129,38 @@ function UserRow({
 
   return (
     <div className="border-b last:border-b-0">
-      <div className="grid grid-cols-[1fr_7rem_1fr_6rem] gap-3 px-6 py-4 items-center">
-        <span className="min-w-0">
-          <span className="font-medium text-gray-900 truncate block">
-            {user.email}
-            {isSelf && <span className="ml-2 text-xs text-gray-400">(나)</span>}
+      <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_7rem_1fr_6rem] sm:gap-3 px-4 sm:px-6 py-4 sm:items-center">
+        <div className="min-w-0 flex items-center justify-between gap-2 sm:block">
+          <span className="min-w-0">
+            <span className="font-medium text-gray-900 truncate block">
+              {user.email}
+              {isSelf && <span className="ml-2 text-xs text-gray-400">(나)</span>}
+            </span>
+            <span className="text-xs text-gray-400">{formatDate(user.createdAt)} 등록</span>
           </span>
-          <span className="text-xs text-gray-400">{formatDate(user.createdAt)} 등록</span>
-        </span>
-        <span className="text-center">
+          <span className="flex items-center gap-2 sm:hidden shrink-0">
+            {!user.isSuperAdmin && (
+              <>
+                <button
+                  onClick={() => setEditing((v) => !v)}
+                  className="text-gray-400 hover:text-primary cursor-pointer"
+                  aria-label="권한 수정"
+                >
+                  <i className="ri-edit-2-line text-lg"></i>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={pending}
+                  className="text-gray-400 hover:text-red-600 cursor-pointer disabled:opacity-50"
+                  aria-label="삭제"
+                >
+                  <i className="ri-delete-bin-line text-lg"></i>
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+        <div className="sm:text-center">
           {user.isSuperAdmin ? (
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
               최고 관리자
@@ -147,15 +170,15 @@ function UserRow({
               제한된 관리자
             </span>
           )}
-        </span>
-        <span className="text-sm text-gray-600">
+        </div>
+        <div className="text-sm text-gray-600">
           {user.isSuperAdmin
             ? '전체 메뉴'
             : ADMIN_PAGES.filter((p) => user.permissions.includes(p.key))
                 .map((p) => p.label)
                 .join(', ') || '없음'}
-        </span>
-        <span className="flex items-center justify-center gap-2">
+        </div>
+        <div className="hidden sm:flex items-center justify-center gap-2">
           {!user.isSuperAdmin && (
             <>
               <button
@@ -175,7 +198,7 @@ function UserRow({
               </button>
             </>
           )}
-        </span>
+        </div>
       </div>
 
       {editing && (

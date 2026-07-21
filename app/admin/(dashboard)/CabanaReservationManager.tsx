@@ -243,20 +243,22 @@ export default function CabanaReservationManager({
               );
             })}
           </div>
-          <div className="flex gap-4 mt-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1 shrink-0">
               <span className="w-3 h-3 rounded bg-gray-100 border border-gray-200 inline-block"></span>
               공석
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 shrink-0">
               <span className="w-3 h-3 rounded bg-amber-400 inline-block"></span>
               부분 예약
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 shrink-0">
               <span className="w-3 h-3 rounded bg-red-500 inline-block"></span>
               마감
             </span>
-            <span className="ml-2 border-l pl-4">점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)</span>
+            <span className="sm:ml-2 sm:border-l sm:pl-4 basis-full sm:basis-auto">
+              점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)
+            </span>
           </div>
         </div>
 

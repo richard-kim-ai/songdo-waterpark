@@ -50,18 +50,24 @@ function InquiryRow({
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full grid grid-cols-[6rem_1fr_9rem_5rem] gap-3 px-6 py-4 items-center text-left hover:bg-gray-50 transition-colors cursor-pointer"
+        className="w-full grid grid-cols-[4.5rem_1fr_4rem] sm:grid-cols-[6rem_1fr_9rem_5rem] gap-2 sm:gap-3 px-3 sm:px-6 py-4 items-center text-left hover:bg-gray-50 transition-colors cursor-pointer"
       >
         <span className="font-bold text-gray-900 truncate">{inquiry.author_id}</span>
         <span className="text-gray-700 truncate">{inquiry.title}</span>
-        <span className="text-xs text-gray-400 text-center">{formatDateTime(inquiry.created_at)}</span>
-        <span className="flex items-center justify-center gap-2">
+        <span className="hidden sm:block text-xs text-gray-400 text-center">{formatDateTime(inquiry.created_at)}</span>
+        <span className="flex items-center justify-center gap-1 sm:gap-2">
+          <span
+            title={inquiry.reply ? '답변완료' : '답변대기'}
+            className={`sm:hidden w-2 h-2 rounded-full shrink-0 ${
+              inquiry.reply ? 'bg-primary' : 'bg-gray-300'
+            }`}
+          />
           {inquiry.reply ? (
-            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
               답변완료
             </span>
           ) : (
-            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
               답변대기
             </span>
           )}
@@ -128,10 +134,10 @@ export default function InquiryManager({ inquiries }: { inquiries: Inquiry[] }) 
   return (
     <div className="space-y-4">
       {inquiries.length > 0 && (
-        <div className="grid grid-cols-[6rem_1fr_9rem_5rem] gap-3 px-6 py-2 text-xs font-bold text-gray-500">
+        <div className="grid grid-cols-[4.5rem_1fr_4rem] sm:grid-cols-[6rem_1fr_9rem_5rem] gap-2 sm:gap-3 px-3 sm:px-6 py-2 text-xs font-bold text-gray-500">
           <span>아이디</span>
           <span>제목</span>
-          <span className="text-center">작성일시</span>
+          <span className="hidden sm:block text-center">작성일시</span>
           <span className="text-center">상태</span>
         </div>
       )}
