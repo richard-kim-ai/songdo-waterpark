@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadImage, removeImage } from '@/lib/admin/storage';
 import { DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
 import { saveKakaoConfig, disconnectKakao, sendKakaoTestMessage } from '@/lib/kakao';
+import { saveAligoConfig, sendAligoTestMessage } from '@/lib/aligo';
 import type { Database } from '@/types/database';
 
 function revalidateSite() {
@@ -628,6 +629,41 @@ export async function sendKakaoTestMessageAction(): Promise<
   await requirePagePermission('kakao');
   try {
     await sendKakaoTestMessage();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : '발송 중 오류가 발생했습니다.' };
+  }
+}
+
+// ---------- 고객 알림톡(알리고) 연동 ----------
+export async function saveAligoSettings(config: {
+  apiKey: string;
+  userId: string;
+  sender: string;
+  senderKey: string;
+  tplCode: string;
+  messageTemplate: string;
+  useSmsFallback: boolean;
+}) {
+  await requirePagePermission('aligo');
+  await saveAligoConfig({
+    apiKey: config.apiKey.trim(),
+    userId: config.userId.trim(),
+    sender: config.sender.trim(),
+    senderKey: config.senderKey.trim(),
+    tplCode: config.tplCode.trim(),
+    messageTemplate: config.messageTemplate,
+    useSmsFallback: config.useSmsFallback,
+  });
+  revalidatePath('/admin/aligo');
+}
+
+export async function sendAligoTestMessageAction(
+  testPhone: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requirePagePermission('aligo');
+  try {
+    await sendAligoTestMessage(testPhone.trim());
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '발송 중 오류가 발생했습니다.' };
