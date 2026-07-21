@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendNotificationMail } from '@/lib/mail';
+import { sendKakaoNotification } from '@/lib/kakao';
 import type { Database } from '@/types/database';
 
 const TOTAL_CABANAS = 60;
@@ -101,9 +101,9 @@ export async function createCabanaReservation(
 
   if (error) return { ok: false, error: '예약 처리 중 오류가 발생했습니다.' };
 
-  await sendNotificationMail(
-    `[케노피 예약] ${name}님 · ${timeType} · 예약번호 ${reservationNo}`,
+  await sendKakaoNotification(
     [
+      `[케노피 예약] ${name}님 · ${timeType} · 예약번호 ${reservationNo}`,
       `예약일자: ${reservationDate}`,
       `이용권: ${timeType}`,
       `예약자: ${name}`,
