@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendKakaoNotification } from '@/lib/kakao';
+import { sendCustomerReservationAlimtalk } from '@/lib/aligo';
 import type { Database } from '@/types/database';
 
 const TOTAL_CABANAS = 60;
@@ -114,6 +115,13 @@ export async function createCabanaReservation(
       `예약번호: ${reservationNo}`,
     ].join('\n')
   );
+
+  await sendCustomerReservationAlimtalk(phone, {
+    name,
+    date: reservationDate,
+    timeType,
+    reservationNo,
+  });
 
   revalidatePath('/admin/cabana-reservations');
   return { ok: true, reservationNo, cabanaNo: assignedCabana };

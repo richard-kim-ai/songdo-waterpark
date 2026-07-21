@@ -132,6 +132,22 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['kakao_notify_settings']['Row']>;
         Relationships: [];
       };
+      aligo_notify_settings: {
+        Row: {
+          id: number;
+          api_key: string | null;
+          user_id: string | null;
+          sender: string | null;
+          sender_key: string | null;
+          tpl_code: string | null;
+          message_template: string | null;
+          use_sms_fallback: boolean;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['aligo_notify_settings']['Row']>;
+        Update: Partial<Database['public']['Tables']['aligo_notify_settings']['Row']>;
+        Relationships: [];
+      };
       inquiries: {
         Row: {
           id: string;
