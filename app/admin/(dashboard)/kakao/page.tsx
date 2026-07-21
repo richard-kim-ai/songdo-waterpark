@@ -49,7 +49,11 @@ export default async function KakaoAdminPage({
       body: '[제품 설정 > 카카오 로그인 > 동의항목]에서 "카카오톡 메시지 전송" 항목을 찾아 사용 설정으로 켭니다. (개발 중인 앱에 등록된 본인 계정으로는 별도 검수 없이 바로 사용 가능합니다)',
     },
     {
-      title: '5. 저장 후 계정 연동',
+      title: '5. (해당 시) Client Secret 발급',
+      body: '[제품 설정 > 카카오 로그인 > 보안]에서 "Client Secret 사용함"이 켜져 있다면, 아래 Client Secret 입력창에 발급된 코드를 함께 저장해야 합니다. 켜져 있지 않다면 이 단계는 건너뛰어도 됩니다. (이 설정을 켜두고 Client Secret 없이 연동하면 "Bad client credentials" 오류가 발생합니다)',
+    },
+    {
+      title: '6. 저장 후 계정 연동',
       body: '아래에 REST API 키와 Redirect URI를 저장한 뒤 "카카오 계정 연동하기" 버튼을 눌러 카카오 로그인으로 연동을 완료합니다. 이후 케노피 예약이 접수될 때마다 관리자 본인의 카카오톡("나에게 보내기")으로 알림이 도착합니다.',
     },
   ];
@@ -78,6 +82,7 @@ export default async function KakaoAdminPage({
 
       <KakaoNotifySettings
         initialRestApiKey={config.restApiKey}
+        initialClientSecret={config.clientSecret}
         initialRedirectUri={config.redirectUri}
         connected={config.connected}
         connectedNotice={params.kakao_connected ? '카카오 계정 연동이 완료되었습니다.' : ''}

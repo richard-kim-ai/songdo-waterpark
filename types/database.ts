@@ -121,6 +121,7 @@ export type Database = {
         Row: {
           id: number;
           rest_api_key: string | null;
+          client_secret: string | null;
           redirect_uri: string | null;
           access_token: string | null;
           refresh_token: string | null;

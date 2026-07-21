@@ -19,18 +19,21 @@ function buildAuthorizeUrl(restApiKey: string, redirectUri: string) {
 
 export default function KakaoNotifySettings({
   initialRestApiKey,
+  initialClientSecret,
   initialRedirectUri,
   connected,
   connectedNotice,
   errorNotice,
 }: {
   initialRestApiKey: string;
+  initialClientSecret: string;
   initialRedirectUri: string;
   connected: boolean;
   connectedNotice: string;
   errorNotice: string;
 }) {
   const [restApiKey, setRestApiKey] = useState(initialRestApiKey);
+  const [clientSecret, setClientSecret] = useState(initialClientSecret);
   const [redirectUri, setRedirectUri] = useState(initialRedirectUri);
   const [saved, setSaved] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -47,7 +50,7 @@ export default function KakaoNotifySettings({
   function handleSave() {
     setSaved(false);
     startTransition(async () => {
-      await saveKakaoSettings(restApiKey, redirectUri);
+      await saveKakaoSettings(restApiKey, clientSecret, redirectUri);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     });
@@ -55,7 +58,7 @@ export default function KakaoNotifySettings({
 
   function handleConnect() {
     startTransition(async () => {
-      await saveKakaoSettings(restApiKey, redirectUri);
+      await saveKakaoSettings(restApiKey, clientSecret, redirectUri);
       window.location.href = buildAuthorizeUrl(restApiKey.trim(), redirectUri.trim());
     });
   }
@@ -112,6 +115,18 @@ export default function KakaoNotifySettings({
           value={restApiKey}
           onChange={(e) => setRestApiKey(e.target.value)}
           placeholder="카카오 디벨로퍼스 앱의 REST API 키"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">
+          Client Secret (선택 — 앱의 [보안] 설정에서 &quot;Client Secret 사용함&quot;을 켠
+          경우에만 필요)
+        </label>
+        <input
+          value={clientSecret}
+          onChange={(e) => setClientSecret(e.target.value)}
+          placeholder="Client Secret 사용 시에만 입력"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>

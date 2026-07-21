@@ -606,9 +606,13 @@ export async function deleteAdminUser(userId: string) {
 }
 
 // ---------- 카카오톡 알림 연동 ----------
-export async function saveKakaoSettings(restApiKey: string, redirectUri: string) {
+export async function saveKakaoSettings(
+  restApiKey: string,
+  clientSecret: string,
+  redirectUri: string
+) {
   await requirePagePermission('kakao');
-  await saveKakaoConfig(restApiKey.trim(), redirectUri.trim());
+  await saveKakaoConfig(restApiKey.trim(), clientSecret.trim(), redirectUri.trim());
   revalidatePath('/admin/kakao');
 }
 
