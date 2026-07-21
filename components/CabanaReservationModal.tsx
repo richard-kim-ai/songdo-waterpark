@@ -9,6 +9,19 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatDateKorean(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+
+function formatPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 export default function CabanaReservationModal({ buttonLabel }: { buttonLabel: string }) {
   const [open, setOpen] = useState(false);
 
@@ -96,6 +109,8 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
               <p className="text-2xl font-bold text-primary mt-2">
                 {name} · {timeType} 이용권
               </p>
+              <p className="text-sm text-gray-600 mt-1">예약순번 {result.cabanaNo}번</p>
+              <p className="text-sm text-gray-500 mt-1">{formatDateKorean(date)}</p>
               <p className="text-sm text-gray-500 mt-1">예약번호 {result.reservationNo}</p>
             </div>
             <p className="text-xs text-gray-500 text-center">
@@ -171,8 +186,9 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                   <label className="block text-xs font-semibold text-gray-600 mb-1">연락처</label>
                   <input
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    maxLength={20}
+                    onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                    type="tel"
+                    maxLength={13}
                     placeholder="010-0000-0000"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
