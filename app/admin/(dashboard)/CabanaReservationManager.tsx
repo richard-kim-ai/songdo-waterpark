@@ -7,6 +7,7 @@ import {
   createCabanaReservationAdmin,
   updateCabanaReservation,
   cancelCabanaReservation,
+  blockCabanaSlots,
 } from '@/app/admin/actions';
 import { DISCOUNT_TYPES, DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
@@ -61,6 +62,15 @@ export default function CabanaReservationManager({
 
   const posRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const [blockMode, setBlockMode] = useState(false);
+  const [selectedForBlock, setSelectedForBlock] = useState<Set<number>>(new Set());
+  const [blockTimeTypes, setBlockTimeTypes] = useState<Set<string>>(
+    () => new Set(TIME_TYPES)
+  );
+  const [blockResult, setBlockResult] = useState('');
+  const [blockPending, startBlockTransition] = useTransition();
+  const [unblockPending, startUnblockTransition] = useTransition();
 
   useEffect(() => {
     if (date === initialDate && reservations === initialReservations) return;
@@ -133,6 +143,52 @@ export default function CabanaReservationManager({
       .catch(() => setMonthSummary(EMPTY_SUMMARY));
   }
 
+  function toggleCabanaSelection(cabanaNo: number) {
+    setSelectedForBlock((prev) => {
+      const next = new Set(prev);
+      if (next.has(cabanaNo)) next.delete(cabanaNo);
+      else next.add(cabanaNo);
+      return next;
+    });
+  }
+
+  function toggleBlockTimeType(type: string) {
+    setBlockTimeTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }
+
+  function handleBulkBlock() {
+    setBlockResult('');
+    startBlockTransition(async () => {
+      try {
+        const res = await blockCabanaSlots(
+          date,
+          Array.from(selectedForBlock),
+          Array.from(blockTimeTypes)
+        );
+        setBlockResult(
+          `${res.blocked}건 차단 완료${res.skipped > 0 ? ` · ${res.skipped}건은 이미 예약이 있어 건너뜀` : ''}`
+        );
+        setSelectedForBlock(new Set());
+        refresh();
+      } catch (err) {
+        setBlockResult(err instanceof Error ? err.message : '차단 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
+  function handleUnblock(id: string) {
+    if (!confirm('차단을 해제할까요?')) return;
+    startUnblockTransition(async () => {
+      await cancelCabanaReservation(id);
+      refresh();
+    });
+  }
+
   return (
     <div>
       <div className="flex flex-col lg:flex-row gap-6 mb-6">
@@ -182,6 +238,21 @@ export default function CabanaReservationManager({
             </span>
           </div>
           <button
+            onClick={() => {
+              setBlockMode((v) => !v);
+              setSelectedForBlock(new Set());
+              setBlockResult('');
+            }}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold !rounded-button transition-all cursor-pointer ${
+              blockMode
+                ? 'bg-slate-800 text-white'
+                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <i className="ri-lock-2-line"></i>
+            {blockMode ? '예약막기 모드 종료' : '예약막기 모드'}
+          </button>
+          <button
             onClick={toggleFullscreen}
             className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
           >
@@ -192,8 +263,52 @@ export default function CabanaReservationManager({
 
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
           <p className="text-xs text-gray-500 mb-4">
-            케노피 번호를 누르면 해당 구역의 예약 정보를 확인·수정·취소할 수 있습니다.
+            {blockMode
+              ? '차단할 케노피 번호를 눌러 선택한 뒤, 아래에서 타임을 골라 일괄 차단하세요.'
+              : '케노피 번호를 누르면 해당 구역의 예약 정보를 확인·수정·취소할 수 있습니다.'}
           </p>
+
+          {blockMode && (
+            <div className="mb-4 p-3 md:p-4 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <span className="text-sm font-semibold text-gray-700">
+                  선택된 케노피 {selectedForBlock.size}개
+                </span>
+                <div className="flex gap-3 text-sm text-gray-600">
+                  {TIME_TYPES.map((t) => (
+                    <label key={t} className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={blockTimeTypes.has(t)}
+                        onChange={() => toggleBlockTimeType(t)}
+                      />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {blockResult && (
+                <p className="text-sm text-primary font-semibold mb-2">{blockResult}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleBulkBlock}
+                  disabled={selectedForBlock.size === 0 || blockTimeTypes.size === 0 || blockPending}
+                  className="px-4 py-2 bg-slate-800 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {blockPending ? '차단 중...' : '선택 항목 차단하기'}
+                </button>
+                <button
+                  onClick={() => setSelectedForBlock(new Set())}
+                  disabled={selectedForBlock.size === 0}
+                  className="px-4 py-2 text-gray-600 text-sm font-semibold !rounded-button hover:bg-gray-100 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  선택 해제
+                </button>
+              </div>
+            </div>
+          )}
+
           <div
             className={`grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3 ${
               loading ? 'opacity-50 pointer-events-none' : ''
@@ -204,24 +319,32 @@ export default function CabanaReservationManager({
               const matches = reservations.filter((r) => r.cabana_no === cabanaNo);
               const isFull = matches.some((r) => r.time_type === '종일') || matches.length >= 2;
               const isPart = matches.length === 1 && matches[0].time_type !== '종일';
+              const isBlockedOnly = matches.length > 0 && matches.every((r) => r.is_blocked);
               const hasDay = matches.some((r) => r.time_type === '주간');
               const hasNight = matches.some((r) => r.time_type === '야간');
               const hasFullDay = matches.some((r) => r.time_type === '종일');
 
               let color = 'bg-gray-100 text-gray-600 border-gray-200';
-              if (isFull) color = 'bg-red-500 text-white border-red-500';
+              if (isBlockedOnly) color = 'bg-slate-700 text-white border-slate-700';
+              else if (isFull) color = 'bg-red-500 text-white border-red-500';
               else if (isPart) color = 'bg-amber-400 text-white border-amber-400';
 
               return (
                 <button
                   key={cabanaNo}
                   onClick={() => {
+                    if (blockMode) {
+                      toggleCabanaSelection(cabanaNo);
+                      return;
+                    }
                     setSelectedCabana(cabanaNo);
                     setEditing(null);
                     setCreating(false);
                   }}
                   className={`aspect-square min-h-[2.75rem] rounded-lg border font-bold text-sm md:text-base transition-all cursor-pointer flex flex-col items-center justify-center ${color} ${
-                    selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
+                    selectedForBlock.has(cabanaNo) ? 'ring-2 ring-offset-2 ring-slate-800' : ''
+                  } ${
+                    !blockMode && selectedCabana === cabanaNo ? 'ring-2 ring-offset-2 ring-primary' : ''
                   } ${isFullscreen ? 'md:text-lg min-h-[4rem]' : ''}`}
                 >
                   <span>{cabanaNo}</span>
@@ -255,6 +378,10 @@ export default function CabanaReservationManager({
             <span className="flex items-center gap-1 shrink-0">
               <span className="w-3 h-3 rounded bg-red-500 inline-block"></span>
               마감
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              <span className="w-3 h-3 rounded bg-slate-700 inline-block"></span>
+              차단됨
             </span>
             <span className="sm:ml-2 sm:border-l sm:pl-4 basis-full sm:basis-auto">
               점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)
@@ -307,31 +434,52 @@ export default function CabanaReservationManager({
                           예약 없음 (공석)
                         </div>
                       ) : (
-                        cabanaMatches.map((match) => (
-                          <div
-                            key={match.id}
-                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
-                          >
-                            <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
-                              [{match.time_type}]
-                            </span>
-                            <button
-                              onClick={() => {
-                                setEditing(match);
-                                setCreating(false);
-                              }}
-                              className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                        cabanaMatches.map((match) =>
+                          match.is_blocked ? (
+                            <div
+                              key={match.id}
+                              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-slate-100"
                             >
-                              <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
-                              예약번호 {match.reservation_no}
-                              {match.is_camping && (
-                                <span className="ml-2 text-xs text-primary font-semibold">
-                                  캠핑객
-                                </span>
-                              )}
-                            </button>
-                          </div>
-                        ))
+                              <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                                [{match.time_type}]
+                              </span>
+                              <span className="flex-1 text-sm text-gray-500 italic">
+                                예약 차단 (관리자 설정)
+                              </span>
+                              <button
+                                onClick={() => handleUnblock(match.id)}
+                                disabled={unblockPending}
+                                className="text-xs text-red-600 hover:underline cursor-pointer shrink-0 disabled:opacity-50"
+                              >
+                                차단 해제
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              key={match.id}
+                              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
+                            >
+                              <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
+                                [{match.time_type}]
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditing(match);
+                                  setCreating(false);
+                                }}
+                                className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                              >
+                                <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
+                                예약번호 {match.reservation_no}
+                                {match.is_camping && (
+                                  <span className="ml-2 text-xs text-primary font-semibold">
+                                    캠핑객
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+                          )
+                        )
                       )}
                     </div>
 
@@ -602,6 +750,45 @@ function PricePreview({
   );
 }
 
+function PriceOverrideField({
+  computedPrice,
+  overridePrice,
+  onChange,
+}: {
+  computedPrice: number;
+  overridePrice: number | null;
+  onChange: (value: number | null) => void;
+}) {
+  const isOverridden = overridePrice !== null;
+  const displayValue = overridePrice ?? computedPrice;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-sm text-gray-600">결제금액 (필요 시 직접 수정)</label>
+        {isOverridden && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-xs text-primary hover:underline cursor-pointer"
+          >
+            자동 계산 값으로 되돌리기
+          </button>
+        )}
+      </div>
+      <input
+        type="number"
+        min={0}
+        value={displayValue}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+          isOverridden ? 'border-primary/50 bg-primary/5' : 'border-gray-300'
+        }`}
+      />
+    </div>
+  );
+}
+
 function CreatePanel({
   cabanaNo,
   reservationDate,
@@ -624,8 +811,11 @@ function CreatePanel({
   const [guestCount, setGuestCount] = useState(1);
   const [isCamping, setIsCamping] = useState(false);
   const [hasAdmission, setHasAdmission] = useState(false);
+  const [priceOverride, setPriceOverride] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
+
+  const computedPrice = Math.round((priceByType[timeType] ?? 0) * DISCOUNT_MULTIPLIER[discountType]);
 
   function handleCreate() {
     setError('');
@@ -645,6 +835,7 @@ function CreatePanel({
           is_camping: isCamping,
           has_admission: hasAdmission,
           discount_type: discountType,
+          price_override: priceOverride,
         });
         onCreated();
       } catch (err) {
@@ -708,6 +899,13 @@ function CreatePanel({
       </div>
       <div className="mb-3">
         <PricePreview timeType={timeType} discountType={discountType} priceByType={priceByType} />
+      </div>
+      <div className="mb-3">
+        <PriceOverrideField
+          computedPrice={computedPrice}
+          overridePrice={priceOverride}
+          onChange={setPriceOverride}
+        />
       </div>
 
       {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
@@ -776,8 +974,13 @@ function EditPanel({
   const [discountType, setDiscountType] = useState<DiscountType>(
     (reservation.discount_type as DiscountType) ?? '일반'
   );
+  const [priceOverride, setPriceOverride] = useState<number | null>(
+    reservation.price_override ?? null
+  );
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
+
+  const computedPrice = Math.round((priceByType[timeType] ?? 0) * DISCOUNT_MULTIPLIER[discountType]);
 
   function handleSave() {
     setError('');
@@ -792,6 +995,7 @@ function EditPanel({
           has_admission: hasAdmission,
           cabana_no: cabanaNo,
           discount_type: discountType,
+          price_override: priceOverride,
         });
         onSaved();
       } catch (err) {
@@ -809,7 +1013,7 @@ function EditPanel({
   }
 
   function handlePrint() {
-    const price = Math.round((priceByType[timeType] ?? 0) * DISCOUNT_MULTIPLIER[discountType]);
+    const price = priceOverride ?? computedPrice;
     const rows = [
       ['예약번호', reservation.reservation_no],
       ['이름', name],
@@ -900,6 +1104,9 @@ function EditPanel({
             onChange={(e) => setCabanaNo(Number(e.target.value) || 1)}
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
+          <span className="block text-xs text-gray-400 mt-1">
+            다른 번호로 변경하면 그 번호의 기존 예약과 자리가 자동으로 맞바뀝니다.
+          </span>
         </label>
       </div>
 
@@ -908,6 +1115,13 @@ function EditPanel({
       </div>
       <div className="mb-3">
         <PricePreview timeType={timeType} discountType={discountType} priceByType={priceByType} />
+      </div>
+      <div className="mb-3">
+        <PriceOverrideField
+          computedPrice={computedPrice}
+          overridePrice={priceOverride}
+          onChange={setPriceOverride}
+        />
       </div>
 
       {error && <p className="text-sm text-red-600 font-semibold mb-3">{error}</p>}
