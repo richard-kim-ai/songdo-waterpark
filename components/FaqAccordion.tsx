@@ -35,7 +35,7 @@ export default function FaqAccordion({
         </div>
         <div className="space-y-4">
           {items.map((item, i) => {
-            const meta = ICON_META[i] ?? ICON_META[0];
+            const meta = ICON_META[i % ICON_META.length];
             return (
               <div key={i} className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <button

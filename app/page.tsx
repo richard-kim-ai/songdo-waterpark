@@ -27,6 +27,7 @@ type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 type Popup = Database['public']['Tables']['popups']['Row'];
 type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
+type FaqItem = Database['public']['Tables']['faq_items']['Row'];
 
 // generateMetadata와 페이지 렌더가 같은 요청 내에서 DB를 한 번만 조회하도록 캐시.
 const getData = cache(async function getData() {
@@ -39,6 +40,7 @@ const getData = cache(async function getData() {
       settings: {} as Record<string, string>,
       popups: [] as Popup[],
       galleryImages: [] as GalleryImage[],
+      faqItems: [] as FaqItem[],
     };
   }
 
@@ -51,6 +53,7 @@ const getData = cache(async function getData() {
     { data: settingsRows },
     { data: popups },
     { data: galleryImages },
+    { data: faqItems },
   ] = await Promise.all([
     supabase.from('ticket_types').select('*').eq('is_active', true).order('sort_order'),
     supabase.from('cabana_zones').select('*').order('sort_order'),
@@ -63,6 +66,7 @@ const getData = cache(async function getData() {
       .or(`end_date.is.null,end_date.gte.${today}`)
       .order('sort_order'),
     supabase.from('gallery_images').select('*').order('sort_order'),
+    supabase.from('faq_items').select('*').order('sort_order'),
   ]);
 
   const settings = Object.fromEntries((settingsRows ?? []).map((s) => [s.key, s.value]));
@@ -73,6 +77,7 @@ const getData = cache(async function getData() {
     settings,
     popups: popups ?? [],
     galleryImages: galleryImages ?? [],
+    faqItems: faqItems ?? [],
   };
 });
 
@@ -87,18 +92,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const FAQ_ITEM_COUNT = 5;
-
 export default async function Home() {
-  const { tickets, zones, settings, popups, galleryImages } = await getData();
+  const { tickets, zones, settings, popups, galleryImages, faqItems: faqItemRows } = await getData();
   const siteImages = resolveSiteImages(settings);
-  const faqItems = Array.from({ length: FAQ_ITEM_COUNT }, (_, i) => {
-    const n = i + 1;
-    return {
-      title: settings[`faq_item_${n}_title`] ?? '',
-      lines: (settings[`faq_item_${n}_lines`] ?? '').split('\n').filter((line) => line.trim()),
-    };
-  });
+  const faqItems = faqItemRows.map((item) => ({
+    title: item.title,
+    lines: item.content.split('\n').filter((line) => line.trim()),
+  }));
 
   // 구글 리치 결과용 구조화 데이터(schema.org) — 지역 물놀이 시설 정보
   const jsonLd = {

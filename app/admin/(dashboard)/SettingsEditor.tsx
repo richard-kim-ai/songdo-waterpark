@@ -2,9 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { upsertSiteSetting } from '@/app/admin/actions';
+import FaqItemsManager from './FaqItemsManager';
 import type { Database } from '@/types/database';
 
 type SiteSetting = Database['public']['Tables']['site_settings']['Row'];
+type FaqItem = Database['public']['Tables']['faq_items']['Row'];
+
+const FAQ_SECTION_TITLE = '이용안내 및 주의사항 (FAQ 섹션)';
 
 type FieldConfig = { key: string; label: string; multiline?: boolean; hint?: string };
 
@@ -143,21 +147,10 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     ],
   },
   {
-    title: '이용안내 및 주의사항 (FAQ 섹션)',
-    description: '섹션 제목과 아코디언 5개 항목의 제목·내용을 수정합니다.',
+    title: FAQ_SECTION_TITLE,
     fields: [
       { key: 'faq_title', label: 'FAQ 섹션 제목' },
       { key: 'faq_subtitle', label: 'FAQ 섹션 설명' },
-      { key: 'faq_item_1_title', label: '항목 1 제목' },
-      { key: 'faq_item_1_lines', label: '항목 1 내용 (줄바꿈으로 구분)', multiline: true },
-      { key: 'faq_item_2_title', label: '항목 2 제목' },
-      { key: 'faq_item_2_lines', label: '항목 2 내용 (줄바꿈으로 구분)', multiline: true },
-      { key: 'faq_item_3_title', label: '항목 3 제목' },
-      { key: 'faq_item_3_lines', label: '항목 3 내용 (줄바꿈으로 구분)', multiline: true },
-      { key: 'faq_item_4_title', label: '항목 4 제목' },
-      { key: 'faq_item_4_lines', label: '항목 4 내용 (줄바꿈으로 구분)', multiline: true },
-      { key: 'faq_item_5_title', label: '항목 5 제목' },
-      { key: 'faq_item_5_lines', label: '항목 5 내용 (줄바꿈으로 구분)', multiline: true },
     ],
   },
   {
@@ -230,7 +223,13 @@ function SettingRow({ value: initialValue, field }: { value: string; field: Fiel
   );
 }
 
-export default function SettingsEditor({ settings }: { settings: SiteSetting[] }) {
+export default function SettingsEditor({
+  settings,
+  faqItems,
+}: {
+  settings: SiteSetting[];
+  faqItems: FaqItem[];
+}) {
   const valueMap = Object.fromEntries(settings.map((s) => [s.key, s.value]));
 
   return (
@@ -246,6 +245,14 @@ export default function SettingsEditor({ settings }: { settings: SiteSetting[] }
               <SettingRow key={field.key} field={field} value={valueMap[field.key] ?? ''} />
             ))}
           </div>
+          {section.title === FAQ_SECTION_TITLE && (
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-700 mb-3">
+                아코디언 항목 관리 (추가·삭제 가능)
+              </h3>
+              <FaqItemsManager items={faqItems} />
+            </div>
+          )}
         </div>
       ))}
     </div>
