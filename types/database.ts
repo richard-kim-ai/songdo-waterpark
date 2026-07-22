@@ -117,6 +117,18 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['gallery_images']['Row']>;
         Relationships: [];
       };
+      faq_items: {
+        Row: {
+          id: string;
+          title: string;
+          content: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['faq_items']['Row']>;
+        Update: Partial<Database['public']['Tables']['faq_items']['Row']>;
+        Relationships: [];
+      };
       kakao_notify_settings: {
         Row: {
           id: number;

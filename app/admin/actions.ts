@@ -261,6 +261,49 @@ export async function deleteGalleryImage(id: string, imagePath: string) {
   revalidatePath('/admin/gallery');
 }
 
+// ---------- 이용안내 및 주의사항 (FAQ 항목) ----------
+export async function createFaqItem(data: { title: string; content: string; sortOrder: number }) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.from('faq_items').insert({
+    title: data.title,
+    content: data.content,
+    sort_order: data.sortOrder,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/copy');
+}
+
+export async function updateFaqItem(
+  id: string,
+  data: { title: string; content: string; sort_order: number }
+) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase
+    .from('faq_items')
+    .update({ title: data.title, content: data.content, sort_order: data.sort_order })
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/copy');
+}
+
+export async function deleteFaqItem(id: string) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.from('faq_items').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/copy');
+}
+
 // ---------- 고객 게시판(문의) ----------
 export async function replyInquiry(id: string, reply: string) {
   await requireAdmin();
