@@ -8,6 +8,7 @@ import {
   updateCabanaReservation,
   cancelCabanaReservation,
   blockCabanaSlots,
+  searchCabanaReservationsByPhone,
 } from '@/app/admin/actions';
 import { DISCOUNT_TYPES, DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
@@ -72,8 +73,21 @@ export default function CabanaReservationManager({
   const [blockPending, startBlockTransition] = useTransition();
   const [unblockPending, startUnblockTransition] = useTransition();
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Reservation[] | null>(null);
+  const [searchError, setSearchError] = useState('');
+  const [searchPending, startSearchTransition] = useTransition();
+  // 검색으로 날짜를 이동시킬 때는 jumpToReservation이 직접 목록을 불러오고
+  // selectedCabana를 지정하므로, 아래 날짜변경 이펙트의 자동 초기화/재조회를
+  // 한 번 건너뛰어 서로 충돌하거나 같은 날짜를 중복 조회하지 않도록 함.
+  const skipDateEffectResetRef = useRef(false);
+
   useEffect(() => {
     if (date === initialDate && reservations === initialReservations) return;
+    if (skipDateEffectResetRef.current) {
+      skipDateEffectResetRef.current = false;
+      return;
+    }
     setLoading(true);
     setSelectedCabana(null);
     setEditing(null);
@@ -189,6 +203,53 @@ export default function CabanaReservationManager({
     });
   }
 
+  // 검색된 예약의 날짜로 이동 + 해당 케노피 상세 팝업을 바로 띄움.
+  // 날짜변경 이펙트가 selectedCabana를 다시 null로 초기화하지 못하도록
+  // skipDateEffectResetRef를 세워둔 뒤, 여기서 직접 목록을 불러와 반영한다.
+  async function jumpToReservation(reservation: Reservation) {
+    skipDateEffectResetRef.current = true;
+    setBlockMode(false);
+    setSelectedForBlock(new Set());
+    setLoading(true);
+    setDate(reservation.reservation_date);
+    try {
+      const data = await listCabanaReservationsForDate(reservation.reservation_date);
+      setReservations(data as Reservation[]);
+      setEditing(null);
+      setCreating(false);
+      setSelectedCabana(reservation.cabana_no);
+    } finally {
+      setLoading(false);
+    }
+    setSearchResults(null);
+    setSearchQuery('');
+    setSearchError('');
+  }
+
+  function handleSearch() {
+    setSearchError('');
+    setSearchResults(null);
+    const digits = searchQuery.trim();
+    if (!/^\d{4}$/.test(digits)) {
+      setSearchError('전화번호 뒷 4자리 숫자 4개를 입력해주세요.');
+      return;
+    }
+    startSearchTransition(async () => {
+      try {
+        const results = (await searchCabanaReservationsByPhone(digits)) as Reservation[];
+        if (results.length === 0) {
+          setSearchError('검색 결과가 없습니다.');
+        } else if (results.length === 1) {
+          await jumpToReservation(results[0]);
+        } else {
+          setSearchResults(results);
+        }
+      } catch (err) {
+        setSearchError(err instanceof Error ? err.message : '검색 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
   return (
     <div>
       <div className="flex flex-col lg:flex-row gap-6 mb-6">
@@ -218,6 +279,54 @@ export default function CabanaReservationManager({
           isFullscreen ? 'fixed inset-0 z-50 bg-gray-100 overflow-y-auto p-6' : ''
         }
       >
+        {/* 일반 모드에서는 캘린더/판매현황 바로 아래, 전체화면(POS) 모드에서도 posRef
+            내부에 있으므로 항상 노출됨 — 검색창을 두 곳에 따로 두지 않고 하나만 운영 */}
+        <div className="mb-6 bg-white rounded-xl shadow p-4">
+          <label className="font-bold text-gray-700 text-sm block mb-2">
+            전화번호 뒷 4자리로 예약 찾기
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearch();
+              }}
+              placeholder="예: 1234"
+              className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              onClick={handleSearch}
+              disabled={searchPending}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <i className="ri-search-line"></i>
+              {searchPending ? '검색 중...' : '검색'}
+            </button>
+          </div>
+          {searchError && <p className="text-sm text-red-600 font-semibold mt-2">{searchError}</p>}
+          {searchResults && searchResults.length > 1 && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-gray-500">
+                검색 결과 {searchResults.length}건 — 이동할 예약을 선택하세요.
+              </p>
+              {searchResults.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => jumpToReservation(r)}
+                  className="w-full text-left px-4 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-sm cursor-pointer"
+                >
+                  <strong>{r.reservation_date}</strong> · {r.cabana_no}번 · [{r.time_type}]{' '}
+                  {r.name} ({r.phone})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-4 mb-6 bg-white rounded-xl shadow p-4">
           <label className="font-bold text-gray-700 text-sm">조회 일자</label>
           <input
