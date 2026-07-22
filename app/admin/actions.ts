@@ -360,7 +360,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   const [{ data: reservations, error }, { data: zones, error: zonesError }] = await Promise.all([
     admin
       .from('cabana_reservations')
-      .select('reservation_date, time_type, discount_type, is_camping')
+      .select('reservation_date, time_type, discount_type, is_camping, is_blocked, price_override')
       .gte('reservation_date', startDate)
       .lte('reservation_date', endDate),
     admin.from('cabana_zones').select('name, weekday_price').order('sort_order').limit(3),
@@ -391,10 +391,12 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   const camping = { count: 0, revenue: 0 };
 
   for (const r of reservations ?? []) {
+    if (r.is_blocked) continue; // 예약막기로 잠긴 슬롯은 매출/건수 통계에서 제외
+
     dateCounts[r.reservation_date] = (dateCounts[r.reservation_date] ?? 0) + 1;
 
     const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
-    const revenue = (priceByType[r.time_type] ?? 0) * multiplier;
+    const revenue = r.price_override ?? (priceByType[r.time_type] ?? 0) * multiplier;
 
     if (r.time_type in byType) {
       byType[r.time_type].count += 1;
@@ -429,6 +431,7 @@ export async function createCabanaReservationAdmin(data: {
   is_camping: boolean;
   has_admission: boolean;
   discount_type: DiscountType;
+  price_override?: number | null;
 }) {
   await requireAdmin();
   const admin = createAdminClient();
@@ -463,6 +466,7 @@ export async function createCabanaReservationAdmin(data: {
     is_camping: data.is_camping,
     has_admission: data.is_camping ? true : data.has_admission,
     discount_type: data.discount_type,
+    price_override: data.price_override ?? null,
   });
   if (error) throw new Error(error.message);
 
@@ -480,6 +484,7 @@ export async function updateCabanaReservation(
     has_admission: boolean;
     cabana_no: number;
     discount_type: DiscountType;
+    price_override?: number | null;
   }
 ) {
   await requireAdmin();
@@ -491,24 +496,59 @@ export async function updateCabanaReservation(
 
   const { data: current, error: fetchError } = await admin
     .from('cabana_reservations')
-    .select('reservation_date')
+    .select('reservation_date, cabana_no')
     .eq('id', id)
     .maybeSingle();
 
   if (fetchError || !current) throw new Error('예약을 찾을 수 없습니다.');
 
-  const { data: others } = await admin
+  const oldCabanaNo = current.cabana_no;
+  const cabanaNoChanged = oldCabanaNo !== data.cabana_no;
+
+  const { data: targetOthers } = await admin
     .from('cabana_reservations')
-    .select('time_type')
+    .select('id, time_type')
     .eq('reservation_date', current.reservation_date)
     .eq('cabana_no', data.cabana_no)
     .neq('id', id);
 
-  const conflict = (others ?? []).some(
+  const conflictsAtTarget = (targetOthers ?? []).filter(
     (r) => r.time_type === '종일' || data.time_type === '종일' || r.time_type === data.time_type
   );
-  if (conflict) {
-    throw new Error(`${data.cabana_no}번 케노피는 해당 타임에 이미 다른 예약이 있습니다.`);
+
+  if (conflictsAtTarget.length > 0) {
+    if (!cabanaNoChanged) {
+      // 같은 케노피 안에서 타임만 바꾸는 경우엔 자리를 맞바꿀 대상이 없으므로 그대로 차단
+      throw new Error(`${data.cabana_no}번 케노피는 해당 타임에 이미 다른 예약이 있습니다.`);
+    }
+
+    // 케노피 번호를 바꾸는 경우: 대상 케노피의 충돌 예약을 원래 케노피 번호로 맞바꿈(스왑)
+    const { data: remainingAtOld } = await admin
+      .from('cabana_reservations')
+      .select('time_type')
+      .eq('reservation_date', current.reservation_date)
+      .eq('cabana_no', oldCabanaNo)
+      .neq('id', id);
+
+    const wouldConflictAfterSwap = conflictsAtTarget.some((moved) =>
+      (remainingAtOld ?? []).some(
+        (r) => r.time_type === '종일' || moved.time_type === '종일' || r.time_type === moved.time_type
+      )
+    );
+
+    if (wouldConflictAfterSwap) {
+      throw new Error(
+        `${data.cabana_no}번과 ${oldCabanaNo}번 예약을 자동으로 맞바꿀 수 없습니다 (이동 후에도 시간대가 겹칩니다). 먼저 수동으로 정리해주세요.`
+      );
+    }
+
+    for (const row of conflictsAtTarget) {
+      const { error: swapError } = await admin
+        .from('cabana_reservations')
+        .update({ cabana_no: oldCabanaNo })
+        .eq('id', row.id);
+      if (swapError) throw new Error(swapError.message);
+    }
   }
 
   const { error } = await admin
@@ -522,6 +562,7 @@ export async function updateCabanaReservation(
       has_admission: data.is_camping ? true : data.has_admission,
       cabana_no: data.cabana_no,
       discount_type: data.discount_type,
+      price_override: data.price_override ?? null,
     })
     .eq('id', id);
 
@@ -538,6 +579,71 @@ export async function cancelCabanaReservation(id: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath('/admin/cabana-reservations');
+}
+
+function generateBlockNo(dateStr: string) {
+  const cleanDate = dateStr.replace(/-/g, '').slice(2);
+  const randomStr = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `B${cleanDate}${randomStr}`;
+}
+
+// 예약막기: 실제 고객 예약 없이 특정 케노피·타임을 비워두지 못하게 잠금 처리.
+// 여러 케노피 번호 × 여러 타임을 한 번에 선택해 일괄 차단할 수 있음(이미 예약/차단된
+// 슬롯은 건너뛰고 나머지만 처리).
+export async function blockCabanaSlots(
+  reservationDate: string,
+  cabanaNos: number[],
+  timeTypes: string[]
+): Promise<{ blocked: number; skipped: number }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: existing } = await admin
+    .from('cabana_reservations')
+    .select('cabana_no, time_type')
+    .eq('reservation_date', reservationDate)
+    .in('cabana_no', cabanaNos);
+
+  const occupied = existing ?? [];
+  let blocked = 0;
+  let skipped = 0;
+
+  for (const cabanaNo of cabanaNos) {
+    for (const timeType of timeTypes) {
+      const conflict = occupied.some(
+        (r) =>
+          r.cabana_no === cabanaNo &&
+          (r.time_type === '종일' || timeType === '종일' || r.time_type === timeType)
+      );
+      if (conflict) {
+        skipped += 1;
+        continue;
+      }
+
+      const { error } = await admin.from('cabana_reservations').insert({
+        reservation_no: generateBlockNo(reservationDate),
+        reservation_date: reservationDate,
+        cabana_no: cabanaNo,
+        time_type: timeType,
+        name: '예약 차단',
+        phone: '',
+        guest_count: 0,
+        is_camping: false,
+        has_admission: false,
+        discount_type: '일반',
+        is_blocked: true,
+      });
+
+      // 사전에 충돌 여부를 이미 확인했으므로, 여기서 발생하는 오류는 "이미 예약됨"이
+      // 아니라 실제 DB 오류(예: 마이그레이션 미실행)이므로 조용히 건너뛰지 않고 그대로 던짐
+      if (error) throw new Error(error.message);
+      blocked += 1;
+      occupied.push({ cabana_no: cabanaNo, time_type: timeType });
+    }
+  }
+
+  revalidatePath('/admin/cabana-reservations');
+  return { blocked, skipped };
 }
 
 // ---------- 관리자 사용자 관리 (슈퍼 관리자 전용) ----------

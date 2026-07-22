@@ -61,6 +61,8 @@ export type Database = {
           is_camping: boolean;
           has_admission: boolean;
           discount_type: string; // '일반' | '단체' | '장애인/유공자'
+          is_blocked: boolean;
+          price_override: number | null;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;
