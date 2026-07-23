@@ -27,6 +27,8 @@ export type Database = {
           weekday_price: number;
           weekend_price: number;
           sort_order: number;
+          zone_type: string; // '케노피' | '그늘막평상' | '썬배드'
+          time_type: string | null; // '주간' | '야간' | '종일' | null(썬배드처럼 단일가격)
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_zones']['Row']>;
@@ -63,6 +65,7 @@ export type Database = {
           discount_type: string; // '일반' | '단체' | '장애인/유공자'
           is_blocked: boolean;
           price_override: number | null;
+          zone_type: string; // '케노피' | '그늘막평상' | '썬배드'
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;

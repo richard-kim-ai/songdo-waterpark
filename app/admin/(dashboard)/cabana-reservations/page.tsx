@@ -17,6 +17,7 @@ export default async function CabanaReservationsAdminPage() {
     .from('cabana_reservations')
     .select('*')
     .eq('reservation_date', initialDate)
+    .eq('zone_type', '케노피')
     .order('cabana_no');
 
   return (

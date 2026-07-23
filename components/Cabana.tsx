@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import type { Database } from '@/types/database';
 import CabanaReservationModal from './CabanaReservationModal';
+import { ZONE_TYPES, ZONE_TYPE_LABELS } from '@/lib/cabana-pricing';
 
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
 
@@ -30,9 +32,13 @@ export default function Cabana({
   bookingButtonLabel: string;
   bookingEnabled: boolean;
 }) {
-  // 관리자에서 구역명을 바꿔도 깨지지 않도록, A/B/C/썬배드 구분은 이름 문자열이 아니라
-  // 정렬 순서(sort_order, 이미 정렬되어 전달됨)로 판단합니다.
-  const [a, b, c, sunbed] = zones;
+  // zone_type 기준으로 그룹화. 타입이 여러 개 있을 때만 구분 헤더를 보여주고,
+  // 시간대 구분이 없는(time_type=null) 썬배드류는 "개당 이용" 형식으로 표시합니다.
+  const groups = ZONE_TYPES.map((zt) => ({
+    zoneType: zt,
+    label: ZONE_TYPE_LABELS[zt],
+    items: zones.filter((z) => (z.zone_type || '케노피') === zt),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <section id="cabana" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
@@ -71,32 +77,47 @@ export default function Cabana({
                   </tr>
                 </thead>
                 <tbody>
-                  {[a, b, c].filter(Boolean).map((z) => (
-                    <tr key={z!.id} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-6 py-4 border border-gray-200 font-semibold text-gray-900">
-                        {z!.name}
-                      </td>
-                      <td className="px-6 py-4 border border-gray-200 text-center text-primary font-bold">
-                        {z!.unit_count}
-                      </td>
-                      <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
-                        {won(z!.weekday_price)}
-                      </td>
-                    </tr>
+                  {groups.map((g) => (
+                    <Fragment key={g.zoneType}>
+                      {groups.length > 1 && (
+                        <tr className="bg-gray-100">
+                          <td
+                            colSpan={3}
+                            className="px-6 py-2 border border-gray-200 font-bold text-gray-700 text-sm"
+                          >
+                            {g.label}
+                          </td>
+                        </tr>
+                      )}
+                      {g.items.map((z) =>
+                        z.zone_type === '썬배드' ? (
+                          <tr key={z.id} className="bg-gradient-to-r from-primary/5 to-secondary/5">
+                            <td className="px-6 py-4 border border-gray-200 font-bold text-gray-900">
+                              {z.name}
+                            </td>
+                            <td className="px-6 py-4 border border-gray-200 text-center font-bold text-secondary">
+                              {z.unit_count}
+                            </td>
+                            <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
+                              {won(z.weekday_price)} / 개당 이용
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={z.id} className="hover:bg-blue-50/30 transition-colors">
+                            <td className="px-6 py-4 border border-gray-200 font-semibold text-gray-900">
+                              {z.name}
+                            </td>
+                            <td className="px-6 py-4 border border-gray-200 text-center text-primary font-bold">
+                              {z.unit_count}
+                            </td>
+                            <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
+                              {won(z.weekday_price)}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </Fragment>
                   ))}
-                  {sunbed && (
-                    <tr className="bg-gradient-to-r from-primary/5 to-secondary/5">
-                      <td className="px-6 py-4 border border-gray-200 font-bold text-gray-900">
-                        {sunbed.name}
-                      </td>
-                      <td className="px-6 py-4 border border-gray-200 text-center font-bold text-secondary">
-                        {sunbed.unit_count}
-                      </td>
-                      <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
-                        {won(sunbed.weekday_price)} / 개당 이용
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
