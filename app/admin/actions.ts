@@ -104,6 +104,32 @@ export async function upsertSiteSetting(key: string, value: string) {
   revalidatePath('/admin/copy');
 }
 
+// 케노피 예약 인원 정책: 기본 인원수, 초과 인원당 요금, 최대 예약 가능 인원수.
+// 예) 기본 4명 / 초과 1명당 3,000원 / 최대 6명(또는 12명 등 관리자가 조정)
+export async function saveCabanaGuestPolicy(data: {
+  baseCount: number;
+  extraFee: number;
+  maxCount: number;
+}) {
+  const { supabase } = await requireAdmin();
+
+  if (data.baseCount < 1 || data.maxCount < data.baseCount || data.extraFee < 0) {
+    throw new Error('입력값을 확인해주세요. (최대 인원은 기본 인원수 이상이어야 합니다)');
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('site_settings').upsert([
+    { key: 'cabana_guest_base_count', value: String(data.baseCount), updated_at: now },
+    { key: 'cabana_guest_extra_fee', value: String(data.extraFee), updated_at: now },
+    { key: 'cabana_guest_max_count', value: String(data.maxCount), updated_at: now },
+  ]);
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/cabana');
+}
+
 // ---------- 사이트 고정 이미지(로고/배경/배치도 등) ----------
 export async function updateSiteImage(settingKey: string, formData: FormData) {
   const { supabase } = await requireAdmin();
