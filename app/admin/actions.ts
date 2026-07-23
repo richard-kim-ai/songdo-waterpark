@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { requireAdmin, requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadImage, removeImage } from '@/lib/admin/storage';
-import { DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
+import { DISCOUNT_MULTIPLIER, ZONE_TYPES, type DiscountType } from '@/lib/cabana-pricing';
 import { saveKakaoConfig, disconnectKakao, sendKakaoTestMessage } from '@/lib/kakao';
 import { saveAligoConfig, sendAligoTestMessage } from '@/lib/aligo';
 import type { Database } from '@/types/database';
@@ -791,6 +791,141 @@ export async function blockCabanaSlots(
 
   revalidatePath('/admin/cabana-reservations');
   return { blocked, skipped };
+}
+
+// 요금표에서 zone_type의 슬롯 수와 단일가격(썬배드류: time_type이 없는) 여부를 조회.
+async function getZoneMeta(
+  admin: ReturnType<typeof createAdminClient>,
+  zoneType: string
+): Promise<{ slotCount: number; singlePrice: boolean }> {
+  const { data } = await admin
+    .from('cabana_zones')
+    .select('unit_count, time_type')
+    .eq('zone_type', zoneType);
+  const rows = data ?? [];
+  const defaults: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
+  return {
+    slotCount: rows[0]?.unit_count ?? defaults[zoneType] ?? 60,
+    singlePrice: rows.length > 0 && rows.every((r) => r.time_type === null),
+  };
+}
+
+// 일자 전체 예약막기 패널용: 해당 날짜에 상품 타입별로 관리자 예약막기가 걸린 슬롯 수와
+// 전체 슬롯 수를 반환. blocked > 0이면 그 타입은 "막힘" 상태로 표시된다.
+export async function getCabanaBlockStatusForDate(
+  date: string
+): Promise<Record<string, { blocked: number; slotCount: number }>> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const [{ data: zones }, { data: blocks }] = await Promise.all([
+    admin.from('cabana_zones').select('zone_type, unit_count'),
+    admin
+      .from('cabana_reservations')
+      .select('zone_type, cabana_no')
+      .eq('reservation_date', date)
+      .eq('is_blocked', true),
+  ]);
+
+  const defaults: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
+  const slotCount: Record<string, number> = {};
+  for (const z of zones ?? []) slotCount[z.zone_type] = z.unit_count;
+
+  const blockedSlots: Record<string, Set<number>> = {};
+  for (const b of blocks ?? []) (blockedSlots[b.zone_type] ??= new Set()).add(b.cabana_no);
+
+  const result: Record<string, { blocked: number; slotCount: number }> = {};
+  for (const zt of ZONE_TYPES) {
+    result[zt] = {
+      blocked: blockedSlots[zt]?.size ?? 0,
+      slotCount: slotCount[zt] ?? defaults[zt] ?? 0,
+    };
+  }
+  return result;
+}
+
+// 특정 날짜·상품 타입의 남은 자리를 모두 예약막기. 이미 예약/차단된 슬롯은 건너뛴다.
+// 평상류는 주간+야간을 막아 사실상 종일까지 봉쇄하고, 썬배드류(단일가격)는 종일만 막는다.
+export async function blockAllCabanaSlotsForDate(
+  date: string,
+  zoneType: string
+): Promise<{ blocked: number }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { slotCount, singlePrice } = await getZoneMeta(admin, zoneType);
+  const timeTypes = singlePrice ? ['종일'] : ['주간', '야간'];
+
+  const { data: existing } = await admin
+    .from('cabana_reservations')
+    .select('cabana_no, time_type')
+    .eq('reservation_date', date)
+    .eq('zone_type', zoneType);
+
+  const occupied = existing ?? [];
+  const rows: Database['public']['Tables']['cabana_reservations']['Insert'][] = [];
+  const usedNos = new Set<string>();
+
+  for (let cabanaNo = 1; cabanaNo <= slotCount; cabanaNo++) {
+    for (const timeType of timeTypes) {
+      const conflict = occupied.some(
+        (r) =>
+          r.cabana_no === cabanaNo &&
+          (r.time_type === '종일' || timeType === '종일' || r.time_type === timeType)
+      );
+      if (conflict) continue;
+
+      let reservationNo = generateBlockNo(date);
+      while (usedNos.has(reservationNo)) reservationNo = generateBlockNo(date);
+      usedNos.add(reservationNo);
+
+      rows.push({
+        reservation_no: reservationNo,
+        reservation_date: date,
+        zone_type: zoneType,
+        cabana_no: cabanaNo,
+        time_type: timeType,
+        name: '예약 차단',
+        phone: '',
+        guest_count: 0,
+        is_camping: false,
+        has_admission: false,
+        discount_type: '일반',
+        is_blocked: true,
+      });
+      occupied.push({ cabana_no: cabanaNo, time_type: timeType });
+    }
+  }
+
+  if (rows.length > 0) {
+    const { error } = await admin.from('cabana_reservations').insert(rows);
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath('/admin/cabana-reservations');
+  return { blocked: rows.length };
+}
+
+// 특정 날짜·상품 타입의 예약막기(is_blocked)만 모두 해제. 실제 고객 예약은 건드리지 않는다.
+export async function unblockAllCabanaSlotsForDate(
+  date: string,
+  zoneType: string
+): Promise<{ removed: number }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from('cabana_reservations')
+    .delete()
+    .eq('reservation_date', date)
+    .eq('zone_type', zoneType)
+    .eq('is_blocked', true)
+    .select('id');
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/cabana-reservations');
+  return { removed: data?.length ?? 0 };
 }
 
 // ---------- 관리자 사용자 관리 (슈퍼 관리자 전용) ----------
