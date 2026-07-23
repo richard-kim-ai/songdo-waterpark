@@ -351,6 +351,28 @@ export async function listCabanaReservationsForDate(date: string) {
   return data ?? [];
 }
 
+// 전화번호 뒷 4자리로 예약 검색 (날짜 상관없이 전체 기간 대상).
+// 예약막기(is_blocked)는 phone이 빈 문자열이라 자연스럽게 검색 결과에서 제외됨.
+export async function searchCabanaReservationsByPhone(last4: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const digits = last4.trim();
+  if (!/^\d{4}$/.test(digits)) {
+    throw new Error('전화번호 뒷 4자리 숫자 4개를 입력해주세요.');
+  }
+
+  const { data, error } = await admin
+    .from('cabana_reservations')
+    .select('*')
+    .like('phone', `%${digits}`)
+    .order('reservation_date', { ascending: false })
+    .limit(20);
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 // 캘린더 대시보드용: 기간 내 날짜별 예약 건수
 // 캘린더 대시보드 + 판매 현황용: 기간 내 날짜별 건수, 타임별 건수, 타임별 단가
 export async function getCabanaMonthSummary(startDate: string, endDate: string) {
