@@ -345,7 +345,7 @@ export default function CabanaReservationManager({
   return (
     <div>
       <div className="flex flex-col lg:flex-row gap-6 mb-6">
-        <div className="lg:w-72 shrink-0">
+        <div className="lg:w-72 shrink-0 space-y-4">
           <ReservationCalendar
             selectedDate={date}
             onSelectDate={setDate}
@@ -354,6 +354,55 @@ export default function CabanaReservationManager({
             dateCounts={monthSummary.dateCounts}
             loading={summaryLoading}
           />
+
+          {/* 일자 전체 예약막기: 달력 바로 아래에 배치. 상품 타입을 체크하면 그 날짜의
+              남은 자리를 모두 막고, 해제하면 막기를 모두 푼다. */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-bold text-gray-700 text-sm">
+                <i className="ri-calendar-close-line mr-1"></i>일자 전체 예약막기
+              </span>
+              <span className="text-xs text-gray-400">{date}</span>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              상품을 체크하면 이 날짜의 남은 자리를 모두 막고, 체크를 해제하면 막기를 모두
+              해제합니다. (실제 고객 예약은 그대로 유지됩니다)
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2">
+              {ZONE_TYPES.map((zt) => {
+                const st = dateBlockStatus[zt];
+                const isBlocked = (st?.blocked ?? 0) > 0;
+                return (
+                  <label
+                    key={zt}
+                    className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                      dateBlockPending ? 'opacity-60' : 'cursor-pointer'
+                    } ${
+                      isBlocked
+                        ? 'bg-slate-800 text-white border-slate-800'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isBlocked}
+                        disabled={dateBlockPending}
+                        onChange={() => toggleDateBlock(zt, isBlocked)}
+                      />
+                      <span className="font-semibold">{ZONE_TYPE_LABELS[zt]}</span>
+                    </span>
+                    <span className="text-xs opacity-80 shrink-0">
+                      막힘 {st?.blocked ?? 0}/{st?.slotCount ?? 0}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {dateBlockResult && (
+              <p className="text-sm text-primary font-semibold mt-2">{dateBlockResult}</p>
+            )}
+          </div>
         </div>
         <div className="flex-1">
           <SalesDashboard
@@ -374,12 +423,12 @@ export default function CabanaReservationManager({
       >
         {/* 전체화면(POS) 모드에서는 posRef 서브트리 바깥은 렌더링되지 않으므로, 탭도
             반드시 이 안에 두어야 POS 모드에서도 평상&케노피/그늘막평상/썬배드를 전환할 수 있다. */}
-        <div className="mb-6 bg-white rounded-xl shadow p-2 flex gap-2">
+        <div className="mb-6 bg-white rounded-xl shadow p-1.5 sm:p-2 flex gap-1 sm:gap-2">
           {ZONE_TYPES.map((zt) => (
             <button
               key={zt}
               onClick={() => handleZoneTypeChange(zt)}
-              className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+              className={`flex-1 px-1 sm:px-4 py-3 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 zoneType === zt
                   ? 'bg-primary text-white'
                   : 'text-gray-600 hover:bg-gray-50'
@@ -445,9 +494,9 @@ export default function CabanaReservationManager({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 sm:flex-none min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
-          <div className="flex gap-4 text-sm ml-auto">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm w-full sm:w-auto sm:ml-auto">
             {hasTimeTypes ? (
               <>
                 <span>
@@ -472,7 +521,7 @@ export default function CabanaReservationManager({
               setSelectedForBlock(new Set());
               setBlockResult('');
             }}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold !rounded-button transition-all cursor-pointer ${
+            className={`flex flex-1 sm:flex-none justify-center items-center gap-2 px-4 py-2 text-sm font-semibold !rounded-button transition-all cursor-pointer ${
               blockMode
                 ? 'bg-slate-800 text-white'
                 : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -483,58 +532,11 @@ export default function CabanaReservationManager({
           </button>
           <button
             onClick={toggleFullscreen}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+            className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
           >
             <i className={isFullscreen ? 'ri-fullscreen-exit-line' : 'ri-fullscreen-line'}></i>
             {isFullscreen ? '전체화면 종료' : '전체화면 (POS 모드)'}
           </button>
-        </div>
-
-        {/* 일자 전체 예약막기: posRef 안쪽에 두어 POS 전체화면 모드에서도 사용 가능.
-            상품 타입을 체크하면 그 날짜의 남은 자리를 모두 막고, 해제하면 막기를 모두 푼다. */}
-        <div className="mb-6 bg-white rounded-xl shadow p-4">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-bold text-gray-700 text-sm">
-              <i className="ri-calendar-close-line mr-1"></i>일자 전체 예약막기
-            </span>
-            <span className="text-xs text-gray-400">{date}</span>
-          </div>
-          <p className="text-xs text-gray-500 mb-3">
-            상품을 체크하면 이 날짜의 남은 자리를 모두 막고, 체크를 해제하면 막기를 모두
-            해제합니다. (실제 고객 예약은 그대로 유지됩니다)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {ZONE_TYPES.map((zt) => {
-              const st = dateBlockStatus[zt];
-              const isBlocked = (st?.blocked ?? 0) > 0;
-              return (
-                <label
-                  key={zt}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
-                    dateBlockPending ? 'opacity-60' : 'cursor-pointer'
-                  } ${
-                    isBlocked
-                      ? 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isBlocked}
-                    disabled={dateBlockPending}
-                    onChange={() => toggleDateBlock(zt, isBlocked)}
-                  />
-                  <span className="font-semibold">{ZONE_TYPE_LABELS[zt]}</span>
-                  <span className="text-xs opacity-80">
-                    막힘 {st?.blocked ?? 0}/{st?.slotCount ?? 0}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-          {dateBlockResult && (
-            <p className="text-sm text-primary font-semibold mt-2">{dateBlockResult}</p>
-          )}
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
