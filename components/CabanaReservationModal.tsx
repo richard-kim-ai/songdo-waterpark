@@ -1,9 +1,29 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { getCabanaAvailability, createCabanaReservation } from '@/app/cabana-reservation/actions';
+import {
+  getCabanaAvailability,
+  createCabanaReservation,
+  lookupCabanaReservationsByPhone,
+} from '@/app/cabana-reservation/actions';
 
 type TimeType = '주간' | '야간' | '종일';
+
+type GuestPolicy = { baseCount: number; extraFee: number; maxCount: number };
+const DEFAULT_GUEST_POLICY: GuestPolicy = { baseCount: 4, extraFee: 3000, maxCount: 6 };
+
+type LookupReservation = {
+  id: string;
+  reservation_no: string;
+  reservation_date: string;
+  time_type: string;
+  name: string;
+  phone: string;
+  guest_count: number;
+  cabana_no: number;
+};
+
+const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -44,22 +64,44 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [guestCount, setGuestCount] = useState(1);
+  const [guestLimitNotice, setGuestLimitNotice] = useState(false);
   const [isCamping, setIsCamping] = useState(false);
   const [hasAdmission, setHasAdmission] = useState(false);
   const [availability, setAvailability] = useState({ dayLeft: 0, nightLeft: 0, fullDayLeft: 0 });
+  const [guestPolicy, setGuestPolicy] = useState<GuestPolicy>(DEFAULT_GUEST_POLICY);
+  const [priceByType, setPriceByType] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ reservationNo: string; cabanaNo: number } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [showLookup, setShowLookup] = useState(false);
 
   useEffect(() => {
     let active = true;
     getCabanaAvailability(date).then((res) => {
-      if (active) setAvailability(res);
+      if (!active) return;
+      setAvailability(res);
+      setGuestPolicy(res.guestPolicy);
+      setPriceByType(res.priceByType);
+      setGuestCount((prev) => Math.min(prev, res.guestPolicy.maxCount));
     });
     return () => {
       active = false;
     };
   }, [date]);
+
+  const extraGuests = Math.max(0, guestCount - guestPolicy.baseCount);
+  const totalPrice = (priceByType[timeType] ?? 0) + extraGuests * guestPolicy.extraFee;
+
+  function handleGuestCountChange(raw: string) {
+    const val = Number(raw) || 1;
+    if (val > guestPolicy.maxCount) {
+      setGuestCount(guestPolicy.maxCount);
+      setGuestLimitNotice(true);
+    } else {
+      setGuestCount(Math.max(1, val));
+      setGuestLimitNotice(false);
+    }
+  }
 
   function handleSubmit() {
     setError('');
@@ -123,6 +165,8 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
               확인
             </button>
           </div>
+        ) : showLookup ? (
+          <LookupView onBack={() => setShowLookup(false)} />
         ) : (
           <>
             <div className="p-6 space-y-3 overflow-y-auto">
@@ -200,11 +244,28 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                 <input
                   type="number"
                   min={1}
-                  max={50}
+                  max={guestPolicy.maxCount}
                   value={guestCount}
-                  onChange={(e) => setGuestCount(Number(e.target.value) || 1)}
+                  onChange={(e) => handleGuestCountChange(e.target.value)}
                   className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  기본 {guestPolicy.baseCount}명 포함, 초과 인원 1명당 {won(guestPolicy.extraFee)}{' '}
+                  추가 (최대 {guestPolicy.maxCount}명)
+                </p>
+                {guestLimitNotice && (
+                  <p className="text-xs text-amber-600 font-semibold mt-1">
+                    케노피 1개당 최대 {guestPolicy.maxCount}명까지 예약 가능합니다. 초과 인원은
+                    케노피를 추가로 예약해주세요.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-gray-200">
+                <span className="text-sm text-gray-500">
+                  예상 결제 금액{extraGuests > 0 ? ` (기본 ${guestPolicy.baseCount}명 + 초과 ${extraGuests}명)` : ''}
+                </span>
+                <span className="font-bold text-primary">{won(totalPrice)}</span>
               </div>
 
               <div className="flex flex-col gap-2 text-sm text-gray-700">
@@ -240,6 +301,12 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                 취소
               </button>
               <button
+                onClick={() => setShowLookup(true)}
+                className="px-5 py-2 border border-gray-300 text-gray-700 font-semibold !rounded-button hover:bg-gray-50 transition-all cursor-pointer"
+              >
+                예약조회하기
+              </button>
+              <button
                 onClick={handleSubmit}
                 disabled={pending}
                 className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
@@ -250,6 +317,82 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function LookupView({ onBack }: { onBack: () => void }) {
+  const [phone, setPhone] = useState('');
+  const [results, setResults] = useState<LookupReservation[] | null>(null);
+  const [error, setError] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  function handleLookup() {
+    setError('');
+    setResults(null);
+    if (!phone.trim()) {
+      setError('연락처를 입력해주세요.');
+      return;
+    }
+    startTransition(async () => {
+      const res = (await lookupCabanaReservationsByPhone(phone.trim())) as LookupReservation[];
+      if (res.length === 0) {
+        setError('해당 연락처로 등록된 예약이 없습니다.');
+      } else {
+        setResults(res);
+      }
+    });
+  }
+
+  return (
+    <div className="p-6 space-y-3 overflow-y-auto">
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">
+          예약 시 입력한 연락처로 조회
+        </label>
+        <div className="flex gap-2">
+          <input
+            value={phone}
+            onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+            type="tel"
+            maxLength={13}
+            placeholder="010-0000-0000"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <button
+            onClick={handleLookup}
+            disabled={pending}
+            className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {pending ? '조회 중...' : '조회'}
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600 font-semibold">{error}</p>}
+
+      {results && (
+        <div className="space-y-2">
+          {results.map((r) => (
+            <div key={r.id} className="bg-gray-50 rounded-lg p-3 text-sm">
+              <p className="font-bold text-gray-900">
+                {formatDateKorean(r.reservation_date)} · {r.time_type} 이용권
+              </p>
+              <p className="text-gray-600 mt-1">
+                예약자: {r.name} ({r.phone}) · {r.guest_count}명
+              </p>
+              <p className="text-gray-500 text-xs mt-1">예약번호 {r.reservation_no}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={onBack}
+        className="w-full mt-2 px-6 py-3 text-gray-600 font-semibold !rounded-button hover:bg-gray-100 transition-all cursor-pointer"
+      >
+        예약 화면으로 돌아가기
+      </button>
     </div>
   );
 }
