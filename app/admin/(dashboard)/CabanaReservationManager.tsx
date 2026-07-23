@@ -9,6 +9,9 @@ import {
   updateCabanaReservation,
   cancelCabanaReservation,
   blockCabanaSlots,
+  blockAllCabanaSlotsForDate,
+  unblockAllCabanaSlotsForDate,
+  getCabanaBlockStatusForDate,
   searchCabanaReservationsByPhone,
 } from '@/app/admin/actions';
 import {
@@ -88,6 +91,13 @@ export default function CabanaReservationManager({
   const [blockPending, startBlockTransition] = useTransition();
   const [unblockPending, startUnblockTransition] = useTransition();
 
+  // 일자 전체 예약막기: 선택한 날짜에 상품 타입별로 막힌 슬롯 수(blocked>0이면 막힘 상태).
+  const [dateBlockStatus, setDateBlockStatus] = useState<
+    Record<string, { blocked: number; slotCount: number }>
+  >({});
+  const [dateBlockResult, setDateBlockResult] = useState('');
+  const [dateBlockPending, startDateBlockTransition] = useTransition();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Reservation[] | null>(null);
   const [searchError, setSearchError] = useState('');
@@ -100,6 +110,10 @@ export default function CabanaReservationManager({
   useEffect(() => {
     getCabanaZoneSlotCounts().then(setSlotCounts);
   }, []);
+
+  useEffect(() => {
+    getCabanaBlockStatusForDate(date).then(setDateBlockStatus).catch(() => setDateBlockStatus({}));
+  }, [date]);
 
   useEffect(() => {
     if (date === initialDate && zoneType === '케노피' && reservations === initialReservations) return;
@@ -178,6 +192,7 @@ export default function CabanaReservationManager({
     listCabanaReservationsForDate(date, zoneType).then((data) =>
       setReservations(data as Reservation[])
     );
+    getCabanaBlockStatusForDate(date).then(setDateBlockStatus).catch(() => {});
     const year = monthCursor.getFullYear();
     const month = monthCursor.getMonth();
     getCabanaMonthSummary(
@@ -186,6 +201,35 @@ export default function CabanaReservationManager({
     )
       .then(setMonthSummary)
       .catch(() => setMonthSummary(EMPTY_SUMMARY));
+  }
+
+  // 일자 전체 예약막기 토글: 막힘(체크됨) 상태면 해제, 아니면 남은 자리를 전부 막는다.
+  function toggleDateBlock(zt: ZoneType, isCurrentlyBlocked: boolean) {
+    const label = ZONE_TYPE_LABELS[zt];
+    if (isCurrentlyBlocked) {
+      if (!confirm(`${date} · ${label} 전체 예약막기를 해제할까요?`)) return;
+    } else if (!confirm(`${date} · ${label}의 남은 자리를 모두 막을까요?`)) {
+      return;
+    }
+    setDateBlockResult('');
+    startDateBlockTransition(async () => {
+      try {
+        if (isCurrentlyBlocked) {
+          const res = await unblockAllCabanaSlotsForDate(date, zt);
+          setDateBlockResult(`${label} 예약막기 ${res.removed}건 해제 완료`);
+        } else {
+          const res = await blockAllCabanaSlotsForDate(date, zt);
+          setDateBlockResult(
+            res.blocked > 0
+              ? `${label} 남은 자리 ${res.blocked}건 전체 막기 완료`
+              : `${label}에 이미 막을 남은 자리가 없습니다.`
+          );
+        }
+        refresh();
+      } catch (err) {
+        setDateBlockResult(err instanceof Error ? err.message : '처리 중 오류가 발생했습니다.');
+      }
+    });
   }
 
   function handleZoneTypeChange(zt: ZoneType) {
@@ -444,6 +488,53 @@ export default function CabanaReservationManager({
             <i className={isFullscreen ? 'ri-fullscreen-exit-line' : 'ri-fullscreen-line'}></i>
             {isFullscreen ? '전체화면 종료' : '전체화면 (POS 모드)'}
           </button>
+        </div>
+
+        {/* 일자 전체 예약막기: posRef 안쪽에 두어 POS 전체화면 모드에서도 사용 가능.
+            상품 타입을 체크하면 그 날짜의 남은 자리를 모두 막고, 해제하면 막기를 모두 푼다. */}
+        <div className="mb-6 bg-white rounded-xl shadow p-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-bold text-gray-700 text-sm">
+              <i className="ri-calendar-close-line mr-1"></i>일자 전체 예약막기
+            </span>
+            <span className="text-xs text-gray-400">{date}</span>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            상품을 체크하면 이 날짜의 남은 자리를 모두 막고, 체크를 해제하면 막기를 모두
+            해제합니다. (실제 고객 예약은 그대로 유지됩니다)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ZONE_TYPES.map((zt) => {
+              const st = dateBlockStatus[zt];
+              const isBlocked = (st?.blocked ?? 0) > 0;
+              return (
+                <label
+                  key={zt}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                    dateBlockPending ? 'opacity-60' : 'cursor-pointer'
+                  } ${
+                    isBlocked
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isBlocked}
+                    disabled={dateBlockPending}
+                    onChange={() => toggleDateBlock(zt, isBlocked)}
+                  />
+                  <span className="font-semibold">{ZONE_TYPE_LABELS[zt]}</span>
+                  <span className="text-xs opacity-80">
+                    막힘 {st?.blocked ?? 0}/{st?.slotCount ?? 0}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {dateBlockResult && (
+            <p className="text-sm text-primary font-semibold mt-2">{dateBlockResult}</p>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
