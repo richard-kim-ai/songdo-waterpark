@@ -30,9 +30,11 @@ export default function Cabana({
   bookingButtonLabel: string;
   bookingEnabled: boolean;
 }) {
-  // 관리자에서 구역명을 바꿔도 깨지지 않도록, A/B/C/썬배드 구분은 이름 문자열이 아니라
-  // 정렬 순서(sort_order, 이미 정렬되어 전달됨)로 판단합니다.
-  const [a, b, c, sunbed] = zones;
+  // 관리자에서 구역명을 바꿔도 깨지지 않도록, 이름 문자열이 아니라 정렬 순서(sort_order,
+  // 이미 정렬되어 전달됨)로 판단합니다. 마지막 항목만 "개당 이용" 형식(썬배드)으로 표시하고,
+  // 나머지는 모두 케노피/그늘막평상처럼 "타입-개수-요금" 표 형식으로 표시합니다.
+  const standardZones = zones.slice(0, -1);
+  const sunbed = zones[zones.length - 1];
 
   return (
     <section id="cabana" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
@@ -71,16 +73,16 @@ export default function Cabana({
                   </tr>
                 </thead>
                 <tbody>
-                  {[a, b, c].filter(Boolean).map((z) => (
-                    <tr key={z!.id} className="hover:bg-blue-50/30 transition-colors">
+                  {standardZones.map((z) => (
+                    <tr key={z.id} className="hover:bg-blue-50/30 transition-colors">
                       <td className="px-6 py-4 border border-gray-200 font-semibold text-gray-900">
-                        {z!.name}
+                        {z.name}
                       </td>
                       <td className="px-6 py-4 border border-gray-200 text-center text-primary font-bold">
-                        {z!.unit_count}
+                        {z.unit_count}
                       </td>
                       <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
-                        {won(z!.weekday_price)}
+                        {won(z.weekday_price)}
                       </td>
                     </tr>
                   ))}
