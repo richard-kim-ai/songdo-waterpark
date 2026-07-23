@@ -4,16 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendKakaoNotification } from '@/lib/kakao';
 import { sendCustomerReservationAlimtalk } from '@/lib/aligo';
+import { ZONE_TYPE_LABELS, type ZoneType } from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
 
-const TOTAL_CABANAS = 60;
 type TimeType = '주간' | '야간' | '종일';
-
-type ReservationRow = Database['public']['Tables']['cabana_reservations']['Row'];
-
-function countBooked(reservations: Pick<ReservationRow, 'time_type'>[], slot: '주간' | '야간') {
-  return reservations.filter((r) => r.time_type === slot || r.time_type === '종일').length;
-}
+type ReservationInsert = Database['public']['Tables']['cabana_reservations']['Insert'];
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -33,45 +28,87 @@ async function getCabanaGuestPolicy(supabase: SupabaseAdmin) {
   };
 }
 
-// 공개 예약 폼은 평상&케노피(zone_type='케노피') 상품만 다루므로, 그늘막평상/썬배드가
-// 추가되어 cabana_zones 행이 늘어나도 time_type으로 정확히 매칭해 가격을 가져온다.
-async function getCabanaPriceByType(supabase: SupabaseAdmin): Promise<Record<TimeType, number>> {
-  const { data: zones } = await supabase
-    .from('cabana_zones')
-    .select('time_type, weekday_price')
-    .eq('zone_type', '케노피');
-  const byTimeType = Object.fromEntries(
-    (zones ?? []).map((z) => [z.time_type, z.weekday_price])
-  );
-  return {
-    주간: byTimeType['주간'] ?? 0,
-    야간: byTimeType['야간'] ?? 0,
-    종일: byTimeType['종일'] ?? 0,
-  };
+function zoneLabel(zoneType: string) {
+  return ZONE_TYPE_LABELS[zoneType as ZoneType] ?? zoneType;
 }
 
+// 어떤 슬롯(cabana_no)이 특정 타임을 새로 예약할 수 있는지 판단.
+// 종일은 완전히 빈 슬롯에만, 주간/야간은 같은 타임이나 종일이 없는 슬롯에만 배정 가능.
+function timeConflicts(occupied: Set<string>, time: TimeType) {
+  if (time === '종일') return occupied.size > 0;
+  if (occupied.has('종일')) return true;
+  return occupied.has(time);
+}
+
+// 해당 날짜의 예약을 zone_type별로 묶어 슬롯 점유 현황(Map<cabana_no, Set<time>>)으로 정리.
+function buildOccupancy(
+  reservations: { zone_type: string; time_type: string; cabana_no: number }[]
+) {
+  const occ: Record<string, Map<number, Set<string>>> = {};
+  for (const r of reservations) {
+    const slots = (occ[r.zone_type] ??= new Map());
+    const set = slots.get(r.cabana_no) ?? new Set<string>();
+    set.add(r.time_type);
+    slots.set(r.cabana_no, set);
+  }
+  return occ;
+}
+
+function countLeft(slots: Map<number, Set<string>> | undefined, slotCount: number, time: TimeType) {
+  const s = slots ?? new Map<number, Set<string>>();
+  let used = 0;
+  for (let n = 1; n <= slotCount; n++) {
+    const occupied = s.get(n) ?? new Set<string>();
+    if (timeConflicts(occupied, time)) used += 1;
+  }
+  return Math.max(0, slotCount - used);
+}
+
+export type CabanaProduct = {
+  zoneType: string;
+  zoneLabel: string;
+  timeType: TimeType; // 예약에 실제 저장되는 타임 (썬배드처럼 단일가격 상품은 '종일')
+  hasTimeType: boolean; // false면 단일가격(썬배드류) — 인원 초과요금 없음
+  name: string; // 요금표 구역명 (예: "주간 (09:30~17:00)")
+  price: number;
+  left: number;
+  slotCount: number;
+};
+
+// 공개 예약 폼: 케노피/그늘막평상/썬배드 전 상품의 (zone_type, time_type)별
+// 잔여 수량·성수기 요금·슬롯 수를 한 번에 반환한다.
 export async function getCabanaAvailability(date: string) {
   const supabase = createAdminClient();
 
-  const [{ data }, guestPolicy, priceByType] = await Promise.all([
+  const [{ data: zones }, { data: reservations }, guestPolicy] = await Promise.all([
+    supabase
+      .from('cabana_zones')
+      .select('name, zone_type, time_type, unit_count, weekday_price')
+      .order('sort_order'),
     supabase
       .from('cabana_reservations')
-      .select('time_type, cabana_no')
-      .eq('reservation_date', date)
-      .eq('zone_type', '케노피'),
+      .select('zone_type, time_type, cabana_no')
+      .eq('reservation_date', date),
     getCabanaGuestPolicy(supabase),
-    getCabanaPriceByType(supabase),
   ]);
 
-  const reservations = data ?? [];
-  const dayLeft = Math.max(0, TOTAL_CABANAS - countBooked(reservations, '주간'));
-  const nightLeft = Math.max(0, TOTAL_CABANAS - countBooked(reservations, '야간'));
-  // 종일 예약은 완전히 비어있는(주간/야간 어느 쪽도 예약되지 않은) 케노피만 배정 가능하므로
-  // 잔여 수량도 min(주간잔여, 야간잔여)가 아니라 실제로 아무 예약도 없는 케노피 수로 계산해야 함.
-  const bookedCabanaNos = new Set(reservations.map((r) => r.cabana_no));
-  const fullDayLeft = Math.max(0, TOTAL_CABANAS - bookedCabanaNos.size);
+  const occupancy = buildOccupancy(reservations ?? []);
 
-  return { dayLeft, nightLeft, fullDayLeft, guestPolicy, priceByType };
+  const products: CabanaProduct[] = (zones ?? []).map((z) => {
+    const effectiveTime = (z.time_type ?? '종일') as TimeType;
+    return {
+      zoneType: z.zone_type,
+      zoneLabel: zoneLabel(z.zone_type),
+      timeType: effectiveTime,
+      hasTimeType: z.time_type !== null,
+      name: z.name,
+      price: z.weekday_price,
+      left: countLeft(occupancy[z.zone_type], z.unit_count, effectiveTime),
+      slotCount: z.unit_count,
+    };
+  });
+
+  return { products, guestPolicy };
 }
 
 // 예약 확정 폼에서 연락처를 입력해 본인 예약 내역을 직접 조회하는 공개 조회 기능.
@@ -86,7 +123,7 @@ export async function lookupCabanaReservationsByPhone(phone: string) {
     .select('*')
     .eq('phone', cleanPhone)
     .order('reservation_date', { ascending: false })
-    .limit(20);
+    .limit(30);
 
   if (error) return [];
   return data ?? [];
@@ -98,105 +135,167 @@ function generateReservationNo(dateStr: string) {
   return `R${cleanDate}${randomStr}`;
 }
 
+type CartItem = { zoneType: string; timeType: TimeType; guestCount: number };
+export type ReservedItem = {
+  zoneLabel: string;
+  timeType: string;
+  hasTimeType: boolean;
+  cabanaNo: number;
+  reservationNo: string;
+  price: number;
+};
+
+// 장바구니(여러 상품)를 한 번에 예약. 각 항목마다 zone_type 내에서 빈 슬롯을 자동 배정하고,
+// 같은 요청 안에서 먼저 배정된 슬롯과도 충돌하지 않도록 순차 처리한다.
 export async function createCabanaReservation(
   formData: FormData
-): Promise<
-  | { ok: true; reservationNo: string; cabanaNo: number }
-  | { ok: false; error: string }
-> {
+): Promise<{ ok: true; items: ReservedItem[] } | { ok: false; error: string }> {
   const reservationDate = String(formData.get('reservationDate') ?? '').trim();
-  const timeType = String(formData.get('timeType') ?? '') as TimeType;
   const name = String(formData.get('name') ?? '').trim();
   const phone = String(formData.get('phone') ?? '').trim();
-  const guestCount = Number(formData.get('guestCount') ?? 1);
   const isCamping = formData.get('isCamping') === 'true';
   const hasAdmission = isCamping || formData.get('hasAdmission') === 'true';
 
+  let cart: CartItem[];
+  try {
+    cart = JSON.parse(String(formData.get('cart') ?? '[]'));
+  } catch {
+    return { ok: false, error: '예약 항목을 확인해주세요.' };
+  }
+
   if (!reservationDate) return { ok: false, error: '예약 일자를 선택해주세요.' };
-  if (!['주간', '야간', '종일'].includes(timeType))
-    return { ok: false, error: '이용권 종류를 선택해주세요.' };
   if (!name || name.length > 50) return { ok: false, error: '예약자 성함을 입력해주세요.' };
   if (!phone || phone.length > 20) return { ok: false, error: '연락처를 입력해주세요.' };
-  if (!Number.isFinite(guestCount) || guestCount < 1)
-    return { ok: false, error: '이용 인원수를 확인해주세요.' };
+  if (!Array.isArray(cart) || cart.length === 0)
+    return { ok: false, error: '예약할 상품을 1개 이상 추가해주세요.' };
 
   const supabase = createAdminClient();
-
   const guestPolicy = await getCabanaGuestPolicy(supabase);
-  if (guestCount > guestPolicy.maxCount) {
-    return {
-      ok: false,
-      error: `케노피 1개당 최대 ${guestPolicy.maxCount}명까지 예약 가능합니다. 초과 인원은 케노피를 추가로 예약해주세요.`,
-    };
+
+  const { data: zones } = await supabase
+    .from('cabana_zones')
+    .select('zone_type, time_type, unit_count, weekday_price');
+
+  // priceMap["zone|time"] = 단가, slotCount[zone] = 개수, singlePrice[zone] = 단일가격(썬배드류) 여부
+  const priceMap: Record<string, number> = {};
+  const slotCount: Record<string, number> = {};
+  const singlePrice: Record<string, boolean> = {};
+  for (const z of zones ?? []) {
+    const effectiveTime = z.time_type ?? '종일';
+    priceMap[`${z.zone_type}|${effectiveTime}`] = z.weekday_price;
+    slotCount[z.zone_type] = z.unit_count;
+    if (z.time_type !== null) singlePrice[z.zone_type] = singlePrice[z.zone_type] ?? false;
+    else singlePrice[z.zone_type] = true;
   }
 
   const { data: existing } = await supabase
     .from('cabana_reservations')
-    .select('cabana_no, time_type')
-    .eq('reservation_date', reservationDate)
-    .eq('zone_type', '케노피');
+    .select('zone_type, time_type, cabana_no')
+    .eq('reservation_date', reservationDate);
 
-  const reservations = existing ?? [];
-  const bookedCabanas = new Set(
-    reservations
-      .filter((r) => timeType === '종일' || r.time_type === timeType || r.time_type === '종일')
-      .map((r) => r.cabana_no)
-  );
+  const occupancy = buildOccupancy(existing ?? []);
+  const usedNos = new Set<string>();
+  const rows: ReservationInsert[] = [];
+  const items: ReservedItem[] = [];
 
-  let assignedCabana: number | null = null;
-  for (let i = 1; i <= TOTAL_CABANAS; i++) {
-    if (!bookedCabanas.has(i)) {
-      assignedCabana = i;
-      break;
+  for (const item of cart) {
+    const zone = item.zoneType;
+    const count = slotCount[zone];
+    if (count === undefined) return { ok: false, error: '선택하신 상품 정보를 찾을 수 없습니다.' };
+
+    const isSingle = singlePrice[zone] === true;
+    const time: TimeType = isSingle ? '종일' : item.timeType;
+    if (!isSingle && !['주간', '야간', '종일'].includes(time))
+      return { ok: false, error: '이용권 종류를 선택해주세요.' };
+
+    const basePrice = priceMap[`${zone}|${time}`];
+    if (basePrice === undefined) return { ok: false, error: '선택하신 상품의 요금 정보를 찾을 수 없습니다.' };
+
+    // 인원수: 단일가격 상품은 1명 고정(초과요금 없음), 평상류는 최대 인원 이내
+    const guestCount = isSingle
+      ? 1
+      : Math.max(1, Math.min(Number(item.guestCount) || 1, guestPolicy.maxCount));
+
+    // zone_type 내에서 빈 슬롯 순차 배정 (이번 요청에서 앞서 배정된 슬롯도 반영)
+    const slots = (occupancy[zone] ??= new Map<number, Set<string>>());
+    let assigned: number | null = null;
+    for (let n = 1; n <= count; n++) {
+      const occ = slots.get(n) ?? new Set<string>();
+      if (!timeConflicts(occ, time)) {
+        assigned = n;
+        occ.add(time);
+        slots.set(n, occ);
+        break;
+      }
     }
+    if (assigned === null)
+      return {
+        ok: false,
+        error: `${zoneLabel(zone)}${isSingle ? '' : ` ${time}`}이(가) 매진되어 예약할 수 없습니다.`,
+      };
+
+    const extraGuests = isSingle ? 0 : Math.max(0, guestCount - guestPolicy.baseCount);
+    const price = basePrice + extraGuests * guestPolicy.extraFee;
+
+    let reservationNo = generateReservationNo(reservationDate);
+    while (usedNos.has(reservationNo)) reservationNo = generateReservationNo(reservationDate);
+    usedNos.add(reservationNo);
+
+    rows.push({
+      reservation_no: reservationNo,
+      reservation_date: reservationDate,
+      zone_type: zone,
+      cabana_no: assigned,
+      time_type: time,
+      name,
+      phone,
+      guest_count: guestCount,
+      is_camping: isCamping,
+      has_admission: hasAdmission,
+      price_override: price,
+    });
+    items.push({
+      zoneLabel: zoneLabel(zone),
+      timeType: time,
+      hasTimeType: !isSingle,
+      cabanaNo: assigned,
+      reservationNo,
+      price,
+    });
   }
 
-  if (!assignedCabana)
-    return { ok: false, error: '선택하신 날짜의 해당 타임 케노피가 모두 매진되었습니다.' };
+  const { error } = await supabase.from('cabana_reservations').insert(rows);
+  if (error) return { ok: false, error: '예약 처리 중 오류가 발생했습니다. 다시 시도해주세요.' };
 
-  const reservationNo = generateReservationNo(reservationDate);
-
-  const priceByType = await getCabanaPriceByType(supabase);
-  const extraGuests = Math.max(0, guestCount - guestPolicy.baseCount);
-  const totalPrice = (priceByType[timeType] ?? 0) + extraGuests * guestPolicy.extraFee;
-
-  const { error } = await supabase.from('cabana_reservations').insert({
-    reservation_no: reservationNo,
-    reservation_date: reservationDate,
-    zone_type: '케노피',
-    cabana_no: assignedCabana,
-    time_type: timeType,
-    name,
-    phone,
-    guest_count: guestCount,
-    is_camping: isCamping,
-    has_admission: hasAdmission,
-    price_override: totalPrice,
-  });
-
-  if (error) return { ok: false, error: '예약 처리 중 오류가 발생했습니다.' };
+  const totalPrice = items.reduce((sum, it) => sum + it.price, 0);
+  const summaryLabel =
+    items.length === 1
+      ? `${items[0].zoneLabel}${items[0].hasTimeType ? ` ${items[0].timeType}` : ''}`
+      : `${items[0].zoneLabel}${items[0].hasTimeType ? ` ${items[0].timeType}` : ''} 외 ${items.length - 1}건`;
 
   await sendKakaoNotification(
     [
-      `[케노피 예약] ${name}님 · ${timeType} · 예약번호 ${reservationNo}`,
+      `[실시간 예약] ${name}님 · ${summaryLabel}`,
       `예약일자: ${reservationDate}`,
-      `이용권: ${timeType}`,
-      `예약자: ${name}`,
       `연락처: ${phone}`,
-      `인원수: ${guestCount}명`,
       `캠핑장 이용: ${isCamping ? '예' : '아니오'}`,
-      `배정 케노피: ${assignedCabana}번 (현장 배정은 선착순)`,
-      `예약번호: ${reservationNo}`,
+      '',
+      ...items.map(
+        (it) =>
+          `- ${it.zoneLabel}${it.hasTimeType ? ` ${it.timeType}` : ''} · ${it.cabanaNo}번 · ${it.price.toLocaleString('ko-KR')}원 (예약번호 ${it.reservationNo})`
+      ),
+      '',
+      `합계: ${totalPrice.toLocaleString('ko-KR')}원 (현장 배정은 선착순)`,
     ].join('\n')
   );
 
   await sendCustomerReservationAlimtalk(phone, {
     name,
     date: reservationDate,
-    timeType,
-    reservationNo,
+    timeType: summaryLabel,
+    reservationNo: items[0].reservationNo,
   });
 
   revalidatePath('/admin/cabana-reservations');
-  return { ok: true, reservationNo, cabanaNo: assignedCabana };
+  return { ok: true, items };
 }

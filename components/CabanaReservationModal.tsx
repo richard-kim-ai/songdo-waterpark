@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   getCabanaAvailability,
   createCabanaReservation,
   lookupCabanaReservationsByPhone,
+  type CabanaProduct,
+  type ReservedItem,
 } from '@/app/cabana-reservation/actions';
-
-type TimeType = '주간' | '야간' | '종일';
 
 type GuestPolicy = { baseCount: number; extraFee: number; maxCount: number };
 const DEFAULT_GUEST_POLICY: GuestPolicy = { baseCount: 4, extraFee: 3000, maxCount: 6 };
@@ -16,6 +16,7 @@ type LookupReservation = {
   id: string;
   reservation_no: string;
   reservation_date: string;
+  zone_type: string;
   time_type: string;
   name: string;
   phone: string;
@@ -23,7 +24,22 @@ type LookupReservation = {
   cabana_no: number;
 };
 
+type CartLine = {
+  id: string;
+  zoneType: string;
+  zoneLabel: string;
+  timeType: string;
+  hasTimeType: boolean;
+  name: string;
+  unitPrice: number;
+  guestCount: number;
+};
+
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
+
+function productKey(p: { zoneType: string; timeType: string }) {
+  return `${p.zoneType}|${p.timeType}`;
+}
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -60,51 +76,112 @@ export default function CabanaReservationModal({ buttonLabel }: { buttonLabel: s
 
 function ReservationModal({ onClose }: { onClose: () => void }) {
   const [date, setDate] = useState(today());
-  const [timeType, setTimeType] = useState<TimeType>('주간');
+  const [products, setProducts] = useState<CabanaProduct[]>([]);
+  const [guestPolicy, setGuestPolicy] = useState<GuestPolicy>(DEFAULT_GUEST_POLICY);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [selectedKey, setSelectedKey] = useState('');
+  const [addGuestCount, setAddGuestCount] = useState(1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [guestCount, setGuestCount] = useState(1);
-  const [guestLimitNotice, setGuestLimitNotice] = useState(false);
   const [isCamping, setIsCamping] = useState(false);
   const [hasAdmission, setHasAdmission] = useState(false);
-  const [availability, setAvailability] = useState({ dayLeft: 0, nightLeft: 0, fullDayLeft: 0 });
-  const [guestPolicy, setGuestPolicy] = useState<GuestPolicy>(DEFAULT_GUEST_POLICY);
-  const [priceByType, setPriceByType] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
-  const [result, setResult] = useState<{ reservationNo: string; cabanaNo: number } | null>(null);
+  const [result, setResult] = useState<ReservedItem[] | null>(null);
   const [pending, startTransition] = useTransition();
   const [showLookup, setShowLookup] = useState(false);
 
   useEffect(() => {
     let active = true;
+    // 날짜가 바뀌면 잔여가 달라지므로 장바구니를 비워 오배정을 막는다.
+    setCart([]);
     getCabanaAvailability(date).then((res) => {
       if (!active) return;
-      setAvailability(res);
+      setProducts(res.products);
       setGuestPolicy(res.guestPolicy);
-      setPriceByType(res.priceByType);
-      setGuestCount((prev) => Math.min(prev, res.guestPolicy.maxCount));
+      setSelectedKey((prev) =>
+        res.products.some((p) => productKey(p) === prev)
+          ? prev
+          : res.products[0]
+            ? productKey(res.products[0])
+            : ''
+      );
     });
     return () => {
       active = false;
     };
   }, [date]);
 
-  const extraGuests = Math.max(0, guestCount - guestPolicy.baseCount);
-  const totalPrice = (priceByType[timeType] ?? 0) + extraGuests * guestPolicy.extraFee;
-
-  function handleGuestCountChange(raw: string) {
-    const val = Number(raw) || 1;
-    if (val > guestPolicy.maxCount) {
-      setGuestCount(guestPolicy.maxCount);
-      setGuestLimitNotice(true);
-    } else {
-      setGuestCount(Math.max(1, val));
-      setGuestLimitNotice(false);
+  // zone_type별로 상품을 묶어 잔여 안내 패널과 셀렉트 옵션을 구성.
+  const groups = useMemo(() => {
+    const map = new Map<string, { zoneLabel: string; items: CabanaProduct[] }>();
+    for (const p of products) {
+      const g = map.get(p.zoneType) ?? { zoneLabel: p.zoneLabel, items: [] };
+      g.items.push(p);
+      map.set(p.zoneType, g);
     }
+    return Array.from(map.values());
+  }, [products]);
+
+  // 장바구니에 담긴 항목이 소진하는 슬롯을 반영한 실시간 잔여 수량.
+  // 종일은 슬롯 전체를 차지하고, 주간/야간은 같은 타임·종일과 겹치므로 보수적으로 계산한다.
+  function remainingFor(product: CabanaProduct) {
+    const consumed = cart.filter((c) => {
+      if (c.zoneType !== product.zoneType) return false;
+      if (product.timeType === '종일') return true;
+      return c.timeType === product.timeType || c.timeType === '종일';
+    }).length;
+    return Math.max(0, product.left - consumed);
   }
+
+  const selectedProduct = products.find((p) => productKey(p) === selectedKey);
+
+  function handleAdd() {
+    if (!selectedProduct) return;
+    const guestCount = selectedProduct.hasTimeType
+      ? Math.max(1, Math.min(addGuestCount, guestPolicy.maxCount))
+      : 1;
+    setCart((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        zoneType: selectedProduct.zoneType,
+        zoneLabel: selectedProduct.zoneLabel,
+        timeType: selectedProduct.timeType,
+        hasTimeType: selectedProduct.hasTimeType,
+        name: selectedProduct.name,
+        unitPrice: selectedProduct.price,
+        guestCount,
+      },
+    ]);
+    setAddGuestCount(1);
+  }
+
+  function removeLine(id: string) {
+    setCart((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  function updateLineGuests(id: string, guestCount: number) {
+    setCart((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, guestCount: Math.max(1, Math.min(guestCount, guestPolicy.maxCount)) } : c
+      )
+    );
+  }
+
+  function linePrice(line: CartLine) {
+    const extra = line.hasTimeType ? Math.max(0, line.guestCount - guestPolicy.baseCount) : 0;
+    return line.unitPrice + extra * guestPolicy.extraFee;
+  }
+
+  const totalPrice = cart.reduce((sum, line) => sum + linePrice(line), 0);
+  const canAdd = !!selectedProduct && remainingFor(selectedProduct) > 0;
 
   function handleSubmit() {
     setError('');
+    if (cart.length === 0) {
+      setError('예약할 상품을 1개 이상 추가해주세요.');
+      return;
+    }
     if (!name.trim() || !phone.trim()) {
       setError('예약자 성함과 연락처를 입력해주세요.');
       return;
@@ -112,21 +189,27 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
     startTransition(async () => {
       const fd = new FormData();
       fd.set('reservationDate', date);
-      fd.set('timeType', timeType);
       fd.set('name', name.trim());
       fd.set('phone', phone.trim());
-      fd.set('guestCount', String(guestCount));
       fd.set('isCamping', String(isCamping));
       fd.set('hasAdmission', String(hasAdmission));
+      fd.set(
+        'cart',
+        JSON.stringify(
+          cart.map((c) => ({ zoneType: c.zoneType, timeType: c.timeType, guestCount: c.guestCount }))
+        )
+      );
 
       const res = await createCabanaReservation(fd);
       if (res.ok) {
-        setResult({ reservationNo: res.reservationNo, cabanaNo: res.cabanaNo });
+        setResult(res.items);
       } else {
         setError(res.error);
       }
     });
   }
+
+  const resultTotal = result?.reduce((sum, it) => sum + it.price, 0) ?? 0;
 
   return (
     <div
@@ -138,25 +221,46 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-          <h3 className="font-bold text-lg text-gray-900">케노피 실시간 예약</h3>
+          <h3 className="font-bold text-lg text-gray-900">실시간 예약</h3>
           <button onClick={onClose} aria-label="닫기" className="cursor-pointer">
             <i className="ri-close-line text-2xl text-gray-500"></i>
           </button>
         </div>
 
         {result ? (
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 overflow-y-auto">
             <div className="bg-blue-50 rounded-lg p-4 text-center">
               <p className="text-gray-700">예약이 완료되었습니다!</p>
-              <p className="text-2xl font-bold text-primary mt-2">
-                {name} · {timeType} 이용권
+              <p className="text-xl font-bold text-primary mt-2">
+                {name}님 · 총 {result.length}건
               </p>
-              <p className="text-sm text-gray-600 mt-1">예약순번 {result.cabanaNo}번</p>
               <p className="text-sm text-gray-500 mt-1">{formatDateKorean(date)}</p>
-              <p className="text-sm text-gray-500 mt-1">예약번호 {result.reservationNo}</p>
+            </div>
+            <div className="space-y-2">
+              {result.map((it) => (
+                <div
+                  key={it.reservationNo}
+                  className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-bold text-gray-900">
+                      {it.zoneLabel}
+                      {it.hasTimeType ? ` · ${it.timeType}` : ''}
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      예약순번 {it.cabanaNo}번 · 예약번호 {it.reservationNo}
+                    </p>
+                  </div>
+                  <span className="font-bold text-gray-900">{won(it.price)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between border-t pt-3">
+              <span className="font-bold text-gray-900">합계</span>
+              <span className="font-bold text-lg text-primary">{won(resultTotal)}</span>
             </div>
             <p className="text-xs text-gray-500 text-center">
-              예약번호를 가지고 현장에서 결제 시 케노피 위치는 선착순으로 배정됩니다.
+              예약번호를 가지고 현장에서 결제 시 위치는 선착순으로 배정됩니다.
             </p>
             <button
               onClick={onClose}
@@ -181,38 +285,125 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 bg-blue-50 rounded-lg p-3 text-center text-sm">
-                <div>
-                  <p className="text-gray-500">주간 잔여</p>
-                  <p className="font-bold text-gray-900">{availability.dayLeft}개</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">야간 잔여</p>
-                  <p className="font-bold text-gray-900">{availability.nightLeft}개</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">종일 잔여</p>
-                  <p className="font-bold text-gray-900">{availability.fullDayLeft}개</p>
-                </div>
+              <div className="space-y-2 bg-blue-50 rounded-lg p-3 text-sm">
+                <p className="text-xs font-semibold text-gray-600">상품별 잔여 현황</p>
+                {groups.map((g) => (
+                  <div key={g.zoneLabel} className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-gray-800 shrink-0">{g.zoneLabel}</span>
+                    <span className="text-gray-600 text-right">
+                      {g.items.map((p, i) => (
+                        <span key={productKey(p)}>
+                          {i > 0 && <span className="text-gray-300"> · </span>}
+                          {p.hasTimeType ? `${p.timeType} ` : '잔여 '}
+                          <strong className="text-gray-900">{remainingFor(p)}</strong>
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">이용권 종류</label>
-                <select
-                  value={timeType}
-                  onChange={(e) => setTimeType(e.target.value as TimeType)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="주간" disabled={availability.dayLeft <= 0}>
-                    주간 타임 (잔여 {availability.dayLeft}개)
-                  </option>
-                  <option value="야간" disabled={availability.nightLeft <= 0}>
-                    야간 타임 (잔여 {availability.nightLeft}개)
-                  </option>
-                  <option value="종일" disabled={availability.fullDayLeft <= 0}>
-                    종일 패키지 (잔여 {availability.fullDayLeft}개)
-                  </option>
-                </select>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  이용권 종류 (담은 후 여러 상품을 추가할 수 있어요)
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedKey}
+                    onChange={(e) => setSelectedKey(e.target.value)}
+                    className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    {groups.map((g) => (
+                      <optgroup key={g.zoneLabel} label={g.zoneLabel}>
+                        {g.items.map((p) => {
+                          const left = remainingFor(p);
+                          return (
+                            <option key={productKey(p)} value={productKey(p)} disabled={left <= 0}>
+                              {p.zoneLabel}
+                              {p.hasTimeType ? ` · ${p.timeType}` : ''} · {won(p.price)} (잔여 {left})
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {selectedProduct?.hasTimeType && (
+                    <input
+                      type="number"
+                      min={1}
+                      max={guestPolicy.maxCount}
+                      value={addGuestCount}
+                      onChange={(e) =>
+                        setAddGuestCount(
+                          Math.max(1, Math.min(Number(e.target.value) || 1, guestPolicy.maxCount))
+                        )
+                      }
+                      title="인원수"
+                      className="w-16 px-2 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  )}
+                  <button
+                    onClick={handleAdd}
+                    disabled={!canAdd}
+                    className="px-4 py-2 bg-primary text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-40 cursor-pointer shrink-0"
+                  >
+                    담기
+                  </button>
+                </div>
+                {selectedProduct?.hasTimeType && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    기본 {guestPolicy.baseCount}명 포함, 초과 인원 1명당 {won(guestPolicy.extraFee)}{' '}
+                    추가 (최대 {guestPolicy.maxCount}명)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  담은 상품 ({cart.length}건)
+                </label>
+                {cart.length === 0 ? (
+                  <p className="text-sm text-gray-400 bg-gray-50 rounded-lg px-4 py-3 text-center">
+                    위에서 상품을 선택하고 &lsquo;담기&rsquo;를 눌러주세요.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {cart.map((line) => (
+                      <div
+                        key={line.id}
+                        className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">
+                            {line.zoneLabel}
+                            {line.hasTimeType ? ` · ${line.timeType}` : ''}
+                          </p>
+                          <p className="text-xs text-gray-500">{won(linePrice(line))}</p>
+                        </div>
+                        {line.hasTimeType && (
+                          <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+                            <span>인원</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={guestPolicy.maxCount}
+                              value={line.guestCount}
+                              onChange={(e) => updateLineGuests(line.id, Number(e.target.value) || 1)}
+                              className="w-12 px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </label>
+                        )}
+                        <button
+                          onClick={() => removeLine(line.id)}
+                          aria-label="삭제"
+                          className="text-gray-400 hover:text-red-600 cursor-pointer shrink-0"
+                        >
+                          <i className="ri-close-circle-line text-xl"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -239,33 +430,9 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">이용 인원수</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={guestPolicy.maxCount}
-                  value={guestCount}
-                  onChange={(e) => handleGuestCountChange(e.target.value)}
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  기본 {guestPolicy.baseCount}명 포함, 초과 인원 1명당 {won(guestPolicy.extraFee)}{' '}
-                  추가 (최대 {guestPolicy.maxCount}명)
-                </p>
-                {guestLimitNotice && (
-                  <p className="text-xs text-amber-600 font-semibold mt-1">
-                    케노피 1개당 최대 {guestPolicy.maxCount}명까지 예약 가능합니다. 초과 인원은
-                    케노피를 추가로 예약해주세요.
-                  </p>
-                )}
-              </div>
-
               <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-gray-200">
-                <span className="text-sm text-gray-500">
-                  예상 결제 금액{extraGuests > 0 ? ` (기본 ${guestPolicy.baseCount}명 + 초과 ${extraGuests}명)` : ''}
-                </span>
-                <span className="font-bold text-primary">{won(totalPrice)}</span>
+                <span className="text-sm text-gray-500">예상 결제 금액</span>
+                <span className="font-bold text-lg text-primary">{won(totalPrice)}</span>
               </div>
 
               <div className="flex flex-col gap-2 text-sm text-gray-700">
@@ -373,17 +540,22 @@ function LookupView({ onBack }: { onBack: () => void }) {
 
       {results && (
         <div className="space-y-2">
-          {results.map((r) => (
-            <div key={r.id} className="bg-gray-50 rounded-lg p-3 text-sm">
-              <p className="font-bold text-gray-900">
-                {formatDateKorean(r.reservation_date)} · {r.time_type} 이용권
-              </p>
-              <p className="text-gray-600 mt-1">
-                예약자: {r.name} ({r.phone}) · {r.guest_count}명
-              </p>
-              <p className="text-gray-500 text-xs mt-1">예약번호 {r.reservation_no}</p>
-            </div>
-          ))}
+          {results.map((r) => {
+            const label = ZONE_LABELS[r.zone_type] ?? r.zone_type;
+            const isSingle = r.zone_type === '썬배드';
+            return (
+              <div key={r.id} className="bg-gray-50 rounded-lg p-3 text-sm">
+                <p className="font-bold text-gray-900">
+                  {formatDateKorean(r.reservation_date)} · {label}
+                  {isSingle ? '' : ` ${r.time_type}`}
+                </p>
+                <p className="text-gray-600 mt-1">
+                  예약자: {r.name} ({r.phone}) · {r.guest_count}명 · 순번 {r.cabana_no}번
+                </p>
+                <p className="text-gray-500 text-xs mt-1">예약번호 {r.reservation_no}</p>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -396,3 +568,9 @@ function LookupView({ onBack }: { onBack: () => void }) {
     </div>
   );
 }
+
+const ZONE_LABELS: Record<string, string> = {
+  케노피: '평상&케노피',
+  그늘막평상: '그늘막평상',
+  썬배드: '썬배드',
+};
