@@ -90,6 +90,46 @@ export async function upsertCabanaZone(
   revalidatePath('/admin/cabana');
 }
 
+// 평상&케노피/그늘막평상/썬배드 요금표에 새 항목(행)을 추가.
+export async function createCabanaZone(data: {
+  zoneType: string;
+  timeType: string | null;
+  name: string;
+  unitCount: number;
+  price: number;
+  sortOrder: number;
+}) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin.from('cabana_zones').insert({
+    zone_type: data.zoneType,
+    time_type: data.timeType,
+    name: data.name,
+    capacity: 1,
+    unit_count: data.unitCount,
+    weekday_price: data.price,
+    weekend_price: data.price,
+    sort_order: data.sortOrder,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/cabana');
+}
+
+export async function deleteCabanaZone(id: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { error } = await admin.from('cabana_zones').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+
+  revalidateSite();
+  revalidatePath('/admin/cabana');
+}
+
 // ---------- 사이트 설정(이용시간 안내 텍스트) ----------
 export async function upsertSiteSetting(key: string, value: string) {
   const { supabase } = await requireAdmin();
@@ -363,7 +403,8 @@ export async function deleteInquiry(id: string) {
 }
 
 // ---------- 케노피 실시간 예약 ----------
-export async function listCabanaReservationsForDate(date: string) {
+// 상품 타입(zone_type)별로 슬롯 번호(1~N) 체계가 독립적이므로 반드시 zoneType으로 필터링.
+export async function listCabanaReservationsForDate(date: string, zoneType: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
@@ -371,10 +412,25 @@ export async function listCabanaReservationsForDate(date: string) {
     .from('cabana_reservations')
     .select('*')
     .eq('reservation_date', date)
+    .eq('zone_type', zoneType)
     .order('cabana_no');
 
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+// 평상&케노피/그늘막평상/썬배드 각 상품 타입의 슬롯(개수) 수. cabana_zones.unit_count 기준.
+// 마이그레이션 전이거나 데이터가 없으면 기존에 쓰던 기본값(60/18/40)으로 안전하게 대체.
+export async function getCabanaZoneSlotCounts(): Promise<Record<string, number>> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const counts: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
+  const { data } = await admin.from('cabana_zones').select('zone_type, unit_count');
+  for (const z of data ?? []) {
+    if (z.zone_type) counts[z.zone_type] = z.unit_count;
+  }
+  return counts;
 }
 
 // 전화번호 뒷 4자리로 예약 검색 (날짜 상관없이 전체 기간 대상).
@@ -408,22 +464,31 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   const [{ data: reservations, error }, { data: zones, error: zonesError }] = await Promise.all([
     admin
       .from('cabana_reservations')
-      .select('reservation_date, time_type, discount_type, is_camping, is_blocked, price_override')
+      .select(
+        'reservation_date, zone_type, time_type, discount_type, is_camping, is_blocked, price_override'
+      )
       .gte('reservation_date', startDate)
       .lte('reservation_date', endDate),
-    admin.from('cabana_zones').select('name, weekday_price').order('sort_order').limit(3),
+    admin.from('cabana_zones').select('zone_type, time_type, weekday_price'),
   ]);
 
   if (error) throw new Error(error.message);
   if (zonesError) throw new Error(zonesError.message);
 
-  // cabana_zones는 정렬 순서상 [주간, 야간, 종일, 썬배드] 순으로 등록되어 있음 (Cabana.tsx와 동일한 규칙)
-  const zoneList = zones ?? [];
-  const priceByType: Record<string, number> = {
-    주간: zoneList[0]?.weekday_price ?? 0,
-    야간: zoneList[1]?.weekday_price ?? 0,
-    종일: zoneList[2]?.weekday_price ?? 0,
-  };
+  // priceByType[zone_type][time_type] = 단가. 썬배드처럼 time_type이 없는(단일가격) 타입은
+  // 주간/야간/종일 세 키 모두에 같은 값을 넣어, 어떤 time_type으로 조회해도 값이 나오게 함.
+  const priceByType: Record<string, Record<string, number>> = {};
+  for (const z of zones ?? []) {
+    const zt = z.zone_type ?? '케노피';
+    if (!priceByType[zt]) priceByType[zt] = {};
+    if (z.time_type) {
+      priceByType[zt][z.time_type] = z.weekday_price;
+    } else {
+      priceByType[zt].주간 = z.weekday_price;
+      priceByType[zt].야간 = z.weekday_price;
+      priceByType[zt].종일 = z.weekday_price;
+    }
+  }
 
   const dateCounts: Record<string, number> = {};
   const byType: Record<string, { count: number; revenue: number }> = {
@@ -437,6 +502,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     '장애인/유공자': { count: 0, revenue: 0 },
   };
   const camping = { count: 0, revenue: 0 };
+  const sunbed = { count: 0, revenue: 0 };
 
   for (const r of reservations ?? []) {
     if (r.is_blocked) continue; // 예약막기로 잠긴 슬롯은 매출/건수 통계에서 제외
@@ -444,7 +510,21 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     dateCounts[r.reservation_date] = (dateCounts[r.reservation_date] ?? 0) + 1;
 
     const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
-    const revenue = r.price_override ?? (priceByType[r.time_type] ?? 0) * multiplier;
+    const basePrice = priceByType[r.zone_type]?.[r.time_type] ?? 0;
+    const revenue = r.price_override ?? basePrice * multiplier;
+
+    if (r.is_camping) {
+      camping.count += 1;
+      camping.revenue += revenue;
+    }
+
+    // 썬배드는 시간대별 가격 구분이 없는 단일 부속상품이라 타임별/구분별 표에 섞지 않고
+    // 대시보드에 별도 섹션으로 표시
+    if (r.zone_type === '썬배드') {
+      sunbed.count += 1;
+      sunbed.revenue += revenue;
+      continue;
+    }
 
     if (r.time_type in byType) {
       byType[r.time_type].count += 1;
@@ -453,14 +533,9 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     const category = r.discount_type && r.discount_type in byCategory ? r.discount_type : '일반';
     byCategory[category].count += 1;
     byCategory[category].revenue += revenue;
-
-    if (r.is_camping) {
-      camping.count += 1;
-      camping.revenue += revenue;
-    }
   }
 
-  return { dateCounts, byType, byCategory, camping, priceByType };
+  return { dateCounts, byType, byCategory, camping, sunbed, priceByType };
 }
 
 function generateReservationNo(dateStr: string) {
@@ -469,8 +544,22 @@ function generateReservationNo(dateStr: string) {
   return `R${cleanDate}${randomStr}`;
 }
 
+async function getZoneSlotCount(
+  admin: ReturnType<typeof createAdminClient>,
+  zoneType: string
+): Promise<number> {
+  const { data } = await admin
+    .from('cabana_zones')
+    .select('unit_count')
+    .eq('zone_type', zoneType)
+    .limit(1)
+    .maybeSingle();
+  return data?.unit_count ?? 60;
+}
+
 export async function createCabanaReservationAdmin(data: {
   reservation_date: string;
+  zone_type: string;
   cabana_no: number;
   time_type: string;
   name: string;
@@ -484,8 +573,9 @@ export async function createCabanaReservationAdmin(data: {
   await requireAdmin();
   const admin = createAdminClient();
 
-  if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > 60) {
-    throw new Error('케노피 번호는 1~60 사이로 입력해주세요.');
+  const slotCount = await getZoneSlotCount(admin, data.zone_type);
+  if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > slotCount) {
+    throw new Error(`번호는 1~${slotCount} 사이로 입력해주세요.`);
   }
   if (!data.name.trim()) throw new Error('예약자 성함을 입력해주세요.');
   if (!data.phone.trim()) throw new Error('연락처를 입력해주세요.');
@@ -494,18 +584,20 @@ export async function createCabanaReservationAdmin(data: {
     .from('cabana_reservations')
     .select('time_type')
     .eq('reservation_date', data.reservation_date)
+    .eq('zone_type', data.zone_type)
     .eq('cabana_no', data.cabana_no);
 
   const conflict = (others ?? []).some(
     (r) => r.time_type === '종일' || data.time_type === '종일' || r.time_type === data.time_type
   );
   if (conflict) {
-    throw new Error(`${data.cabana_no}번 케노피는 해당 타임에 이미 예약이 있습니다.`);
+    throw new Error(`${data.cabana_no}번은 해당 타임에 이미 예약이 있습니다.`);
   }
 
   const { error } = await admin.from('cabana_reservations').insert({
     reservation_no: generateReservationNo(data.reservation_date),
     reservation_date: data.reservation_date,
+    zone_type: data.zone_type,
     cabana_no: data.cabana_no,
     time_type: data.time_type,
     name: data.name.trim(),
@@ -538,17 +630,19 @@ export async function updateCabanaReservation(
   await requireAdmin();
   const admin = createAdminClient();
 
-  if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > 60) {
-    throw new Error('케노피 번호는 1~60 사이로 입력해주세요.');
-  }
-
   const { data: current, error: fetchError } = await admin
     .from('cabana_reservations')
-    .select('reservation_date, cabana_no')
+    .select('reservation_date, cabana_no, zone_type')
     .eq('id', id)
     .maybeSingle();
 
   if (fetchError || !current) throw new Error('예약을 찾을 수 없습니다.');
+
+  const zoneType = current.zone_type ?? '케노피';
+  const slotCount = await getZoneSlotCount(admin, zoneType);
+  if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > slotCount) {
+    throw new Error(`번호는 1~${slotCount} 사이로 입력해주세요.`);
+  }
 
   const oldCabanaNo = current.cabana_no;
   const cabanaNoChanged = oldCabanaNo !== data.cabana_no;
@@ -557,6 +651,7 @@ export async function updateCabanaReservation(
     .from('cabana_reservations')
     .select('id, time_type')
     .eq('reservation_date', current.reservation_date)
+    .eq('zone_type', zoneType)
     .eq('cabana_no', data.cabana_no)
     .neq('id', id);
 
@@ -566,15 +661,16 @@ export async function updateCabanaReservation(
 
   if (conflictsAtTarget.length > 0) {
     if (!cabanaNoChanged) {
-      // 같은 케노피 안에서 타임만 바꾸는 경우엔 자리를 맞바꿀 대상이 없으므로 그대로 차단
-      throw new Error(`${data.cabana_no}번 케노피는 해당 타임에 이미 다른 예약이 있습니다.`);
+      // 같은 자리 안에서 타임만 바꾸는 경우엔 자리를 맞바꿀 대상이 없으므로 그대로 차단
+      throw new Error(`${data.cabana_no}번은 해당 타임에 이미 다른 예약이 있습니다.`);
     }
 
-    // 케노피 번호를 바꾸는 경우: 대상 케노피의 충돌 예약을 원래 케노피 번호로 맞바꿈(스왑)
+    // 번호를 바꾸는 경우: 대상 자리의 충돌 예약을 원래 번호로 맞바꿈(스왑)
     const { data: remainingAtOld } = await admin
       .from('cabana_reservations')
       .select('time_type')
       .eq('reservation_date', current.reservation_date)
+      .eq('zone_type', zoneType)
       .eq('cabana_no', oldCabanaNo)
       .neq('id', id);
 
@@ -640,6 +736,7 @@ function generateBlockNo(dateStr: string) {
 // 슬롯은 건너뛰고 나머지만 처리).
 export async function blockCabanaSlots(
   reservationDate: string,
+  zoneType: string,
   cabanaNos: number[],
   timeTypes: string[]
 ): Promise<{ blocked: number; skipped: number }> {
@@ -650,6 +747,7 @@ export async function blockCabanaSlots(
     .from('cabana_reservations')
     .select('cabana_no, time_type')
     .eq('reservation_date', reservationDate)
+    .eq('zone_type', zoneType)
     .in('cabana_no', cabanaNos);
 
   const occupied = existing ?? [];
@@ -671,6 +769,7 @@ export async function blockCabanaSlots(
       const { error } = await admin.from('cabana_reservations').insert({
         reservation_no: generateBlockNo(reservationDate),
         reservation_date: reservationDate,
+        zone_type: zoneType,
         cabana_no: cabanaNo,
         time_type: timeType,
         name: '예약 차단',

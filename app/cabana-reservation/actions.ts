@@ -33,17 +33,20 @@ async function getCabanaGuestPolicy(supabase: SupabaseAdmin) {
   };
 }
 
+// 공개 예약 폼은 평상&케노피(zone_type='케노피') 상품만 다루므로, 그늘막평상/썬배드가
+// 추가되어 cabana_zones 행이 늘어나도 time_type으로 정확히 매칭해 가격을 가져온다.
 async function getCabanaPriceByType(supabase: SupabaseAdmin): Promise<Record<TimeType, number>> {
   const { data: zones } = await supabase
     .from('cabana_zones')
-    .select('weekday_price')
-    .order('sort_order')
-    .limit(3);
-  const zoneList = zones ?? [];
+    .select('time_type, weekday_price')
+    .eq('zone_type', '케노피');
+  const byTimeType = Object.fromEntries(
+    (zones ?? []).map((z) => [z.time_type, z.weekday_price])
+  );
   return {
-    주간: zoneList[0]?.weekday_price ?? 0,
-    야간: zoneList[1]?.weekday_price ?? 0,
-    종일: zoneList[2]?.weekday_price ?? 0,
+    주간: byTimeType['주간'] ?? 0,
+    야간: byTimeType['야간'] ?? 0,
+    종일: byTimeType['종일'] ?? 0,
   };
 }
 
@@ -51,7 +54,11 @@ export async function getCabanaAvailability(date: string) {
   const supabase = createAdminClient();
 
   const [{ data }, guestPolicy, priceByType] = await Promise.all([
-    supabase.from('cabana_reservations').select('time_type, cabana_no').eq('reservation_date', date),
+    supabase
+      .from('cabana_reservations')
+      .select('time_type, cabana_no')
+      .eq('reservation_date', date)
+      .eq('zone_type', '케노피'),
     getCabanaGuestPolicy(supabase),
     getCabanaPriceByType(supabase),
   ]);
@@ -126,7 +133,8 @@ export async function createCabanaReservation(
   const { data: existing } = await supabase
     .from('cabana_reservations')
     .select('cabana_no, time_type')
-    .eq('reservation_date', reservationDate);
+    .eq('reservation_date', reservationDate)
+    .eq('zone_type', '케노피');
 
   const reservations = existing ?? [];
   const bookedCabanas = new Set(
@@ -155,6 +163,7 @@ export async function createCabanaReservation(
   const { error } = await supabase.from('cabana_reservations').insert({
     reservation_no: reservationNo,
     reservation_date: reservationDate,
+    zone_type: '케노피',
     cabana_no: assignedCabana,
     time_type: timeType,
     name,

@@ -4,18 +4,26 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   listCabanaReservationsForDate,
   getCabanaMonthSummary,
+  getCabanaZoneSlotCounts,
   createCabanaReservationAdmin,
   updateCabanaReservation,
   cancelCabanaReservation,
   blockCabanaSlots,
   searchCabanaReservationsByPhone,
 } from '@/app/admin/actions';
-import { DISCOUNT_TYPES, DISCOUNT_MULTIPLIER, type DiscountType } from '@/lib/cabana-pricing';
+import {
+  DISCOUNT_TYPES,
+  DISCOUNT_MULTIPLIER,
+  ZONE_TYPES,
+  ZONE_TYPE_LABELS,
+  type DiscountType,
+  type ZoneType,
+} from '@/lib/cabana-pricing';
 import type { Database } from '@/types/database';
 
 type Reservation = Database['public']['Tables']['cabana_reservations']['Row'];
 
-const TOTAL_CABANAS = 60;
+const DEFAULT_SLOT_COUNTS: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
 const TIME_TYPES = ['주간', '야간', '종일'] as const;
 
 type CategorySummary = Record<string, { count: number; revenue: number }>;
@@ -24,13 +32,15 @@ type MonthSummary = {
   byType: CategorySummary;
   byCategory: CategorySummary;
   camping: { count: number; revenue: number };
-  priceByType: Record<string, number>;
+  sunbed: { count: number; revenue: number };
+  priceByType: Record<string, Record<string, number>>;
 };
 const EMPTY_SUMMARY: MonthSummary = {
   dateCounts: {},
   byType: {},
   byCategory: {},
   camping: { count: 0, revenue: 0 },
+  sunbed: { count: 0, revenue: 0 },
   priceByType: {},
 };
 
@@ -48,11 +58,16 @@ export default function CabanaReservationManager({
   initialReservations: Reservation[];
 }) {
   const [date, setDate] = useState(initialDate);
+  const [zoneType, setZoneType] = useState<ZoneType>('케노피');
+  const [slotCounts, setSlotCounts] = useState<Record<string, number>>(DEFAULT_SLOT_COUNTS);
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
   const [loading, setLoading] = useState(false);
   const [selectedCabana, setSelectedCabana] = useState<number | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const hasTimeTypes = zoneType !== '썬배드';
+  const totalSlots = slotCounts[zoneType] ?? DEFAULT_SLOT_COUNTS[zoneType] ?? 60;
 
   const [monthCursor, setMonthCursor] = useState(() => {
     const [y, m] = initialDate.split('-').map(Number);
@@ -83,7 +98,11 @@ export default function CabanaReservationManager({
   const skipDateEffectResetRef = useRef(false);
 
   useEffect(() => {
-    if (date === initialDate && reservations === initialReservations) return;
+    getCabanaZoneSlotCounts().then(setSlotCounts);
+  }, []);
+
+  useEffect(() => {
+    if (date === initialDate && zoneType === '케노피' && reservations === initialReservations) return;
     if (skipDateEffectResetRef.current) {
       skipDateEffectResetRef.current = false;
       return;
@@ -91,11 +110,19 @@ export default function CabanaReservationManager({
     setLoading(true);
     setSelectedCabana(null);
     setEditing(null);
-    listCabanaReservationsForDate(date)
+    setCreating(false);
+    setBlockMode(false);
+    setSelectedForBlock(new Set());
+    listCabanaReservationsForDate(date, zoneType)
       .then((data) => setReservations(data as Reservation[]))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date]);
+  }, [date, zoneType]);
+
+  useEffect(() => {
+    setBlockTimeTypes(new Set(hasTimeTypes ? TIME_TYPES : ['종일']));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoneType]);
 
   // 날짜 입력창에서 직접 다른 달로 이동했을 때만 캘린더/판매현황도 그 달로 이동
   useEffect(() => {
@@ -137,16 +164,20 @@ export default function CabanaReservationManager({
 
   const dayBooked = reservations.filter((r) => r.time_type === '주간' || r.time_type === '종일').length;
   const nightBooked = reservations.filter((r) => r.time_type === '야간' || r.time_type === '종일').length;
-  const dayLeft = Math.max(0, TOTAL_CABANAS - dayBooked);
-  const nightLeft = Math.max(0, TOTAL_CABANAS - nightBooked);
+  const dayLeft = Math.max(0, totalSlots - dayBooked);
+  const nightLeft = Math.max(0, totalSlots - nightBooked);
   // 종일 예약은 완전히 비어있는 케노피만 배정 가능하므로 min(주간,야간)이 아니라
   // 아무 예약도 없는 케노피 수로 계산 (주간/야간이 서로 다른 케노피에 흩어져 있으면
   // min() 계산은 실제보다 종일 잔여를 과대평가함).
   const bookedCabanaNos = new Set(reservations.map((r) => r.cabana_no));
-  const fullDayLeft = Math.max(0, TOTAL_CABANAS - bookedCabanaNos.size);
+  const fullDayLeft = Math.max(0, totalSlots - bookedCabanaNos.size);
+  // 썬배드처럼 시간대 구분이 없는 타입은 슬롯당 예약이 하나뿐이라 잔여 개념이 단순함.
+  const singleLeft = Math.max(0, totalSlots - bookedCabanaNos.size);
 
   function refresh() {
-    listCabanaReservationsForDate(date).then((data) => setReservations(data as Reservation[]));
+    listCabanaReservationsForDate(date, zoneType).then((data) =>
+      setReservations(data as Reservation[])
+    );
     const year = monthCursor.getFullYear();
     const month = monthCursor.getMonth();
     getCabanaMonthSummary(
@@ -155,6 +186,17 @@ export default function CabanaReservationManager({
     )
       .then(setMonthSummary)
       .catch(() => setMonthSummary(EMPTY_SUMMARY));
+  }
+
+  function handleZoneTypeChange(zt: ZoneType) {
+    if (zt === zoneType) return;
+    setZoneType(zt);
+    setBlockMode(false);
+    setSelectedForBlock(new Set());
+    setBlockResult('');
+    setSelectedCabana(null);
+    setEditing(null);
+    setCreating(false);
   }
 
   function toggleCabanaSelection(cabanaNo: number) {
@@ -181,6 +223,7 @@ export default function CabanaReservationManager({
       try {
         const res = await blockCabanaSlots(
           date,
+          zoneType,
           Array.from(selectedForBlock),
           Array.from(blockTimeTypes)
         );
@@ -208,12 +251,17 @@ export default function CabanaReservationManager({
   // skipDateEffectResetRef를 세워둔 뒤, 여기서 직접 목록을 불러와 반영한다.
   async function jumpToReservation(reservation: Reservation) {
     skipDateEffectResetRef.current = true;
+    const targetZoneType = (reservation.zone_type as ZoneType) || '케노피';
     setBlockMode(false);
     setSelectedForBlock(new Set());
     setLoading(true);
     setDate(reservation.reservation_date);
+    setZoneType(targetZoneType);
     try {
-      const data = await listCabanaReservationsForDate(reservation.reservation_date);
+      const data = await listCabanaReservationsForDate(
+        reservation.reservation_date,
+        targetZoneType
+      );
       setReservations(data as Reservation[]);
       setEditing(null);
       setCreating(false);
@@ -268,6 +316,7 @@ export default function CabanaReservationManager({
             byType={monthSummary.byType}
             byCategory={monthSummary.byCategory}
             camping={monthSummary.camping}
+            sunbed={monthSummary.sunbed}
             loading={summaryLoading}
           />
         </div>
@@ -279,6 +328,24 @@ export default function CabanaReservationManager({
           isFullscreen ? 'fixed inset-0 z-50 bg-gray-100 overflow-y-auto p-6' : ''
         }
       >
+        {/* 전체화면(POS) 모드에서는 posRef 서브트리 바깥은 렌더링되지 않으므로, 탭도
+            반드시 이 안에 두어야 POS 모드에서도 평상&케노피/그늘막평상/썬배드를 전환할 수 있다. */}
+        <div className="mb-6 bg-white rounded-xl shadow p-2 flex gap-2">
+          {ZONE_TYPES.map((zt) => (
+            <button
+              key={zt}
+              onClick={() => handleZoneTypeChange(zt)}
+              className={`flex-1 px-4 py-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                zoneType === zt
+                  ? 'bg-primary text-white'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {ZONE_TYPE_LABELS[zt]}
+            </button>
+          ))}
+        </div>
+
         {/* 일반 모드에서는 캘린더/판매현황 바로 아래, 전체화면(POS) 모드에서도 posRef
             내부에 있으므로 항상 노출됨 — 검색창을 두 곳에 따로 두지 않고 하나만 운영 */}
         <div className="mb-6 bg-white rounded-xl shadow p-4">
@@ -319,8 +386,9 @@ export default function CabanaReservationManager({
                   onClick={() => jumpToReservation(r)}
                   className="w-full text-left px-4 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-sm cursor-pointer"
                 >
-                  <strong>{r.reservation_date}</strong> · {r.cabana_no}번 · [{r.time_type}]{' '}
-                  {r.name} ({r.phone})
+                  <strong>{r.reservation_date}</strong> ·{' '}
+                  {ZONE_TYPE_LABELS[r.zone_type as ZoneType] ?? r.zone_type} {r.cabana_no}번 · [
+                  {r.time_type}] {r.name} ({r.phone})
                 </button>
               ))}
             </div>
@@ -336,15 +404,23 @@ export default function CabanaReservationManager({
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="flex gap-4 text-sm ml-auto">
-            <span>
-              ☀️ 주간 잔여 <strong>{dayLeft}</strong>/{TOTAL_CABANAS}
-            </span>
-            <span>
-              🌙 야간 잔여 <strong>{nightLeft}</strong>/{TOTAL_CABANAS}
-            </span>
-            <span>
-              🎟️ 종일 가능 <strong>{fullDayLeft}</strong>/{TOTAL_CABANAS}
-            </span>
+            {hasTimeTypes ? (
+              <>
+                <span>
+                  ☀️ 주간 잔여 <strong>{dayLeft}</strong>/{totalSlots}
+                </span>
+                <span>
+                  🌙 야간 잔여 <strong>{nightLeft}</strong>/{totalSlots}
+                </span>
+                <span>
+                  🎟️ 종일 가능 <strong>{fullDayLeft}</strong>/{totalSlots}
+                </span>
+              </>
+            ) : (
+              <span>
+                🏖️ 잔여 <strong>{singleLeft}</strong>/{totalSlots}
+              </span>
+            )}
           </div>
           <button
             onClick={() => {
@@ -373,8 +449,8 @@ export default function CabanaReservationManager({
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
           <p className="text-xs text-gray-500 mb-4">
             {blockMode
-              ? '차단할 케노피 번호를 눌러 선택한 뒤, 아래에서 타임을 골라 일괄 차단하세요.'
-              : '케노피 번호를 누르면 해당 구역의 예약 정보를 확인·수정·취소할 수 있습니다.'}
+              ? `차단할 ${ZONE_TYPE_LABELS[zoneType]} 번호를 눌러 선택한 뒤, 아래에서 타임을 골라 일괄 차단하세요.`
+              : `${ZONE_TYPE_LABELS[zoneType]} 번호를 누르면 해당 구역의 예약 정보를 확인·수정·취소할 수 있습니다.`}
           </p>
 
           {blockMode && (
@@ -383,18 +459,22 @@ export default function CabanaReservationManager({
                 <span className="text-sm font-semibold text-gray-700">
                   선택된 케노피 {selectedForBlock.size}개
                 </span>
-                <div className="flex gap-3 text-sm text-gray-600">
-                  {TIME_TYPES.map((t) => (
-                    <label key={t} className="flex items-center gap-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={blockTimeTypes.has(t)}
-                        onChange={() => toggleBlockTimeType(t)}
-                      />
-                      {t}
-                    </label>
-                  ))}
-                </div>
+                {hasTimeTypes ? (
+                  <div className="flex gap-3 text-sm text-gray-600">
+                    {TIME_TYPES.map((t) => (
+                      <label key={t} className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={blockTimeTypes.has(t)}
+                          onChange={() => toggleBlockTimeType(t)}
+                        />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-500">단일 이용(종일) 차단</span>
+                )}
               </div>
               {blockResult && (
                 <p className="text-sm text-primary font-semibold mb-2">{blockResult}</p>
@@ -423,7 +503,7 @@ export default function CabanaReservationManager({
               loading ? 'opacity-50 pointer-events-none' : ''
             } ${isFullscreen ? 'xl:grid-cols-12' : ''}`}
           >
-            {Array.from({ length: TOTAL_CABANAS }, (_, i) => {
+            {Array.from({ length: totalSlots }, (_, i) => {
               const cabanaNo = i + 1;
               const matches = reservations.filter((r) => r.cabana_no === cabanaNo);
               const isFull = matches.some((r) => r.time_type === '종일') || matches.length >= 2;
@@ -457,20 +537,22 @@ export default function CabanaReservationManager({
                   } ${isFullscreen ? 'md:text-lg min-h-[4rem]' : ''}`}
                 >
                   <span>{cabanaNo}</span>
-                  <span className="flex justify-center gap-0.5 mt-0.5">
-                    <span
-                      title="주간"
-                      className={`w-1.5 h-1.5 rounded-full ${hasDay ? 'bg-white' : 'bg-white/25'}`}
-                    />
-                    <span
-                      title="야간"
-                      className={`w-1.5 h-1.5 rounded-full ${hasNight ? 'bg-white' : 'bg-white/25'}`}
-                    />
-                    <span
-                      title="종일"
-                      className={`w-1.5 h-1.5 rounded-full ${hasFullDay ? 'bg-white' : 'bg-white/25'}`}
-                    />
-                  </span>
+                  {hasTimeTypes && (
+                    <span className="flex justify-center gap-0.5 mt-0.5">
+                      <span
+                        title="주간"
+                        className={`w-1.5 h-1.5 rounded-full ${hasDay ? 'bg-white' : 'bg-white/25'}`}
+                      />
+                      <span
+                        title="야간"
+                        className={`w-1.5 h-1.5 rounded-full ${hasNight ? 'bg-white' : 'bg-white/25'}`}
+                      />
+                      <span
+                        title="종일"
+                        className={`w-1.5 h-1.5 rounded-full ${hasFullDay ? 'bg-white' : 'bg-white/25'}`}
+                      />
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -492,9 +574,11 @@ export default function CabanaReservationManager({
               <span className="w-3 h-3 rounded bg-slate-700 inline-block"></span>
               차단됨
             </span>
-            <span className="sm:ml-2 sm:border-l sm:pl-4 basis-full sm:basis-auto">
-              점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)
-            </span>
+            {hasTimeTypes && (
+              <span className="sm:ml-2 sm:border-l sm:pl-4 basis-full sm:basis-auto">
+                점1=주간 · 점2=야간 · 점3=종일 (칸 안의 점으로 예약된 타임 표시)
+              </span>
+            )}
           </div>
         </div>
 
@@ -512,7 +596,9 @@ export default function CabanaReservationManager({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg text-gray-900">{selectedCabana}번 케노피 상세</h3>
+                <h3 className="font-bold text-lg text-gray-900">
+                  {selectedCabana}번 {ZONE_TYPE_LABELS[zoneType]} 상세
+                </h3>
                 <button
                   onClick={() => {
                     setSelectedCabana(null);
@@ -528,12 +614,17 @@ export default function CabanaReservationManager({
               {(() => {
                 const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
                 const takenTypes = new Set(cabanaMatches.map((r) => r.time_type));
-                const isFullyBooked =
-                  takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'));
-                const availableTypes = TIME_TYPES.filter((t) => {
-                  if (t === '종일') return cabanaMatches.length === 0;
-                  return !takenTypes.has(t) && !takenTypes.has('종일');
-                });
+                const isFullyBooked = hasTimeTypes
+                  ? takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'))
+                  : cabanaMatches.length > 0;
+                const availableTypes = hasTimeTypes
+                  ? TIME_TYPES.filter((t) => {
+                      if (t === '종일') return cabanaMatches.length === 0;
+                      return !takenTypes.has(t) && !takenTypes.has('종일');
+                    })
+                  : cabanaMatches.length === 0
+                    ? (['종일'] as const)
+                    : ([] as const);
 
                 return (
                   <>
@@ -605,8 +696,9 @@ export default function CabanaReservationManager({
                       <CreatePanel
                         cabanaNo={selectedCabana!}
                         reservationDate={date}
+                        zoneType={zoneType}
                         availableTypes={availableTypes}
-                        priceByType={monthSummary.priceByType}
+                        priceByType={monthSummary.priceByType[zoneType] ?? {}}
                         onCancel={() => setCreating(false)}
                         onCreated={() => {
                           setCreating(false);
@@ -621,7 +713,8 @@ export default function CabanaReservationManager({
               {editing && (
                 <EditPanel
                   reservation={editing}
-                  priceByType={monthSummary.priceByType}
+                  priceByType={monthSummary.priceByType[editing.zone_type] ?? {}}
+                  slotCounts={slotCounts}
                   onCancelEdit={() => setEditing(null)}
                   onSaved={() => {
                     setEditing(null);
@@ -646,11 +739,13 @@ function SalesDashboard({
   byType,
   byCategory,
   camping,
+  sunbed,
   loading,
 }: {
   byType: CategorySummary;
   byCategory: CategorySummary;
   camping: { count: number; revenue: number };
+  sunbed: { count: number; revenue: number };
   loading: boolean;
 }) {
   const totalCount = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.count ?? 0), 0);
@@ -660,7 +755,9 @@ function SalesDashboard({
     <div className={`bg-white rounded-xl shadow p-4 md:p-6 h-full ${loading ? 'opacity-50' : ''}`}>
       <h3 className="font-bold text-gray-900 mb-4">이번 달 판매 현황 (총판매량)</h3>
 
-      <p className="text-xs font-semibold text-gray-500 mb-2">타임별</p>
+      <p className="text-xs font-semibold text-gray-500 mb-2">
+        타임별 (평상&케노피 + 그늘막평상)
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {TIME_TYPES.map((type) => (
           <div key={type} className="bg-gray-50 rounded-lg p-4">
@@ -684,6 +781,17 @@ function SalesDashboard({
         ))}
       </div>
 
+      <div className="flex items-center justify-between bg-secondary/5 rounded-lg px-4 py-3 mb-4">
+        <span className="text-sm font-semibold text-gray-700">
+          <i className="ri-sun-line mr-1 text-secondary"></i>썬배드 (개당 이용)
+        </span>
+        <span className="text-right">
+          <span className="font-bold text-gray-900">{sunbed.count}건</span>
+          <span className="mx-2 text-gray-300">·</span>
+          <span className="font-bold text-secondary">{won(sunbed.revenue)}</span>
+        </span>
+      </div>
+
       <div className="flex items-center justify-between bg-primary/5 rounded-lg px-4 py-3 mb-4">
         <span className="text-sm font-semibold text-gray-700">
           <i className="ri-campfire-line mr-1 text-primary"></i>캠핑객 예약
@@ -696,7 +804,7 @@ function SalesDashboard({
       </div>
 
       <div className="flex items-center justify-between border-t pt-4">
-        <span className="font-bold text-gray-900">총 판매 수량 / 판매액</span>
+        <span className="font-bold text-gray-900">총 판매 수량 / 판매액 (썬배드 제외)</span>
         <span className="text-right">
           <span className="font-bold text-gray-900">{totalCount}건</span>
           <span className="mx-2 text-gray-300">·</span>
@@ -901,6 +1009,7 @@ function PriceOverrideField({
 function CreatePanel({
   cabanaNo,
   reservationDate,
+  zoneType,
   availableTypes,
   priceByType,
   onCancel,
@@ -908,11 +1017,13 @@ function CreatePanel({
 }: {
   cabanaNo: number;
   reservationDate: string;
+  zoneType: string;
   availableTypes: readonly string[];
   priceByType: Record<string, number>;
   onCancel: () => void;
   onCreated: () => void;
 }) {
+  const hasTimeTypes = zoneType !== '썬배드';
   const [timeType, setTimeType] = useState(availableTypes[0] ?? '주간');
   const [discountType, setDiscountType] = useState<DiscountType>('일반');
   const [name, setName] = useState('');
@@ -936,6 +1047,7 @@ function CreatePanel({
       try {
         await createCabanaReservationAdmin({
           reservation_date: reservationDate,
+          zone_type: zoneType,
           cabana_no: cabanaNo,
           time_type: timeType,
           name: name.trim(),
@@ -956,23 +1068,26 @@ function CreatePanel({
   return (
     <div className="mt-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-primary/20">
       <h4 className="font-bold text-gray-900 mb-3">
-        {cabanaNo}번 케노피 · {reservationDate} 새 예약 등록
+        {cabanaNo}번 {ZONE_TYPE_LABELS[zoneType as ZoneType] ?? zoneType} · {reservationDate} 새 예약
+        등록
       </h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-        <label className="text-sm text-gray-600">
-          타임 구분
-          <select
-            value={timeType}
-            onChange={(e) => setTimeType(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {availableTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
+        {hasTimeTypes && (
+          <label className="text-sm text-gray-600">
+            타임 구분
+            <select
+              value={timeType}
+              onChange={(e) => setTimeType(e.target.value)}
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {availableTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="text-sm text-gray-600">
           인원수
           <input
@@ -1063,16 +1178,21 @@ function CreatePanel({
 function EditPanel({
   reservation,
   priceByType,
+  slotCounts,
   onCancelEdit,
   onSaved,
   onCancelled,
 }: {
   reservation: Reservation;
   priceByType: Record<string, number>;
+  slotCounts: Record<string, number>;
   onCancelEdit: () => void;
   onSaved: () => void;
   onCancelled: () => void;
 }) {
+  const zoneType = reservation.zone_type || '케노피';
+  const hasTimeTypes = zoneType !== '썬배드';
+  const maxCabanaNo = slotCounts[zoneType] ?? 60;
   const [name, setName] = useState(reservation.name);
   const [phone, setPhone] = useState(reservation.phone);
   const [guestCount, setGuestCount] = useState(reservation.guest_count);
@@ -1129,7 +1249,7 @@ function EditPanel({
       ['전화번호', phone],
       ['인원', `${guestCount}명`],
       ['타임 구분', timeType],
-      ['케노피 번호', `${cabanaNo}번`],
+      [`${ZONE_TYPE_LABELS[zoneType as ZoneType] ?? '케노피'} 번호`, `${cabanaNo}번`],
       ['할인 구분', discountType],
       ['결제 금액', won(price)],
     ];
@@ -1191,24 +1311,33 @@ function EditPanel({
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
+        {hasTimeTypes ? (
+          <label className="text-sm text-gray-600">
+            타임 구분
+            <select
+              value={timeType}
+              onChange={(e) => setTimeType(e.target.value)}
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="주간">주간</option>
+              <option value="야간">야간</option>
+              <option value="종일">종일</option>
+            </select>
+          </label>
+        ) : (
+          <div className="text-sm text-gray-600">
+            타임 구분
+            <div className="w-full mt-1 px-3 py-2 bg-gray-100 rounded-lg text-gray-500">
+              단일 이용 (종일)
+            </div>
+          </div>
+        )}
         <label className="text-sm text-gray-600">
-          타임 구분
-          <select
-            value={timeType}
-            onChange={(e) => setTimeType(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="주간">주간</option>
-            <option value="야간">야간</option>
-            <option value="종일">종일</option>
-          </select>
-        </label>
-        <label className="text-sm text-gray-600">
-          케노피 번호 (1~60)
+          {ZONE_TYPE_LABELS[zoneType as ZoneType] ?? '케노피'} 번호 (1~{maxCabanaNo})
           <input
             type="number"
             min={1}
-            max={60}
+            max={maxCabanaNo}
             value={cabanaNo}
             onChange={(e) => setCabanaNo(Number(e.target.value) || 1)}
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
