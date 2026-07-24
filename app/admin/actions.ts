@@ -465,7 +465,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     admin
       .from('cabana_reservations')
       .select(
-        'reservation_date, zone_type, time_type, discount_type, is_camping, is_blocked, price_override'
+        'reservation_date, zone_type, time_type, discount_type, is_camping, is_blocked, is_no_show, price_override'
       )
       .gte('reservation_date', startDate)
       .lte('reservation_date', endDate),
@@ -503,6 +503,8 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   };
   const camping = { count: 0, revenue: 0 };
   const sunbed = { count: 0, revenue: 0 };
+  // 노쇼(미방문): 판매 집계에서 제외하되, 몇 건·얼마가 빠졌는지 별도로 집계해 보여준다.
+  const noShow = { count: 0, revenue: 0 };
 
   for (const r of reservations ?? []) {
     if (r.is_blocked) continue; // 예약막기로 잠긴 슬롯은 매출/건수 통계에서 제외
@@ -512,6 +514,13 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
     const basePrice = priceByType[r.zone_type]?.[r.time_type] ?? 0;
     const revenue = r.price_override ?? basePrice * multiplier;
+
+    // 노쇼는 매출·건수(타임별/구분별/캠핑/썬배드)에 반영하지 않고 노쇼 집계로만 잡는다.
+    if (r.is_no_show) {
+      noShow.count += 1;
+      noShow.revenue += revenue;
+      continue;
+    }
 
     if (r.is_camping) {
       camping.count += 1;
@@ -535,7 +544,7 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
     byCategory[category].revenue += revenue;
   }
 
-  return { dateCounts, byType, byCategory, camping, sunbed, priceByType };
+  return { dateCounts, byType, byCategory, camping, sunbed, noShow, priceByType };
 }
 
 function generateReservationNo(dateStr: string) {
@@ -625,6 +634,7 @@ export async function updateCabanaReservation(
     cabana_no: number;
     discount_type: DiscountType;
     price_override?: number | null;
+    is_no_show?: boolean;
   }
 ) {
   await requireAdmin();
@@ -707,6 +717,7 @@ export async function updateCabanaReservation(
       cabana_no: data.cabana_no,
       discount_type: data.discount_type,
       price_override: data.price_override ?? null,
+      is_no_show: data.is_no_show ?? false,
     })
     .eq('id', id);
 

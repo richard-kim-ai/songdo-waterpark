@@ -36,6 +36,7 @@ type MonthSummary = {
   byCategory: CategorySummary;
   camping: { count: number; revenue: number };
   sunbed: { count: number; revenue: number };
+  noShow: { count: number; revenue: number };
   priceByType: Record<string, Record<string, number>>;
 };
 const EMPTY_SUMMARY: MonthSummary = {
@@ -44,6 +45,7 @@ const EMPTY_SUMMARY: MonthSummary = {
   byCategory: {},
   camping: { count: 0, revenue: 0 },
   sunbed: { count: 0, revenue: 0 },
+  noShow: { count: 0, revenue: 0 },
   priceByType: {},
 };
 
@@ -410,6 +412,7 @@ export default function CabanaReservationManager({
             byCategory={monthSummary.byCategory}
             camping={monthSummary.camping}
             sunbed={monthSummary.sunbed}
+            noShow={monthSummary.noShow}
             loading={summaryLoading}
           />
         </div>
@@ -750,7 +753,9 @@ export default function CabanaReservationManager({
                           ) : (
                             <div
                               key={match.id}
-                              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg bg-gray-50"
+                              className={`flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg ${
+                                match.is_no_show ? 'bg-red-50' : 'bg-gray-50'
+                              }`}
                             >
                               <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
                                 [{match.time_type}]
@@ -760,13 +765,22 @@ export default function CabanaReservationManager({
                                   setEditing(match);
                                   setCreating(false);
                                 }}
-                                className="flex-1 text-left text-sm text-gray-800 hover:text-primary cursor-pointer"
+                                className={`flex-1 text-left text-sm cursor-pointer ${
+                                  match.is_no_show
+                                    ? 'text-gray-400 line-through hover:text-gray-500'
+                                    : 'text-gray-800 hover:text-primary'
+                                }`}
                               >
                                 <strong>{match.name}</strong> ({match.phone}) · {match.guest_count}명 ·
                                 예약번호 {match.reservation_no}
                                 {match.is_camping && (
-                                  <span className="ml-2 text-xs text-primary font-semibold">
+                                  <span className="ml-2 text-xs text-primary font-semibold no-underline">
                                     캠핑객
+                                  </span>
+                                )}
+                                {match.is_no_show && (
+                                  <span className="ml-2 text-xs text-red-500 font-semibold no-underline">
+                                    노쇼
                                   </span>
                                 )}
                               </button>
@@ -833,12 +847,14 @@ function SalesDashboard({
   byCategory,
   camping,
   sunbed,
+  noShow,
   loading,
 }: {
   byType: CategorySummary;
   byCategory: CategorySummary;
   camping: { count: number; revenue: number };
   sunbed: { count: number; revenue: number };
+  noShow: { count: number; revenue: number };
   loading: boolean;
 }) {
   const totalCount = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.count ?? 0), 0);
@@ -893,6 +909,17 @@ function SalesDashboard({
           <span className="font-bold text-gray-900">{camping.count}건</span>
           <span className="mx-2 text-gray-300">·</span>
           <span className="font-bold text-primary">{won(camping.revenue)}</span>
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between bg-red-50 rounded-lg px-4 py-3 mb-4">
+        <span className="text-sm font-semibold text-gray-700">
+          <i className="ri-user-unfollow-line mr-1 text-red-500"></i>노쇼 (매출 제외)
+        </span>
+        <span className="text-right">
+          <span className="font-bold text-gray-900">{noShow.count}건</span>
+          <span className="mx-2 text-gray-300">·</span>
+          <span className="font-bold text-red-500">-{won(noShow.revenue)}</span>
         </span>
       </div>
 
@@ -1299,6 +1326,7 @@ function EditPanel({
   const [priceOverride, setPriceOverride] = useState<number | null>(
     reservation.price_override ?? null
   );
+  const [isNoShow, setIsNoShow] = useState(reservation.is_no_show ?? false);
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -1318,6 +1346,7 @@ function EditPanel({
           cabana_no: cabanaNo,
           discount_type: discountType,
           price_override: priceOverride,
+          is_no_show: isNoShow,
         });
         onSaved();
       } catch (err) {
@@ -1478,6 +1507,24 @@ function EditPanel({
           입장권 지급/확인 유무
         </label>
       </div>
+
+      {/* 노쇼(미방문): 체크하면 판매 현황 집계에서 이 예약의 금액·건수가 빠진다. */}
+      <label
+        className={`flex flex-wrap items-center gap-2 mb-4 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
+          isNoShow ? 'bg-red-50 border-red-300 text-red-700' : 'border-gray-200 text-gray-700'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={isNoShow}
+          onChange={(e) => setIsNoShow(e.target.checked)}
+        />
+        <span className="font-semibold">노쇼 (미방문)</span>
+        <span className="text-xs opacity-80">
+          체크하면 이 예약 금액이 판매 현황(매출)에서 제외됩니다
+        </span>
+      </label>
+
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handleSave}
