@@ -67,6 +67,7 @@ export type Database = {
           price_override: number | null;
           zone_type: string; // '케노피' | '그늘막평상' | '썬배드'
           is_no_show: boolean; // 노쇼(미방문): 판매 집계에서 매출·건수 제외
+          is_visited: boolean; // 방문 완료(체크인): 확정 매출로 집계
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;

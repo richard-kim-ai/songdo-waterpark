@@ -17,6 +17,12 @@ export const ADMIN_PAGES = [
     label: '케노피 예약 관리',
     icon: 'ri-calendar-check-line',
   },
+  {
+    key: 'cabana-sales',
+    href: '/admin/cabana-sales',
+    label: '방문/매출 현황',
+    icon: 'ri-line-chart-line',
+  },
   { key: 'gallery', href: '/admin/gallery', label: '포토갤러리 관리', icon: 'ri-image-line' },
   {
     key: 'site-images',

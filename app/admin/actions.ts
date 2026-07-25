@@ -5,7 +5,13 @@ import { redirect } from 'next/navigation';
 import { requireAdmin, requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadImage, removeImage } from '@/lib/admin/storage';
-import { DISCOUNT_MULTIPLIER, ZONE_TYPES, type DiscountType } from '@/lib/cabana-pricing';
+import {
+  DISCOUNT_MULTIPLIER,
+  ZONE_TYPES,
+  ZONE_TYPE_LABELS,
+  type DiscountType,
+  type ZoneType,
+} from '@/lib/cabana-pricing';
 import { saveKakaoConfig, disconnectKakao, sendKakaoTestMessage } from '@/lib/kakao';
 import { saveAligoConfig, sendAligoTestMessage } from '@/lib/aligo';
 import type { Database } from '@/types/database';
@@ -547,6 +553,144 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
   return { dateCounts, byType, byCategory, camping, sunbed, noShow, priceByType };
 }
 
+// zones 목록으로 priceByType[zone_type][time_type] = 단가 맵을 만든다. (썬배드류는 세 타임 동일)
+function buildPriceByType(
+  zones: { zone_type: string; time_type: string | null; weekday_price: number }[] | null
+) {
+  const priceByType: Record<string, Record<string, number>> = {};
+  for (const z of zones ?? []) {
+    const zt = z.zone_type ?? '케노피';
+    if (!priceByType[zt]) priceByType[zt] = {};
+    if (z.time_type) priceByType[zt][z.time_type] = z.weekday_price;
+    else {
+      priceByType[zt].주간 = z.weekday_price;
+      priceByType[zt].야간 = z.weekday_price;
+      priceByType[zt].종일 = z.weekday_price;
+    }
+  }
+  return priceByType;
+}
+
+// 방문/매출 현황 달력용: 기간 내 날짜별 총 예약수/방문완료수/확정매출(방문완료만).
+export async function getCabanaSalesCalendar(startDate: string, endDate: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const [{ data: reservations }, { data: zones }] = await Promise.all([
+    admin
+      .from('cabana_reservations')
+      .select(
+        'reservation_date, zone_type, time_type, discount_type, is_blocked, is_no_show, is_visited, price_override'
+      )
+      .gte('reservation_date', startDate)
+      .lte('reservation_date', endDate),
+    admin.from('cabana_zones').select('zone_type, time_type, weekday_price'),
+  ]);
+
+  const priceByType = buildPriceByType(zones);
+  const perDate: Record<string, { total: number; visited: number; revenue: number }> = {};
+
+  for (const r of reservations ?? []) {
+    if (r.is_blocked) continue;
+    const d = (perDate[r.reservation_date] ??= { total: 0, visited: 0, revenue: 0 });
+    d.total += 1;
+    if (r.is_visited && !r.is_no_show) {
+      const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
+      const basePrice = priceByType[r.zone_type]?.[r.time_type] ?? 0;
+      d.visited += 1;
+      d.revenue += r.price_override ?? basePrice * multiplier;
+    }
+  }
+
+  return perDate;
+}
+
+export type DailySalesItem = {
+  id: string;
+  zoneType: string;
+  zoneLabel: string;
+  timeType: string;
+  hasTimeType: boolean;
+  cabanaNo: number;
+  name: string;
+  phone: string;
+  guestCount: number;
+  price: number;
+  status: 'visited' | 'noShow' | 'pending';
+  isCamping: boolean;
+};
+
+// 특정 날짜의 예약 리스트 + 상태별 집계 + 상품별 확정매출(방문완료 기준).
+export async function getCabanaDailySales(date: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const [{ data: reservations }, { data: zones }] = await Promise.all([
+    admin
+      .from('cabana_reservations')
+      .select(
+        'id, zone_type, time_type, cabana_no, name, phone, guest_count, discount_type, is_camping, is_blocked, is_no_show, is_visited, price_override'
+      )
+      .eq('reservation_date', date)
+      .order('zone_type')
+      .order('cabana_no'),
+    admin.from('cabana_zones').select('zone_type, time_type, weekday_price'),
+  ]);
+
+  const priceByType = buildPriceByType(zones);
+
+  const items: DailySalesItem[] = [];
+  const visited = { count: 0, revenue: 0 };
+  const noShow = { count: 0, revenue: 0 };
+  const pending = { count: 0, revenue: 0 };
+  const byZone: Record<string, { count: number; revenue: number }> = {};
+  for (const zt of ZONE_TYPES) byZone[zt] = { count: 0, revenue: 0 };
+
+  for (const r of reservations ?? []) {
+    if (r.is_blocked) continue;
+
+    const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
+    const basePrice = priceByType[r.zone_type]?.[r.time_type] ?? 0;
+    const price = r.price_override ?? basePrice * multiplier;
+    const status: DailySalesItem['status'] = r.is_no_show
+      ? 'noShow'
+      : r.is_visited
+        ? 'visited'
+        : 'pending';
+
+    items.push({
+      id: r.id,
+      zoneType: r.zone_type,
+      zoneLabel: ZONE_TYPE_LABELS[r.zone_type as ZoneType] ?? r.zone_type,
+      timeType: r.time_type,
+      hasTimeType: r.zone_type !== '썬배드',
+      cabanaNo: r.cabana_no,
+      name: r.name,
+      phone: r.phone,
+      guestCount: r.guest_count,
+      price,
+      status,
+      isCamping: r.is_camping,
+    });
+
+    if (status === 'visited') {
+      visited.count += 1;
+      visited.revenue += price;
+      const z = byZone[r.zone_type] ?? (byZone[r.zone_type] = { count: 0, revenue: 0 });
+      z.count += 1;
+      z.revenue += price;
+    } else if (status === 'noShow') {
+      noShow.count += 1;
+      noShow.revenue += price;
+    } else {
+      pending.count += 1;
+      pending.revenue += price;
+    }
+  }
+
+  return { items, visited, noShow, pending, byZone };
+}
+
 function generateReservationNo(dateStr: string) {
   const cleanDate = dateStr.replace(/-/g, '').slice(2);
   const randomStr = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -635,6 +779,7 @@ export async function updateCabanaReservation(
     discount_type: DiscountType;
     price_override?: number | null;
     is_no_show?: boolean;
+    is_visited?: boolean;
   }
 ) {
   await requireAdmin();
@@ -718,6 +863,7 @@ export async function updateCabanaReservation(
       discount_type: data.discount_type,
       price_override: data.price_override ?? null,
       is_no_show: data.is_no_show ?? false,
+      is_visited: data.is_visited ?? false,
     })
     .eq('id', id);
 

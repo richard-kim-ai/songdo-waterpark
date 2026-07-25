@@ -754,7 +754,11 @@ export default function CabanaReservationManager({
                             <div
                               key={match.id}
                               className={`flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg ${
-                                match.is_no_show ? 'bg-red-50' : 'bg-gray-50'
+                                match.is_no_show
+                                  ? 'bg-red-50'
+                                  : match.is_visited
+                                    ? 'bg-green-50'
+                                    : 'bg-gray-50'
                               }`}
                             >
                               <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
@@ -776,6 +780,11 @@ export default function CabanaReservationManager({
                                 {match.is_camping && (
                                   <span className="ml-2 text-xs text-primary font-semibold no-underline">
                                     캠핑객
+                                  </span>
+                                )}
+                                {match.is_visited && (
+                                  <span className="ml-2 text-xs text-green-600 font-semibold no-underline">
+                                    방문완료
                                   </span>
                                 )}
                                 {match.is_no_show && (
@@ -1327,10 +1336,21 @@ function EditPanel({
     reservation.price_override ?? null
   );
   const [isNoShow, setIsNoShow] = useState(reservation.is_no_show ?? false);
+  const [isVisited, setIsVisited] = useState(reservation.is_visited ?? false);
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
   const computedPrice = Math.round((priceByType[timeType] ?? 0) * DISCOUNT_MULTIPLIER[discountType]);
+
+  // 노쇼와 방문 완료는 동시에 성립할 수 없으므로 한쪽을 켜면 다른 쪽을 끈다.
+  function toggleNoShow(checked: boolean) {
+    setIsNoShow(checked);
+    if (checked) setIsVisited(false);
+  }
+  function toggleVisited(checked: boolean) {
+    setIsVisited(checked);
+    if (checked) setIsNoShow(false);
+  }
 
   function handleSave() {
     setError('');
@@ -1347,6 +1367,7 @@ function EditPanel({
           discount_type: discountType,
           price_override: priceOverride,
           is_no_show: isNoShow,
+          is_visited: isVisited,
         });
         onSaved();
       } catch (err) {
@@ -1508,22 +1529,35 @@ function EditPanel({
         </label>
       </div>
 
-      {/* 노쇼(미방문): 체크하면 판매 현황 집계에서 이 예약의 금액·건수가 빠진다. */}
-      <label
-        className={`flex flex-wrap items-center gap-2 mb-4 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
-          isNoShow ? 'bg-red-50 border-red-300 text-red-700' : 'border-gray-200 text-gray-700'
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={isNoShow}
-          onChange={(e) => setIsNoShow(e.target.checked)}
-        />
-        <span className="font-semibold">노쇼 (미방문)</span>
-        <span className="text-xs opacity-80">
-          체크하면 이 예약 금액이 판매 현황(매출)에서 제외됩니다
-        </span>
-      </label>
+      {/* 방문 완료 / 노쇼: 상호 배타. 방문은 확정 매출로, 노쇼는 매출에서 제외된다. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+        <label
+          className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
+            isVisited ? 'bg-green-50 border-green-300 text-green-700' : 'border-gray-200 text-gray-700'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={isVisited}
+            onChange={(e) => toggleVisited(e.target.checked)}
+          />
+          <span className="font-semibold">방문 완료</span>
+          <span className="text-xs opacity-80">방문 확정 시 확정 매출로 집계</span>
+        </label>
+        <label
+          className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
+            isNoShow ? 'bg-red-50 border-red-300 text-red-700' : 'border-gray-200 text-gray-700'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={isNoShow}
+            onChange={(e) => toggleNoShow(e.target.checked)}
+          />
+          <span className="font-semibold">노쇼 (미방문)</span>
+          <span className="text-xs opacity-80">매출에서 제외</span>
+        </label>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -1540,13 +1574,26 @@ function EditPanel({
         >
           예약 취소
         </button>
-        <button
-          onClick={handlePrint}
-          disabled={pending}
-          className="px-5 py-2 bg-gray-900 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
-        >
-          <i className="ri-printer-line mr-1"></i> 출력하기
-        </button>
+        {/* 프린터 미연결 시 사용할 수 없는 출력하기 대신, 방문 완료를 체크하면
+            이 버튼이 '방문 확인'으로 바뀌어 방문 상태를 바로 저장한다. */}
+        {isVisited ? (
+          <button
+            onClick={handleSave}
+            disabled={pending}
+            className="px-5 py-2 bg-green-600 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            <i className="ri-user-follow-line mr-1"></i>
+            {pending ? '확인 중...' : '방문 확인'}
+          </button>
+        ) : (
+          <button
+            onClick={handlePrint}
+            disabled={pending}
+            className="px-5 py-2 bg-gray-900 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            <i className="ri-printer-line mr-1"></i> 출력하기
+          </button>
+        )}
         <button
           onClick={onCancelEdit}
           disabled={pending}
