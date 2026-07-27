@@ -2,6 +2,7 @@ import { cache } from 'react';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from '@/lib/site';
+import { todaySeoul } from '@/lib/date';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import Pricing from '@/components/Pricing';
@@ -45,7 +46,7 @@ const getData = cache(async function getData() {
   }
 
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todaySeoul();
 
   const [
     { data: tickets },

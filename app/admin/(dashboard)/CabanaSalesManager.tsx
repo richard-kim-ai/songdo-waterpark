@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   getCabanaDailySales,
   getCabanaSalesCalendar,
+  closeCabanaDay,
   type DailySalesItem,
 } from '@/app/admin/actions';
 import { ZONE_TYPES, ZONE_TYPE_LABELS } from '@/lib/cabana-pricing';
@@ -88,6 +89,50 @@ export default function CabanaSalesManager({
   const monthTotal = Object.values(calendar).reduce((sum, d) => sum + d.revenue, 0);
   const monthVisited = Object.values(calendar).reduce((sum, d) => sum + d.visited, 0);
 
+  const [closePending, startCloseTransition] = useTransition();
+
+  function reloadAll() {
+    setDailyLoading(true);
+    getCabanaDailySales(date)
+      .then((d) => setDaily(d as DailyData))
+      .finally(() => setDailyLoading(false));
+    const year = monthCursor.getFullYear();
+    const month = monthCursor.getMonth();
+    getCabanaSalesCalendar(
+      toDateStr(new Date(year, month, 1)),
+      toDateStr(new Date(year, month + 1, 0))
+    )
+      .then((c) => setCalendar(c as CalendarData))
+      .catch(() => {});
+  }
+
+  // 일마감: 그날의 미확인(대기) 예약을 모두 노쇼로 처리하고 매출을 확정한다.
+  function handleCloseDay() {
+    if (daily.pending.count === 0) {
+      alert('미확인(대기) 예약이 없어 마감할 내용이 없습니다.');
+      return;
+    }
+    if (
+      !confirm(
+        `${formatDateKorean(date)}\n미확인(대기) ${daily.pending.count}건을 노쇼로 처리하고 마감할까요?\n(방문 완료로 확인된 예약은 그대로 유지됩니다)`
+      )
+    )
+      return;
+    startCloseTransition(async () => {
+      try {
+        const res = await closeCabanaDay(date);
+        reloadAll();
+        alert(`일마감 완료: 미확인 ${res.marked}건을 노쇼로 처리했습니다.`);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '일마감 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
+  function handlePrint() {
+    printDailyReport(date, daily);
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       <div className="lg:w-80 shrink-0">
@@ -105,9 +150,28 @@ export default function CabanaSalesManager({
 
       <div className={`flex-1 space-y-6 ${dailyLoading ? 'opacity-50' : ''}`}>
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-bold text-gray-900">{formatDateKorean(date)} 확정 매출</h3>
             <span className="text-2xl font-bold text-primary">{won(daily.visited.revenue)}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={handleCloseDay}
+              disabled={closePending}
+              className="flex items-center gap-1 px-4 py-2 bg-slate-800 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <i className="ri-lock-2-line"></i>
+              {closePending
+                ? '마감 중...'
+                : `일마감${daily.pending.count > 0 ? ` (미확인 ${daily.pending.count}건)` : ''}`}
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1 px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+            >
+              <i className="ri-printer-line"></i> 출력
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -326,4 +390,74 @@ function SalesCalendar({
       <p className="text-[10px] text-gray-400 mt-2">숫자 아래 금액 = 그 날의 확정 매출(방문 완료 기준)</p>
     </div>
   );
+}
+
+// 일일 대시보드 + 예약 리스트를 인쇄용 새 창으로 출력한다.
+function printDailyReport(date: string, daily: DailyData) {
+  const statusLabel: Record<DailySalesItem['status'], string> = {
+    visited: '방문완료',
+    noShow: '노쇼',
+    pending: '대기',
+  };
+  const zoneRows = ZONE_TYPES.map((zt) => {
+    const z = daily.byZone[zt] ?? { count: 0, revenue: 0 };
+    return `<tr><td>${ZONE_TYPE_LABELS[zt]}</td><td class="r">${z.count}건</td><td class="r">${won(z.revenue)}</td></tr>`;
+  }).join('');
+  const listRows = daily.items
+    .map(
+      (it) =>
+        `<tr class="${it.status}"><td>${it.zoneLabel}${it.hasTimeType ? ` · ${it.timeType}` : ''}</td><td>${it.cabanaNo}번</td><td>${it.name}</td><td>${it.phone}</td><td class="r">${it.guestCount}명</td><td>${statusLabel[it.status]}</td><td class="r">${it.status === 'noShow' ? '-' : won(it.price)}</td></tr>`
+    )
+    .join('');
+
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (!win) return;
+  win.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>방문/매출 현황 ${date}</title>
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 24px; color: #111; }
+  h2 { text-align: center; margin-bottom: 4px; }
+  .sub { text-align: center; color: #666; margin-bottom: 20px; font-size: 13px; }
+  h3 { margin: 20px 0 8px; font-size: 15px; border-left: 4px solid #333; padding-left: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid #eee; font-size: 13px; text-align: left; }
+  th { background: #f5f5f5; }
+  td.r, th.r { text-align: right; }
+  tr.noShow td { color: #999; text-decoration: line-through; }
+  tr.visited td:first-child { border-left: 3px solid #16a34a; }
+  .summary td { font-size: 14px; }
+  .total { font-weight: 700; font-size: 16px; }
+</style>
+</head>
+<body>
+  <h2>방문/매출 현황</h2>
+  <div class="sub">${date}</div>
+
+  <h3>요약</h3>
+  <table class="summary">
+    <tr><td>방문 완료</td><td class="r">${daily.visited.count}건</td><td class="r total">${won(daily.visited.revenue)}</td></tr>
+    <tr><td>미확인(대기)</td><td class="r">${daily.pending.count}건</td><td class="r">${won(daily.pending.revenue)}</td></tr>
+    <tr><td>노쇼</td><td class="r">${daily.noShow.count}건</td><td class="r">${won(daily.noShow.revenue)} (제외)</td></tr>
+    <tr><td class="total">확정 매출 (방문 완료)</td><td></td><td class="r total">${won(daily.visited.revenue)}</td></tr>
+  </table>
+
+  <h3>상품별 확정 매출 (방문 완료 기준)</h3>
+  <table>
+    <tr><th>상품</th><th class="r">건수</th><th class="r">매출</th></tr>
+    ${zoneRows}
+  </table>
+
+  <h3>예약 리스트 (${daily.items.length}건)</h3>
+  <table>
+    <tr><th>상품</th><th>번호</th><th>이름</th><th>연락처</th><th class="r">인원</th><th>상태</th><th class="r">금액</th></tr>
+    ${listRows || '<tr><td colspan="7" style="text-align:center;color:#999">예약 없음</td></tr>'}
+  </table>
+</body>
+</html>`);
+  win.document.close();
+  win.focus();
+  win.print();
 }
