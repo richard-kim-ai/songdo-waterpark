@@ -1,4 +1,5 @@
 import type { Database } from '@/types/database';
+import ZoomableImage from './ZoomableImage';
 
 type TicketType = Database['public']['Tables']['ticket_types']['Row'];
 
@@ -85,8 +86,12 @@ export default function InfoNotice({
               </div>
               <h3 className="text-2xl font-bold text-gray-900">{settings.info_parking_title}</h3>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={parkingImageUrl} alt={settings.info_parking_title} className="w-full rounded-lg" />
+            <ZoomableImage
+              src={parkingImageUrl}
+              alt={settings.info_parking_title}
+              className="rounded-lg"
+              imgClassName="w-full rounded-lg"
+            />
           </div>
         )}
       </div>

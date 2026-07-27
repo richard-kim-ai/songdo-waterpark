@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import type { Database } from '@/types/database';
 import CabanaReservationModal from './CabanaReservationModal';
+import ZoomableImage from './ZoomableImage';
 import { ZONE_TYPES, ZONE_TYPE_LABELS } from '@/lib/cabana-pricing';
 
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
@@ -50,14 +51,12 @@ export default function Cabana({
         <div className="grid gap-12">
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
-            <div className="relative bg-blue-50 rounded-lg overflow-hidden aspect-video">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={diagramUrl}
-                alt={diagramTitle}
-                className="w-full h-full object-cover object-top"
-              />
-            </div>
+            <ZoomableImage
+              src={diagramUrl}
+              alt={diagramTitle}
+              className="bg-blue-50 rounded-lg overflow-hidden aspect-video"
+              imgClassName="w-full h-full object-cover object-top"
+            />
           </div>
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">{tableTitle}</h3>

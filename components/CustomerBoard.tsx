@@ -14,12 +14,23 @@ import {
 const MAX_IMAGES = 3;
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 원본 10MB 제한
 const MAX_TOTAL_UPLOAD = 4 * 1024 * 1024; // 압축 후 전송 합계 안전 한도
+const PAGE_SIZE = 10; // 페이지당 문의 수
 
 function formatDate(iso: string) {
   const d = new Date(iso);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(
     d.getDate()
   ).padStart(2, '0')}`;
+}
+
+// 현재 페이지 주변의 페이지 번호 목록(현재±2, 최대 5개)을 만든다.
+function pageNumbers(current: number, total: number, span = 2) {
+  let start = Math.max(1, current - span);
+  const end = Math.min(total, start + span * 2);
+  start = Math.max(1, end - span * 2);
+  const arr: number[] = [];
+  for (let i = start; i <= end; i++) arr.push(i);
+  return arr;
 }
 
 // 목록·미확인 상태에서는 제목 앞 3글자만 보이고 나머지는 가려서 표시
@@ -39,12 +50,18 @@ export default function CustomerBoard({
   const [loading, setLoading] = useState(true);
   const [showWrite, setShowWrite] = useState(false);
   const [viewTarget, setViewTarget] = useState<InquiryListItem | null>(null);
+  const [page, setPage] = useState(1);
 
   async function refresh() {
     setLoading(true);
     setPosts(await listInquiries());
+    setPage(1);
     setLoading(false);
   }
+
+  const totalPages = Math.max(1, Math.ceil(posts.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagePosts = posts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   useEffect(() => {
     refresh();
@@ -82,7 +99,7 @@ export default function CustomerBoard({
               등록된 문의가 없습니다. 첫 문의를 남겨보세요.
             </p>
           ) : (
-            posts.map((p) => (
+            pagePosts.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setViewTarget(p)}
@@ -109,6 +126,38 @@ export default function CustomerBoard({
             ))
           )}
         </div>
+
+        {!loading && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-1 mt-6">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              aria-label="이전 페이지"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default"
+            >
+              <i className="ri-arrow-left-s-line text-xl"></i>
+            </button>
+            {pageNumbers(safePage, totalPages).map((n) => (
+              <button
+                key={n}
+                onClick={() => setPage(n)}
+                className={`min-w-9 h-9 px-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
+                  n === safePage ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              aria-label="다음 페이지"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default"
+            >
+              <i className="ri-arrow-right-s-line text-xl"></i>
+            </button>
+          </div>
+        )}
       </div>
 
       {showWrite && (
