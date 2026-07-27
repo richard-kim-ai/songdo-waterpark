@@ -8,6 +8,7 @@ import {
   type CabanaProduct,
   type ReservedItem,
 } from '@/app/cabana-reservation/actions';
+import { todaySeoul } from '@/lib/date';
 
 type GuestPolicy = { baseCount: number; extraFee: number; maxCount: number };
 const DEFAULT_GUEST_POLICY: GuestPolicy = { baseCount: 4, extraFee: 3000, maxCount: 6 };
@@ -42,7 +43,7 @@ function productKey(p: { zoneType: string; timeType: string }) {
 }
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return todaySeoul();
 }
 
 function formatDateKorean(dateStr: string) {

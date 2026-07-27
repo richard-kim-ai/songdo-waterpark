@@ -1,11 +1,12 @@
 import { requirePagePermission } from '@/lib/admin/auth';
 import { getCabanaDailySales, getCabanaSalesCalendar } from '@/app/admin/actions';
+import { todaySeoul } from '@/lib/date';
 import CabanaSalesManager from '../CabanaSalesManager';
 
 export const dynamic = 'force-dynamic';
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return todaySeoul();
 }
 
 export default async function CabanaSalesAdminPage() {

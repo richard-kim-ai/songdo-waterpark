@@ -691,6 +691,28 @@ export async function getCabanaDailySales(date: string) {
   return { items, visited, noShow, pending, byZone };
 }
 
+// 일마감: 해당 날짜의 미확인(방문 미확인 · 노쇼 아님 · 차단 아님) 예약을 모두 노쇼로 처리한다.
+// 이미 방문 완료로 확인된 예약과 예약막기는 그대로 두고, 방문하지 않은 예약만 노쇼로 확정.
+export async function closeCabanaDay(date: string): Promise<{ marked: number }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from('cabana_reservations')
+    .update({ is_no_show: true })
+    .eq('reservation_date', date)
+    .eq('is_blocked', false)
+    .eq('is_visited', false)
+    .eq('is_no_show', false)
+    .select('id');
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/cabana-sales');
+  revalidatePath('/admin/cabana-reservations');
+  return { marked: data?.length ?? 0 };
+}
+
 function generateReservationNo(dateStr: string) {
   const cleanDate = dateStr.replace(/-/g, '').slice(2);
   const randomStr = Math.random().toString(36).slice(2, 6).toUpperCase();

@@ -1,11 +1,12 @@
 import { requirePagePermission } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { todaySeoul } from '@/lib/date';
 import CabanaReservationManager from '../CabanaReservationManager';
 
 export const dynamic = 'force-dynamic';
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return todaySeoul();
 }
 
 export default async function CabanaReservationsAdminPage() {
