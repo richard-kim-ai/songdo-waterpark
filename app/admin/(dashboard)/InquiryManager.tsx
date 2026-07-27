@@ -7,6 +7,18 @@ import type { Database } from '@/types/database';
 
 type Inquiry = Database['public']['Tables']['inquiries']['Row'];
 
+const PAGE_SIZE = 10; // 페이지당 문의 수
+
+// 현재 페이지 주변의 페이지 번호(현재±2, 최대 5개)를 만든다.
+function pageNumbers(current: number, total: number, span = 2) {
+  let start = Math.max(1, current - span);
+  const end = Math.min(total, start + span * 2);
+  start = Math.max(1, end - span * 2);
+  const arr: number[] = [];
+  for (let i = start; i <= end; i++) arr.push(i);
+  return arr;
+}
+
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(
@@ -130,6 +142,16 @@ function InquiryRow({
 
 export default function InquiryManager({ inquiries }: { inquiries: Inquiry[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(inquiries.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageInquiries = inquiries.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  function goToPage(n: number) {
+    setExpandedId(null); // 페이지 이동 시 열려 있던 상세는 접기
+    setPage(n);
+  }
 
   return (
     <div className="space-y-4">
@@ -141,7 +163,7 @@ export default function InquiryManager({ inquiries }: { inquiries: Inquiry[] }) 
           <span className="text-center">상태</span>
         </div>
       )}
-      {inquiries.map((q) => (
+      {pageInquiries.map((q) => (
         <InquiryRow
           key={q.id}
           inquiry={q}
@@ -151,6 +173,38 @@ export default function InquiryManager({ inquiries }: { inquiries: Inquiry[] }) 
       ))}
       {inquiries.length === 0 && (
         <p className="text-gray-500 bg-white rounded-xl p-6 shadow">등록된 문의가 없습니다.</p>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-1 pt-2">
+          <button
+            onClick={() => goToPage(Math.max(1, safePage - 1))}
+            disabled={safePage === 1}
+            aria-label="이전 페이지"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default"
+          >
+            <i className="ri-arrow-left-s-line text-xl"></i>
+          </button>
+          {pageNumbers(safePage, totalPages).map((n) => (
+            <button
+              key={n}
+              onClick={() => goToPage(n)}
+              className={`min-w-9 h-9 px-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
+                n === safePage ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            onClick={() => goToPage(Math.min(totalPages, safePage + 1))}
+            disabled={safePage === totalPages}
+            aria-label="다음 페이지"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-default"
+          >
+            <i className="ri-arrow-right-s-line text-xl"></i>
+          </button>
+        </div>
       )}
     </div>
   );
