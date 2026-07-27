@@ -1,3 +1,5 @@
+import ZoomableImage from './ZoomableImage';
+
 const COLOR_CYCLE: ('primary' | 'secondary' | 'gray')[] = [
   'primary',
   'primary',
@@ -69,11 +71,11 @@ export default function SafetyRules({
             <h3 className="text-2xl font-bold text-white text-center">{bannerTitle}</h3>
           </div>
           <div className="p-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <ZoomableImage
               src={imageUrl}
               alt="수영장 안전수칙"
-              className="w-full rounded-xl shadow-lg mb-8"
+              className="rounded-xl shadow-lg mb-8"
+              imgClassName="w-full rounded-xl"
             />
             <div className="grid md:grid-cols-2 gap-6">
               {rules.map((rule, i) => {
