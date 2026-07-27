@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { updateSiteImage } from '@/app/admin/actions';
 import { useResizingFormAction } from '@/lib/admin/useResizingFormAction';
 import {
   SITE_IMAGE_KEYS,
   SITE_IMAGE_LABEL,
+  SITE_IMAGE_RECOMMENDED,
   siteImageSettingKey,
   type SiteImageKey,
   type SiteImages,
@@ -15,6 +16,18 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
   const action = updateSiteImage.bind(null, siteImageSettingKey(imageKey));
   const { pending, onSubmit } = useResizingFormAction(action, { reset: true });
   const [dimensions, setDimensions] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  function readDimensions(img: HTMLImageElement | null) {
+    if (img && img.naturalWidth) setDimensions(`${img.naturalWidth} × ${img.naturalHeight}px`);
+  }
+
+  // 캐시된 이미지는 onLoad가 발생하지 않을 수 있으므로, 마운트/URL 변경 시 이미 로드됐으면 즉시 읽는다.
+  useEffect(() => {
+    setDimensions(null);
+    const img = imgRef.current;
+    if (img && img.complete) readDimensions(img);
+  }, [currentUrl]);
 
   return (
     <form
@@ -24,12 +37,10 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
       {currentUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={currentUrl}
           alt={SITE_IMAGE_LABEL[imageKey]}
-          onLoad={(e) => {
-            const img = e.currentTarget;
-            setDimensions(`${img.naturalWidth} × ${img.naturalHeight}px`);
-          }}
+          onLoad={(e) => readDimensions(e.currentTarget)}
           className="w-40 h-28 object-contain rounded-lg border border-gray-200 bg-gray-50 shrink-0"
         />
       ) : (
@@ -39,9 +50,12 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
       )}
       <div className="flex-1">
         <h3 className="font-bold text-gray-900 mb-1">{SITE_IMAGE_LABEL[imageKey]}</h3>
-        <p className="text-xs text-gray-400 mb-3">
-          {imageKey}
-          {dimensions && ` · ${dimensions}`}
+        <p className="text-[11px] text-gray-400 mb-1">{imageKey}</p>
+        <p className="text-xs mb-3 flex flex-wrap gap-x-2 gap-y-0.5">
+          <span className="text-primary font-semibold">권장 {SITE_IMAGE_RECOMMENDED[imageKey]}px</span>
+          <span className="text-gray-400">
+            현재 {dimensions ?? '불러오는 중…'}
+          </span>
         </p>
         <input
           type="file"
