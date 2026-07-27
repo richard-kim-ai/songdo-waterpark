@@ -1106,7 +1106,23 @@ function PriceOverrideField({
   onChange: (value: number | null) => void;
 }) {
   const isOverridden = overridePrice !== null;
-  const displayValue = overridePrice ?? computedPrice;
+  const targetValue = overridePrice ?? computedPrice;
+  const [text, setText] = useState(String(targetValue));
+
+  // 되돌리기·타임/할인 변경 등 외부 요인으로 값이 바뀌면 입력창을 동기화한다.
+  // 사용자가 입력 중인 값과 숫자상 같으면 덮어쓰지 않아 입력을 방해하지 않는다.
+  useEffect(() => {
+    const current = text === '' ? 0 : Number(text);
+    if (current !== targetValue) setText(String(targetValue));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetValue]);
+
+  function handleChange(raw: string) {
+    // 숫자만 남기고 앞자리 0 제거 ("040000" → "40000", "" 유지). 앞에 0이 붙는 문제 방지.
+    const digits = raw.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
+    setText(digits);
+    onChange(digits === '' ? 0 : Number(digits));
+  }
 
   return (
     <div>
@@ -1123,10 +1139,10 @@ function PriceOverrideField({
         )}
       </div>
       <input
-        type="number"
-        min={0}
-        value={displayValue}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        type="text"
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => handleChange(e.target.value)}
         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
           isOverridden ? 'border-primary/50 bg-primary/5' : 'border-gray-300'
         }`}
