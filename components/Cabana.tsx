@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import type { Database } from '@/types/database';
 import CabanaReservationModal from './CabanaReservationModal';
-import ZoomableImage from './ZoomableImage';
+import ImageCarousel from './ImageCarousel';
 import { ZONE_TYPES, ZONE_TYPE_LABELS } from '@/lib/cabana-pricing';
 
 type CabanaZone = Database['public']['Tables']['cabana_zones']['Row'];
@@ -17,6 +17,7 @@ export default function Cabana({
   noticeTitle,
   cabanaNotice,
   diagramUrl,
+  diagramUrl2,
   bookingUrl,
   bookingButtonLabel,
   bookingEnabled,
@@ -29,6 +30,8 @@ export default function Cabana({
   noticeTitle: string;
   cabanaNotice: string;
   diagramUrl: string;
+  /** 배치도 2번째 이미지(선택). 등록되면 캐러셀로 넘겨볼 수 있다. */
+  diagramUrl2: string;
   bookingUrl: string;
   bookingButtonLabel: string;
   bookingEnabled: boolean;
@@ -51,8 +54,8 @@ export default function Cabana({
         <div className="grid gap-12">
           <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
-            <ZoomableImage
-              src={diagramUrl}
+            <ImageCarousel
+              images={[diagramUrl, diagramUrl2]}
               alt={diagramTitle}
               className="bg-blue-50 rounded-lg overflow-hidden aspect-video"
               imgClassName="w-full h-full object-cover object-top"

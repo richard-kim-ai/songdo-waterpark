@@ -189,6 +189,7 @@ export default async function Home() {
           noticeTitle={settings.cabana_notice_title ?? ''}
           cabanaNotice={settings.cabana_notice ?? ''}
           diagramUrl={siteImages.cabana_diagram}
+          diagramUrl2={siteImages.cabana_diagram_2}
           bookingUrl={settings.cabana_booking_url ?? ''}
           bookingButtonLabel={settings.cabana_booking_button_label ?? ''}
           bookingEnabled={settings.cabana_booking_enabled === 'true'}
@@ -196,6 +197,7 @@ export default async function Home() {
         <FacilityLayout
           masterUrl={siteImages.layout_master}
           cabanaUrl={siteImages.layout_cabana}
+          cabanaUrl2={siteImages.layout_cabana_2}
           sectionTitle={settings.layout_title ?? ''}
           sectionSubtitle={settings.layout_subtitle ?? ''}
           tabTotalLabel={settings.layout_tab_total_label ?? ''}

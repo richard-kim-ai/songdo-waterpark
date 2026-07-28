@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import ZoomableImage from './ZoomableImage';
+import ImageCarousel from './ImageCarousel';
 
 export default function FacilityLayout({
   masterUrl,
   cabanaUrl,
+  cabanaUrl2,
   sectionTitle,
   sectionSubtitle,
   tabTotalLabel,
@@ -13,6 +14,8 @@ export default function FacilityLayout({
 }: {
   masterUrl: string;
   cabanaUrl: string;
+  /** 평상&케노피 배치도 2번째 이미지(선택). 등록되면 캐러셀로 넘겨볼 수 있다. */
+  cabanaUrl2: string;
   sectionTitle: string;
   sectionSubtitle: string;
   tabTotalLabel: string;
@@ -20,7 +23,7 @@ export default function FacilityLayout({
 }) {
   const [tab, setTab] = useState<'total' | 'cabana'>('total');
 
-  const activeUrl = tab === 'total' ? masterUrl : cabanaUrl;
+  const activeImages = tab === 'total' ? [masterUrl] : [cabanaUrl, cabanaUrl2];
   const activeAlt = tab === 'total' ? tabTotalLabel : tabCabanaLabel;
 
   return (
@@ -54,9 +57,9 @@ export default function FacilityLayout({
             </button>
           </div>
           <div className="p-8">
-            <ZoomableImage
+            <ImageCarousel
               key={tab}
-              src={activeUrl}
+              images={activeImages}
               alt={activeAlt}
               className="bg-white rounded-lg overflow-hidden aspect-[1500/400] border border-gray-100"
               imgClassName="w-full h-full object-contain"
