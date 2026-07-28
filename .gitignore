@@ -3,12 +3,18 @@
 /.pnp
 .pnp.js
 
+# lockfiles
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
 # testing
 /coverage
 
 # next.js
 /.next/
 /out/
+.turbo/
 
 # production
 /build
@@ -21,13 +27,18 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # local env files
 .env
+.env*
 .env*.local
 
 # vercel
-.vercel
+.vercel/
+
+# heavy media files
+public/
 
 # typescript
 *.tsbuildinfo
