@@ -241,7 +241,11 @@ export default function CabanaSalesManager({
                     {it.hasTimeType ? ` · ${it.timeType}` : ''}
                   </span>
                   <span className="text-sm text-gray-600 flex-1 min-w-0">
-                    {it.cabanaNo}번 · {it.name} ({it.phone}) · {it.guestCount}명
+                    {it.cabanaNo}번 · {it.name}
+                    {it.phone ? ` (${it.phone})` : ''} · {it.guestCount}명
+                    {it.isWalkIn && (
+                      <span className="ml-2 text-xs text-amber-600 font-semibold">현장</span>
+                    )}
                     {it.isCamping && (
                       <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
                     )}

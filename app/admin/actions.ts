@@ -618,6 +618,7 @@ export type DailySalesItem = {
   price: number;
   status: 'visited' | 'noShow' | 'pending';
   isCamping: boolean;
+  isWalkIn: boolean;
 };
 
 // 특정 날짜의 예약 리스트 + 상태별 집계 + 상품별 확정매출(방문완료 기준).
@@ -629,7 +630,7 @@ export async function getCabanaDailySales(date: string) {
     admin
       .from('cabana_reservations')
       .select(
-        'id, zone_type, time_type, cabana_no, name, phone, guest_count, discount_type, is_camping, is_blocked, is_no_show, is_visited, price_override'
+        'id, zone_type, time_type, cabana_no, name, phone, guest_count, discount_type, is_camping, is_blocked, is_no_show, is_visited, is_walk_in, price_override'
       )
       .eq('reservation_date', date)
       .order('zone_type')
@@ -671,6 +672,7 @@ export async function getCabanaDailySales(date: string) {
       price,
       status,
       isCamping: r.is_camping,
+      isWalkIn: r.is_walk_in ?? false,
     });
 
     if (status === 'visited') {
@@ -719,6 +721,26 @@ function generateReservationNo(dateStr: string) {
   return `R${cleanDate}${randomStr}`;
 }
 
+// 현장배정(워크인) 고객은 이름 없이 접수하므로, 그 날짜의 현장배정 순번을 자동 부여한다.
+// 예) 그날 첫 현장 고객 → "현장 1번". 취소로 중간 번호가 비어도 항상 최대번호+1을 쓴다.
+async function nextWalkInSeq(
+  admin: ReturnType<typeof createAdminClient>,
+  reservationDate: string
+): Promise<number> {
+  const { data } = await admin
+    .from('cabana_reservations')
+    .select('name')
+    .eq('reservation_date', reservationDate)
+    .eq('is_walk_in', true);
+
+  let max = 0;
+  for (const r of data ?? []) {
+    const m = /(\d+)/.exec(r.name ?? '');
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max + 1;
+}
+
 async function getZoneSlotCount(
   admin: ReturnType<typeof createAdminClient>,
   zoneType: string
@@ -744,16 +766,22 @@ export async function createCabanaReservationAdmin(data: {
   has_admission: boolean;
   discount_type: DiscountType;
   price_override?: number | null;
+  /** 현장배정(워크인): 예약 없이 방문한 고객. 이름·연락처 없이 일일 순번으로 접수 */
+  is_walk_in?: boolean;
 }) {
   await requireAdmin();
   const admin = createAdminClient();
 
+  const isWalkIn = data.is_walk_in === true;
   const slotCount = await getZoneSlotCount(admin, data.zone_type);
   if (!Number.isInteger(data.cabana_no) || data.cabana_no < 1 || data.cabana_no > slotCount) {
     throw new Error(`번호는 1~${slotCount} 사이로 입력해주세요.`);
   }
-  if (!data.name.trim()) throw new Error('예약자 성함을 입력해주세요.');
-  if (!data.phone.trim()) throw new Error('연락처를 입력해주세요.');
+  // 현장배정은 이름·연락처 입력 없이 등록 가능(일일 순번을 이름 대신 사용)
+  if (!isWalkIn) {
+    if (!data.name.trim()) throw new Error('예약자 성함을 입력해주세요.');
+    if (!data.phone.trim()) throw new Error('연락처를 입력해주세요.');
+  }
 
   const { data: others } = await admin
     .from('cabana_reservations')
@@ -769,19 +797,26 @@ export async function createCabanaReservationAdmin(data: {
     throw new Error(`${data.cabana_no}번은 해당 타임에 이미 예약이 있습니다.`);
   }
 
+  // 현장배정은 이름 대신 그날의 일일 순번("현장 N번")을 부여하고, 바로 방문 완료로 처리한다.
+  const walkInSeq = isWalkIn ? await nextWalkInSeq(admin, data.reservation_date) : 0;
+  const displayName = isWalkIn ? `현장 ${walkInSeq}번` : data.name.trim();
+
   const { error } = await admin.from('cabana_reservations').insert({
     reservation_no: generateReservationNo(data.reservation_date),
     reservation_date: data.reservation_date,
     zone_type: data.zone_type,
     cabana_no: data.cabana_no,
     time_type: data.time_type,
-    name: data.name.trim(),
+    name: displayName,
     phone: data.phone.trim(),
     guest_count: data.guest_count,
     is_camping: data.is_camping,
     has_admission: data.is_camping ? true : data.has_admission,
     discount_type: data.discount_type,
     price_override: data.price_override ?? null,
+    is_walk_in: isWalkIn,
+    // 현장배정 고객은 이미 방문한 상태이므로 확정 매출로 바로 잡힌다.
+    is_visited: isWalkIn ? true : false,
   });
   if (error) throw new Error(error.message);
 

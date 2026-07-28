@@ -782,6 +782,11 @@ export default function CabanaReservationManager({
                                     캠핑객
                                   </span>
                                 )}
+                                {match.is_walk_in && (
+                                  <span className="ml-2 text-xs text-amber-600 font-semibold no-underline">
+                                    현장
+                                  </span>
+                                )}
                                 {match.is_visited && (
                                   <span className="ml-2 text-xs text-green-600 font-semibold no-underline">
                                     방문완료
@@ -804,7 +809,7 @@ export default function CabanaReservationManager({
                         onClick={() => setCreating(true)}
                         className="w-full mt-3 px-4 py-2 border border-dashed border-primary/40 text-primary text-sm font-semibold rounded-lg hover:bg-primary/5 transition-all cursor-pointer"
                       >
-                        <i className="ri-add-line mr-1"></i> 새 예약 등록
+                        <i className="ri-add-line mr-1"></i> 예약등록 &amp; 현장배정
                       </button>
                     )}
 
@@ -1161,6 +1166,8 @@ function CreatePanel({
   const [isCamping, setIsCamping] = useState(false);
   const [hasAdmission, setHasAdmission] = useState(false);
   const [priceOverride, setPriceOverride] = useState<number | null>(null);
+  // 현장배정: 예약 없이 방문한 고객. 이름·연락처 없이 일일 순번으로 접수하고 바로 매출에 잡힌다.
+  const [isWalkIn, setIsWalkIn] = useState(false);
   const [error, setError] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -1168,7 +1175,7 @@ function CreatePanel({
 
   function handleCreate() {
     setError('');
-    if (!name.trim() || !phone.trim()) {
+    if (!isWalkIn && (!name.trim() || !phone.trim())) {
       setError('예약자 성함과 연락처를 입력해주세요.');
       return;
     }
@@ -1186,6 +1193,7 @@ function CreatePanel({
           has_admission: hasAdmission,
           discount_type: discountType,
           price_override: priceOverride,
+          is_walk_in: isWalkIn,
         });
         onCreated();
       } catch (err) {
@@ -1197,9 +1205,27 @@ function CreatePanel({
   return (
     <div className="mt-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-primary/20">
       <h4 className="font-bold text-gray-900 mb-3">
-        {cabanaNo}번 {ZONE_TYPE_LABELS[zoneType as ZoneType] ?? zoneType} · {reservationDate} 새 예약
-        등록
+        {cabanaNo}번 {ZONE_TYPE_LABELS[zoneType as ZoneType] ?? zoneType} · {reservationDate} 예약등록
+        &amp; 현장배정
       </h4>
+
+      {/* 현장배정: 예약 없이 방문한 고객을 이름 입력 없이 일일 순번으로 접수 */}
+      <label
+        className={`flex flex-wrap items-center gap-2 mb-3 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
+          isWalkIn ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-gray-200 text-gray-700'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={isWalkIn}
+          onChange={(e) => setIsWalkIn(e.target.checked)}
+        />
+        <span className="font-semibold">현장배정 (예약 없이 방문)</span>
+        <span className="text-xs opacity-80">
+          이름·연락처 없이 일일 순번으로 등록되고 바로 매출에 반영됩니다
+        </span>
+      </label>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         {hasTimeTypes && (
           <label className="text-sm text-gray-600">
@@ -1227,24 +1253,35 @@ function CreatePanel({
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
-        <label className="text-sm text-gray-600">
-          고객성함
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="홍길동"
-            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </label>
-        <label className="text-sm text-gray-600">
-          연락처
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="010-0000-0000"
-            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </label>
+        {isWalkIn ? (
+          <div className="text-sm text-gray-600 sm:col-span-2">
+            고객성함
+            <div className="w-full mt-1 px-3 py-2 bg-gray-100 rounded-lg text-gray-500">
+              등록 시 일일 순번(현장 N번)이 자동 부여됩니다
+            </div>
+          </div>
+        ) : (
+          <>
+            <label className="text-sm text-gray-600">
+              고객성함
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="홍길동"
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+            <label className="text-sm text-gray-600">
+              연락처
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="010-0000-0000"
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+          </>
+        )}
       </div>
 
       <div className="mb-3">
@@ -1281,7 +1318,7 @@ function CreatePanel({
             disabled={isCamping}
             onChange={(e) => setHasAdmission(e.target.checked)}
           />
-          입장권 지급/확인 유무
+          입장권 예매
         </label>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -1290,7 +1327,7 @@ function CreatePanel({
           disabled={pending}
           className="px-5 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
         >
-          {pending ? '등록 중...' : '예약 등록'}
+          {pending ? '등록 중...' : '등록'}
         </button>
         <button
           onClick={onCancel}
@@ -1525,7 +1562,7 @@ function EditPanel({
             disabled={isCamping}
             onChange={(e) => setHasAdmission(e.target.checked)}
           />
-          입장권 지급/확인 유무
+          입장권 예매
         </label>
       </div>
 
