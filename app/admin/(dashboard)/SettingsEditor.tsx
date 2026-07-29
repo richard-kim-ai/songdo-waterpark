@@ -37,9 +37,13 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
   },
   {
     title: '모바일 하단 네비게이션',
+    description:
+      '연결 URL을 입력하면 버튼을 눌렀을 때 해당 주소로 바로 이동합니다. 비워두면 홈페이지 안의 해당 섹션으로 이동합니다.',
     fields: [
       { key: 'mobile_nav_ticket_label', label: '입장권 버튼 문구' },
+      { key: 'mobile_nav_ticket_url', label: '입장권 버튼 연결 URL' },
       { key: 'mobile_nav_cabana_label', label: '케노피 버튼 문구' },
+      { key: 'mobile_nav_cabana_url', label: '케노피 버튼 연결 URL' },
     ],
   },
   {

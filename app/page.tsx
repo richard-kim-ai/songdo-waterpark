@@ -251,6 +251,8 @@ export default async function Home() {
       <MobileNav
         ticketLabel={settings.mobile_nav_ticket_label ?? ''}
         cabanaLabel={settings.mobile_nav_cabana_label ?? ''}
+        ticketUrl={settings.mobile_nav_ticket_url ?? ''}
+        cabanaUrl={settings.mobile_nav_cabana_url ?? ''}
       />
       <ScrollToTop />
     </>
