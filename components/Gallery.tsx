@@ -13,11 +13,11 @@ export default function Gallery({
   sectionSubtitle: string;
 }) {
   return (
-    <section id="gallery" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
-          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
+    <section id="gallery" className="py-12 md:py-20 bg-gradient-to-b from-white to-blue-50/30">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-base md:text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {images.map((item) => (

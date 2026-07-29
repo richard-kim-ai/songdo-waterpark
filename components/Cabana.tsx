@@ -45,15 +45,15 @@ export default function Cabana({
   })).filter((g) => g.items.length > 0);
 
   return (
-    <section id="cabana" className="py-20 bg-gradient-to-b from-white to-blue-50/30">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
-          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
+    <section id="cabana" className="py-12 md:py-20 bg-gradient-to-b from-white to-blue-50/30">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-base md:text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid gap-12">
-          <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
+          <div className="bg-white rounded-xl shadow-lg p-5 md:p-8 min-w-0">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">{diagramTitle}</h3>
             <ImageCarousel
               images={[diagramUrl, diagramUrl2]}
               alt={diagramTitle}
@@ -61,19 +61,19 @@ export default function Cabana({
               imgClassName="w-full h-full object-cover object-top"
             />
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-8 min-w-0">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">{tableTitle}</h3>
+          <div className="bg-white rounded-xl shadow-lg p-5 md:p-8 min-w-0">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">{tableTitle}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-primary text-white">
-                    <th className="px-6 py-4 font-bold text-base border border-primary/20">
+                    <th className="px-3 py-3 md:px-6 md:py-4 font-bold text-sm md:text-base border border-primary/20">
                       타입
                     </th>
-                    <th className="px-6 py-4 font-bold text-base border border-primary/20 text-center">
+                    <th className="px-3 py-3 md:px-6 md:py-4 font-bold text-sm md:text-base border border-primary/20 text-center">
                       개수 (EA)
                     </th>
-                    <th className="px-6 py-4 font-bold text-base border border-primary/20 text-right">
+                    <th className="px-3 py-3 md:px-6 md:py-4 font-bold text-sm md:text-base border border-primary/20 text-right">
                       성수기 요금
                     </th>
                   </tr>
@@ -85,7 +85,7 @@ export default function Cabana({
                         <tr className="bg-gray-100">
                           <td
                             colSpan={3}
-                            className="px-6 py-2 border border-gray-200 font-bold text-gray-700 text-sm"
+                            className="px-3 py-2 md:px-6 border border-gray-200 font-bold text-gray-700 text-sm"
                           >
                             {g.label}
                           </td>
@@ -94,25 +94,25 @@ export default function Cabana({
                       {g.items.map((z) =>
                         z.zone_type === '썬배드' ? (
                           <tr key={z.id} className="bg-gradient-to-r from-primary/5 to-secondary/5">
-                            <td className="px-6 py-4 border border-gray-200 font-bold text-gray-900">
+                            <td className="px-3 py-3 md:px-6 md:py-4 text-sm md:text-base border border-gray-200 font-bold text-gray-900">
                               {z.name}
                             </td>
-                            <td className="px-6 py-4 border border-gray-200 text-center font-bold text-secondary">
+                            <td className="px-3 py-3 md:px-6 md:py-4 text-sm md:text-base border border-gray-200 text-center font-bold text-secondary">
                               {z.unit_count}
                             </td>
-                            <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
+                            <td className="px-3 py-3 md:px-6 md:py-4 text-sm md:text-base border border-gray-200 text-right font-bold text-gray-900">
                               {won(z.weekday_price)} / 개당 이용
                             </td>
                           </tr>
                         ) : (
                           <tr key={z.id} className="hover:bg-blue-50/30 transition-colors">
-                            <td className="px-6 py-4 border border-gray-200 font-semibold text-gray-900">
+                            <td className="px-3 py-3 md:px-6 md:py-4 text-sm md:text-base border border-gray-200 font-semibold text-gray-900">
                               {z.name}
                             </td>
-                            <td className="px-6 py-4 border border-gray-200 text-center text-primary font-bold">
+                            <td className="px-3 py-3 md:px-6 md:py-4 text-sm md:text-base border border-gray-200 text-center text-primary font-bold">
                               {z.unit_count}
                             </td>
-                            <td className="px-6 py-4 border border-gray-200 text-right font-bold text-gray-900">
+                            <td className="px-3 py-3 md:px-6 md:py-4 text-sm md:text-base border border-gray-200 text-right font-bold text-gray-900">
                               {won(z.weekday_price)}
                             </td>
                           </tr>

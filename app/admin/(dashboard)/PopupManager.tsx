@@ -123,7 +123,7 @@ export default function PopupManager({ popups }: { popups: Popup[] }) {
 
   return (
     <div className="space-y-8">
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow p-4 md:p-6">
         <h2 className="font-bold text-gray-900 mb-4">새 팝업 등록</h2>
         <form key={popups.length} onSubmit={onSubmit} className="grid md:grid-cols-2 gap-4">
           <div>

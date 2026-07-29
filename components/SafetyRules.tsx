@@ -60,11 +60,11 @@ export default function SafetyRules({
   const extraItems = parsePipeList(extraItemsText);
 
   return (
-    <section id="rules" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{title}</h2>
-          <p className="text-lg text-gray-600">{subtitle}</p>
+    <section id="rules" className="py-12 md:py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">{title}</h2>
+          <p className="text-base md:text-lg text-gray-600">{subtitle}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-2 border-primary/10">
           <div className="bg-gradient-to-r from-primary to-secondary p-6">
@@ -103,7 +103,7 @@ export default function SafetyRules({
           </div>
         </div>
         <div className="mt-12 bg-gradient-to-r from-blue-50 to-secondary/5 rounded-2xl p-8">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">{extraTitle}</h3>
+          <h3 className="text-lg md:text-2xl font-bold text-gray-900 mb-5 md:mb-6 text-center">{extraTitle}</h3>
           <div className="grid md:grid-cols-3 gap-6">
             {extraItems.map((item, i) => (
               <div key={i} className="bg-white rounded-xl p-6 shadow-md">

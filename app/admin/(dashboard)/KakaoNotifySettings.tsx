@@ -84,7 +84,7 @@ export default function KakaoNotifySettings({
   }
 
   return (
-    <section className="bg-white rounded-xl shadow p-6 space-y-5">
+    <section className="bg-white rounded-xl shadow p-4 md:p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-gray-900">연동 설정</h2>
         {connected ? (

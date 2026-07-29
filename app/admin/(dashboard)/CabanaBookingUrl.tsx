@@ -28,7 +28,7 @@ function Field({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-4 md:p-6">
       <div className="flex items-center justify-between mb-3">
         <label className="font-bold text-gray-900">{label}</label>
         {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}
@@ -67,7 +67,7 @@ function EnabledToggle({ initialEnabled }: { initialEnabled: boolean }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-4 md:p-6">
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 font-bold text-gray-900 cursor-pointer">
           <input

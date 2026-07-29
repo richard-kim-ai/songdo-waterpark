@@ -25,11 +25,11 @@ export default function Facilities({
   if (attractions.length === 0) return null;
 
   return (
-    <section id="facilities" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
-          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
+    <section id="facilities" className="py-12 md:py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-base md:text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
           {attractions.map((t, i) => (
@@ -44,7 +44,7 @@ export default function Facilities({
                 }}
               ></div>
               <div className="p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">{t.name}</h3>
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">{t.name}</h3>
                 <p className="text-gray-600 mb-6">{t.description}</p>
                 <div className="flex items-baseline gap-2 mb-6">
                   <span className="text-3xl font-bold text-primary">

@@ -165,6 +165,16 @@ const SECTIONS: { title: string; description?: string; fields: FieldConfig[] }[]
     ],
   },
   {
+    title: 'SNS 링크',
+    description:
+      'URL을 입력한 채널만 홈페이지 하단(푸터)에 아이콘으로 표시됩니다. 비워두면 해당 아이콘은 나타나지 않습니다.',
+    fields: [
+      { key: 'sns_blog_url', label: '블로그 주소', hint: '예) https://blog.naver.com/아이디' },
+      { key: 'sns_instagram_url', label: '인스타그램 주소', hint: '예) https://instagram.com/아이디' },
+      { key: 'sns_youtube_url', label: '유튜브 주소', hint: '예) https://youtube.com/@채널명' },
+    ],
+  },
+  {
     title: '푸터',
     fields: [
       { key: 'footer_tagline', label: '로고 아래 소개 문구' },
@@ -195,7 +205,7 @@ function SettingRow({ value: initialValue, field }: { value: string; field: Fiel
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-4 md:p-6">
       <div className="flex items-center justify-between mb-3">
         <label className="font-bold text-gray-900">{field.label}</label>
         {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}

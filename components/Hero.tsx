@@ -25,22 +25,22 @@ export default function Hero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-transparent"></div>
-      <div className="relative w-full max-w-7xl mx-auto px-6 py-32 mt-16">
+      <div className="relative w-full max-w-7xl mx-auto px-4 md:px-6 py-20 md:py-32 mt-16">
         <div className="max-w-2xl">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-gray-900 mb-4 md:mb-6 leading-tight">
             {renderLines(title)}
           </h1>
-          <p className="text-xl text-gray-700 mb-10 leading-relaxed">{renderLines(subtitle)}</p>
+          <p className="text-base md:text-xl text-gray-700 mb-7 md:mb-10 leading-relaxed">{renderLines(subtitle)}</p>
           <div className="flex flex-wrap gap-4">
             <a
               href="#pricing"
-              className="px-8 py-4 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+              className="px-5 py-3 md:px-8 md:py-4 text-sm md:text-base bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
             >
               {ctaTicketLabel}
             </a>
             <a
               href="#cabana"
-              className="px-8 py-4 bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+              className="px-5 py-3 md:px-8 md:py-4 text-sm md:text-base bg-secondary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
             >
               {ctaCabanaLabel}
             </a>
@@ -49,12 +49,12 @@ export default function Hero({
                 href={ctaCampingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 bg-gray-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
+                className="px-5 py-3 md:px-8 md:py-4 text-sm md:text-base bg-gray-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer"
               >
                 {ctaCampingLabel}
               </a>
             ) : (
-              <button className="px-8 py-4 bg-gray-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
+              <button className="px-5 py-3 md:px-8 md:py-4 text-sm md:text-base bg-gray-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all whitespace-nowrap cursor-pointer">
                 {ctaCampingLabel}
               </button>
             )}

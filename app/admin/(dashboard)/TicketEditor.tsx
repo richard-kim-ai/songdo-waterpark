@@ -34,7 +34,7 @@ function TicketRow({ ticket, showUsageHours }: { ticket: TicketType; showUsageHo
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-4 md:p-6">
       <div className="flex items-center justify-between mb-2">
         <label className="block text-xs font-semibold text-gray-600">항목명</label>
         {saved && <span className="text-sm text-green-600 font-semibold">저장됨</span>}

@@ -247,6 +247,9 @@ export default async function Home() {
         poolSeason={settings.pool_season ?? ''}
         poolWeekdayHours={settings.pool_weekday_hours ?? ''}
         poolWeekendHours={settings.pool_weekend_hours ?? ''}
+        blogUrl={settings.sns_blog_url ?? ''}
+        instagramUrl={settings.sns_instagram_url ?? ''}
+        youtubeUrl={settings.sns_youtube_url ?? ''}
       />
       <MobileNav
         ticketLabel={settings.mobile_nav_ticket_label ?? ''}

@@ -7,7 +7,7 @@ export default async function PopupsAdminPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">팝업 생성 관리</h1>
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">팝업 생성 관리</h1>
       <PopupManager popups={popups ?? []} />
     </div>
   );

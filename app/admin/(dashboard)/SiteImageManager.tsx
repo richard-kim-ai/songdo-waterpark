@@ -32,7 +32,7 @@ function SiteImageRow({ imageKey, currentUrl }: { imageKey: SiteImageKey; curren
   return (
     <form
       onSubmit={onSubmit}
-      className="bg-white rounded-xl shadow p-6 flex flex-col md:flex-row md:items-center gap-6"
+      className="bg-white rounded-xl shadow p-4 md:p-6 flex flex-col md:flex-row md:items-center gap-6"
     >
       {currentUrl ? (
         // eslint-disable-next-line @next/next/no-img-element

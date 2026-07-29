@@ -40,7 +40,7 @@ export default function CabanaGuestPolicyEditor({
   return (
     <div className="mt-10">
       <h2 className="text-lg font-bold text-gray-900 mb-4">예약 인원 한계 조정</h2>
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow p-4 md:p-6">
         <p className="text-xs text-gray-500 mb-4">
           예) 기본 4명까지는 기본요금, 초과 인원 1명당 3,000원 추가, 최대 6명(또는 12명 등)까지
           예약 가능하도록 설정할 수 있습니다. 최대 인원을 초과하면 고객 화면에 케노피 추가 예약
