@@ -152,7 +152,7 @@ export default function CabanaSalesManager({
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-bold text-gray-900">{formatDateKorean(date)} 확정 매출</h3>
-            <span className="text-2xl font-bold text-primary">{won(daily.visited.revenue)}</span>
+            <span className="text-xl md:text-2xl font-bold text-primary">{won(daily.visited.revenue)}</span>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-4">
@@ -179,21 +179,21 @@ export default function CabanaSalesManager({
               <p className="text-sm font-semibold text-gray-600">
                 <i className="ri-user-follow-line mr-1 text-green-600"></i>방문 완료
               </p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{daily.visited.count}건</p>
+              <p className="text-xl md:text-2xl font-bold text-green-600 mt-1">{daily.visited.count}건</p>
               <p className="text-xs text-gray-500 mt-1">{won(daily.visited.revenue)}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm font-semibold text-gray-600">
                 <i className="ri-time-line mr-1 text-gray-400"></i>미확인(대기)
               </p>
-              <p className="text-2xl font-bold text-gray-700 mt-1">{daily.pending.count}건</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-700 mt-1">{daily.pending.count}건</p>
               <p className="text-xs text-gray-500 mt-1">{won(daily.pending.revenue)}</p>
             </div>
             <div className="bg-red-50 rounded-lg p-4">
               <p className="text-sm font-semibold text-gray-600">
                 <i className="ri-user-unfollow-line mr-1 text-red-500"></i>노쇼
               </p>
-              <p className="text-2xl font-bold text-red-500 mt-1">{daily.noShow.count}건</p>
+              <p className="text-xl md:text-2xl font-bold text-red-500 mt-1">{daily.noShow.count}건</p>
               <p className="text-xs text-gray-500 mt-1">{won(daily.noShow.revenue)}</p>
             </div>
           </div>
@@ -228,7 +228,7 @@ export default function CabanaSalesManager({
               {daily.items.map((it) => (
                 <div
                   key={it.id}
-                  className={`flex flex-wrap items-center gap-2 px-4 py-3 rounded-lg ${
+                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 md:px-4 md:py-3 rounded-lg ${
                     it.status === 'visited'
                       ? 'bg-green-50'
                       : it.status === 'noShow'
@@ -236,11 +236,13 @@ export default function CabanaSalesManager({
                         : 'bg-gray-50'
                   }`}
                 >
-                  <span className="font-semibold text-sm text-gray-800 w-28 shrink-0">
+                  {/* 모바일에서는 상품·상태·금액이 첫 줄, 예약자 정보가 둘째 줄로 내려간다.
+                      데스크톱에서는 기존처럼 한 줄에 나란히 배치. */}
+                  <span className="order-1 font-semibold text-sm text-gray-800 md:w-28 md:shrink-0">
                     {it.zoneLabel}
                     {it.hasTimeType ? ` · ${it.timeType}` : ''}
                   </span>
-                  <span className="text-sm text-gray-600 flex-1 min-w-0">
+                  <span className="order-4 md:order-2 w-full md:w-auto md:flex-1 md:min-w-0 text-xs md:text-sm text-gray-600 break-keep">
                     {it.cabanaNo}번 · {it.name}
                     {it.phone ? ` (${it.phone})` : ''} · {it.guestCount}명
                     {it.isWalkIn && (
@@ -250,9 +252,11 @@ export default function CabanaSalesManager({
                       <span className="ml-2 text-xs text-primary font-semibold">캠핑객</span>
                     )}
                   </span>
-                  <StatusBadge status={it.status} />
+                  <span className="order-2 md:order-3 shrink-0">
+                    <StatusBadge status={it.status} />
+                  </span>
                   <span
-                    className={`font-bold text-sm w-24 text-right shrink-0 ${
+                    className={`order-3 md:order-4 font-bold text-sm ml-auto md:ml-0 md:w-24 text-right shrink-0 ${
                       it.status === 'noShow' ? 'text-gray-400 line-through' : 'text-gray-900'
                     }`}
                   >

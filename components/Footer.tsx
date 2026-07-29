@@ -15,6 +15,9 @@ export default function Footer({
   poolSeason,
   poolWeekdayHours,
   poolWeekendHours,
+  blogUrl,
+  instagramUrl,
+  youtubeUrl,
 }: {
   logoUrl: string;
   mapUrl: string;
@@ -30,15 +33,28 @@ export default function Footer({
   poolSeason: string;
   poolWeekdayHours: string;
   poolWeekendHours: string;
+  blogUrl: string;
+  instagramUrl: string;
+  youtubeUrl: string;
 }) {
+  const snsLinks = [
+    { url: blogUrl, icon: 'ri-quill-pen-line', label: '블로그' },
+    { url: instagramUrl, icon: 'ri-instagram-fill', label: '인스타그램' },
+    { url: youtubeUrl, icon: 'ri-youtube-fill', label: '유튜브' },
+  ].filter((s) => s.url.trim());
+
   return (
-    <footer className="bg-gray-900 text-white py-16">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid md:grid-cols-3 gap-12 mb-12">
+    <footer className="bg-gray-900 text-white py-12 md:py-16">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="grid md:grid-cols-3 gap-8 md:gap-12 mb-10 md:mb-12">
           <div>
             <Link href="/">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="송도국제캠핑장" className="h-24 w-auto mb-6 cursor-pointer" />
+              <img
+                src={logoUrl}
+                alt="송도국제캠핑장"
+                className="h-16 md:h-24 w-auto mb-5 md:mb-6 cursor-pointer"
+              />
             </Link>
             <p className="text-gray-400 leading-relaxed">{tagline}</p>
           </div>
@@ -72,26 +88,24 @@ export default function Footer({
               <p>평일: {poolWeekdayHours}</p>
               <p>주말: {poolWeekendHours}</p>
             </div>
-            <div className="flex gap-4 mt-6">
-              <a
-                href="#"
-                className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-primary transition-colors cursor-pointer"
-              >
-                <i className="ri-facebook-fill text-xl"></i>
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-primary transition-colors cursor-pointer"
-              >
-                <i className="ri-instagram-fill text-xl"></i>
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-primary transition-colors cursor-pointer"
-              >
-                <i className="ri-youtube-fill text-xl"></i>
-              </a>
-            </div>
+            {/* SNS 아이콘은 관리자에서 URL을 입력한 것만 노출된다. */}
+            {snsLinks.length > 0 && (
+              <div className="flex gap-3 md:gap-4 mt-6">
+                {snsLinks.map((sns) => (
+                  <a
+                    key={sns.icon}
+                    href={sns.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={sns.label}
+                    title={sns.label}
+                    className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-primary transition-colors cursor-pointer"
+                  >
+                    <i className={`${sns.icon} text-xl`}></i>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div

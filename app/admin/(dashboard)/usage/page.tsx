@@ -72,7 +72,7 @@ export default async function UsageAdminPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">사용량 &amp; 트래픽</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">사용량 &amp; 트래픽</h1>
         <p className="text-gray-500">
           실시간 스토리지·DB 사용량을 확인하고, Supabase·Vercel·Google Analytics 대시보드로 바로
           이동할 수 있습니다.

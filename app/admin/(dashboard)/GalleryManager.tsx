@@ -83,7 +83,7 @@ export default function GalleryManager({ images }: { images: GalleryImage[] }) {
 
   return (
     <div className="space-y-8">
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow p-4 md:p-6">
         <h2 className="font-bold text-gray-900 mb-4">새 이미지 등록</h2>
         <form key={images.length} onSubmit={onSubmit} className="flex flex-wrap items-end gap-4">
           <div>

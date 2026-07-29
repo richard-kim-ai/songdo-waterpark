@@ -885,7 +885,7 @@ function SalesDashboard({
         {TIME_TYPES.map((type) => (
           <div key={type} className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm font-semibold text-gray-600">{type}권</p>
-            <p className="text-2xl font-bold text-primary mt-1">{byType[type]?.count ?? 0}건</p>
+            <p className="text-xl md:text-2xl font-bold text-primary mt-1">{byType[type]?.count ?? 0}건</p>
             <p className="text-xs text-gray-500 mt-1">{won(byType[type]?.revenue ?? 0)}</p>
           </div>
         ))}
@@ -896,7 +896,7 @@ function SalesDashboard({
         {DISCOUNT_TYPES.map((category) => (
           <div key={category} className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm font-semibold text-gray-600">{category}</p>
-            <p className="text-2xl font-bold text-primary mt-1">
+            <p className="text-xl md:text-2xl font-bold text-primary mt-1">
               {byCategory[category]?.count ?? 0}건
             </p>
             <p className="text-xs text-gray-500 mt-1">{won(byCategory[category]?.revenue ?? 0)}</p>
@@ -904,7 +904,7 @@ function SalesDashboard({
         ))}
       </div>
 
-      <div className="flex items-center justify-between bg-secondary/5 rounded-lg px-4 py-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-secondary/5 rounded-lg px-3 md:px-4 py-3 mb-4">
         <span className="text-sm font-semibold text-gray-700">
           <i className="ri-sun-line mr-1 text-secondary"></i>썬배드 (개당 이용)
         </span>
@@ -915,7 +915,7 @@ function SalesDashboard({
         </span>
       </div>
 
-      <div className="flex items-center justify-between bg-primary/5 rounded-lg px-4 py-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-primary/5 rounded-lg px-3 md:px-4 py-3 mb-4">
         <span className="text-sm font-semibold text-gray-700">
           <i className="ri-campfire-line mr-1 text-primary"></i>캠핑객 예약
         </span>
@@ -926,7 +926,7 @@ function SalesDashboard({
         </span>
       </div>
 
-      <div className="flex items-center justify-between bg-red-50 rounded-lg px-4 py-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-red-50 rounded-lg px-3 md:px-4 py-3 mb-4">
         <span className="text-sm font-semibold text-gray-700">
           <i className="ri-user-unfollow-line mr-1 text-red-500"></i>노쇼 (매출 제외)
         </span>
@@ -937,9 +937,11 @@ function SalesDashboard({
         </span>
       </div>
 
-      <div className="flex items-center justify-between border-t pt-4">
-        <span className="font-bold text-gray-900">총 판매 수량 / 판매액 (썬배드 제외)</span>
-        <span className="text-right">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t pt-4">
+        <span className="font-bold text-sm md:text-base text-gray-900">
+          총 판매 수량 / 판매액 (썬배드 제외)
+        </span>
+        <span className="text-right whitespace-nowrap">
           <span className="font-bold text-gray-900">{totalCount}건</span>
           <span className="mx-2 text-gray-300">·</span>
           <span className="font-bold text-lg text-primary">{won(totalRevenue)}</span>

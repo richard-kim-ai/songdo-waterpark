@@ -5,6 +5,7 @@ import {
   getCabanaAvailability,
   createCabanaReservation,
   lookupCabanaReservationsByPhone,
+  cancelCabanaReservationByPhone,
   type CabanaProduct,
   type ReservedItem,
 } from '@/app/cabana-reservation/actions';
@@ -23,6 +24,7 @@ type LookupReservation = {
   phone: string;
   guest_count: number;
   cabana_no: number;
+  is_visited: boolean;
 };
 
 type CartLine = {
@@ -493,10 +495,16 @@ function LookupView({ onBack }: { onBack: () => void }) {
   const [phone, setPhone] = useState('');
   const [results, setResults] = useState<LookupReservation[] | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  // 취소 확인 팝업 대상. null이면 팝업이 닫힌 상태.
+  const [cancelTarget, setCancelTarget] = useState<LookupReservation | null>(null);
   const [pending, startTransition] = useTransition();
+  const [canceling, startCancel] = useTransition();
+  const today = todaySeoul();
 
   function handleLookup() {
     setError('');
+    setNotice('');
     setResults(null);
     if (!phone.trim()) {
       setError('연락처를 입력해주세요.');
@@ -509,6 +517,23 @@ function LookupView({ onBack }: { onBack: () => void }) {
       } else {
         setResults(res);
       }
+    });
+  }
+
+  function handleCancel() {
+    const target = cancelTarget;
+    if (!target) return;
+    setError('');
+    setNotice('');
+    startCancel(async () => {
+      const res = await cancelCabanaReservationByPhone(target.id, phone.trim());
+      setCancelTarget(null);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setResults((prev) => prev?.filter((r) => r.id !== target.id) ?? null);
+      setNotice(`예약번호 ${target.reservation_no} 예약이 취소되었습니다.`);
     });
   }
 
@@ -538,12 +563,15 @@ function LookupView({ onBack }: { onBack: () => void }) {
       </div>
 
       {error && <p className="text-sm text-red-600 font-semibold">{error}</p>}
+      {notice && <p className="text-sm text-primary font-semibold">{notice}</p>}
 
       {results && (
         <div className="space-y-2">
           {results.map((r) => {
             const label = ZONE_LABELS[r.zone_type] ?? r.zone_type;
             const isSingle = r.zone_type === '썬배드';
+            // 지난 예약이거나 이미 방문 확인된 건은 고객이 직접 취소할 수 없음.
+            const cancelable = r.reservation_date >= today && !r.is_visited;
             return (
               <div key={r.id} className="bg-gray-50 rounded-lg p-3 text-sm">
                 <p className="font-bold text-gray-900">
@@ -553,7 +581,21 @@ function LookupView({ onBack }: { onBack: () => void }) {
                 <p className="text-gray-600 mt-1">
                   예약자: {r.name} ({r.phone}) · {r.guest_count}명 · 순번 {r.cabana_no}번
                 </p>
-                <p className="text-gray-500 text-xs mt-1">예약번호 {r.reservation_no}</p>
+                <div className="flex items-end justify-between gap-2 mt-1">
+                  <p className="text-gray-500 text-xs">예약번호 {r.reservation_no}</p>
+                  {cancelable ? (
+                    <button
+                      onClick={() => setCancelTarget(r)}
+                      className="px-3 py-1.5 border border-red-300 text-red-600 text-xs font-semibold !rounded-button hover:bg-red-50 transition-all cursor-pointer shrink-0"
+                    >
+                      예약취소
+                    </button>
+                  ) : (
+                    <span className="text-gray-400 text-xs shrink-0">
+                      {r.is_visited ? '방문 완료' : '이용 종료'}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -566,6 +608,41 @@ function LookupView({ onBack }: { onBack: () => void }) {
       >
         예약 화면으로 돌아가기
       </button>
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm p-6">
+            <p className="text-lg font-bold text-gray-900">예약을 취소할까요?</p>
+            <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
+              <p className="font-bold text-gray-900">
+                {formatDateKorean(cancelTarget.reservation_date)} ·{' '}
+                {ZONE_LABELS[cancelTarget.zone_type] ?? cancelTarget.zone_type}
+                {cancelTarget.zone_type === '썬배드' ? '' : ` ${cancelTarget.time_type}`}
+              </p>
+              <p className="text-gray-500 text-xs mt-1">예약번호 {cancelTarget.reservation_no}</p>
+            </div>
+            <p className="text-sm text-gray-600 mt-3">
+              취소한 예약은 되돌릴 수 없으며, 다시 이용하시려면 새로 예약해주세요.
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setCancelTarget(null)}
+                disabled={canceling}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-semibold !rounded-button hover:bg-gray-50 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                돌아가기
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={canceling}
+                className="flex-1 px-4 py-3 bg-red-600 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {canceling ? '취소 중...' : '예약취소'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

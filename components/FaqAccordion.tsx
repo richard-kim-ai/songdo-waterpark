@@ -41,11 +41,11 @@ export default function FaqAccordion({
   };
 
   return (
-    <section className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{title}</h2>
-          <p className="text-lg text-gray-600">{subtitle}</p>
+    <section className="py-12 md:py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">{title}</h2>
+          <p className="text-base md:text-lg text-gray-600">{subtitle}</p>
         </div>
         <div className="space-y-4">
           {items.map((item, i) => {

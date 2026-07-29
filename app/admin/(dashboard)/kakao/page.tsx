@@ -61,7 +61,7 @@ export default async function KakaoAdminPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">카카오톡 알림 설정</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">카카오톡 알림 설정</h1>
         <p className="text-gray-500">
           케노피 예약이 접수되면 이메일 대신 관리자 본인의 카카오톡으로 알림을 받을 수 있습니다.
           카카오 디벨로퍼스에서 발급받은 키를 연동해야 사용할 수 있습니다.

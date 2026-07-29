@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendKakaoNotification } from '@/lib/kakao';
 import { sendCustomerReservationAlimtalk } from '@/lib/aligo';
 import { ZONE_TYPE_LABELS, type ZoneType } from '@/lib/cabana-pricing';
+import { todaySeoul } from '@/lib/date';
 import type { Database } from '@/types/database';
 
 type TimeType = '주간' | '야간' | '종일';
@@ -127,6 +128,38 @@ export async function lookupCabanaReservationsByPhone(phone: string) {
 
   if (error) return [];
   return data ?? [];
+}
+
+// 고객이 조회 화면에서 직접 예약을 취소. 관리자 인증이 없으므로 예약번호(id)만으로는
+// 취소할 수 없고, 조회에 사용한 연락처가 예약자 연락처와 일치해야만 처리한다.
+// 지난 날짜·방문 완료·현장배정·예약막기 건은 취소 대상에서 제외.
+export async function cancelCabanaReservationByPhone(id: string, phone: string) {
+  const cleanPhone = phone.trim();
+  if (!id || !cleanPhone) return { ok: false as const, error: '취소 정보를 확인할 수 없습니다.' };
+
+  const supabase = createAdminClient();
+  const { data: target, error: findError } = await supabase
+    .from('cabana_reservations')
+    .select('id, phone, reservation_date, is_visited, is_walk_in, is_blocked')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (findError || !target) return { ok: false as const, error: '예약을 찾을 수 없습니다.' };
+  if (target.phone !== cleanPhone || target.is_walk_in || target.is_blocked) {
+    return { ok: false as const, error: '취소할 수 없는 예약입니다.' };
+  }
+  if (target.is_visited) {
+    return { ok: false as const, error: '이미 방문 확인된 예약은 취소할 수 없습니다.' };
+  }
+  if (target.reservation_date < todaySeoul()) {
+    return { ok: false as const, error: '지난 예약은 취소할 수 없습니다.' };
+  }
+
+  const { error } = await supabase.from('cabana_reservations').delete().eq('id', id);
+  if (error) return { ok: false as const, error: '취소 처리에 실패했습니다. 잠시 후 다시 시도해주세요.' };
+
+  revalidatePath('/admin/cabana-reservations');
+  return { ok: true as const };
 }
 
 function generateReservationNo(dateStr: string) {

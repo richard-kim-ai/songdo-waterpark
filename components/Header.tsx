@@ -30,11 +30,11 @@ export default function Header({
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-sm z-50">
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
         <div className="flex items-center justify-between">
           <Link href="/">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="송도국제캠핑장" className="h-16 w-auto cursor-pointer" />
+            <img src={logoUrl} alt="송도국제캠핑장" className="h-11 md:h-16 w-auto cursor-pointer" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
@@ -60,7 +60,7 @@ export default function Header({
       </div>
       {open && (
         <div className="md:hidden border-t border-gray-100 bg-white">
-          <div className="max-w-7xl mx-auto px-6 py-2 flex flex-col">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 flex flex-col">
             {navItems.map((item) => (
               <a
                 key={item.href}

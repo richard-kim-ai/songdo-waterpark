@@ -52,7 +52,7 @@ export default async function AligoAdminPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">고객 알림톡 설정</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">고객 알림톡 설정</h1>
         <p className="text-gray-500">
           케노피 예약이 접수되면 예약자 본인의 휴대폰으로 카카오 알림톡(실패 시 문자 자동
           대체발송)을 보낼 수 있습니다. 알리고(Aligo) 연동이 필요합니다.

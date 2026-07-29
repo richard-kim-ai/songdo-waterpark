@@ -40,7 +40,7 @@ function CabanaRow({ zone }: { zone: CabanaZone }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-xl shadow p-4 md:p-6">
       <div className="flex items-center justify-between mb-2">
         <label className="block text-xs font-semibold text-gray-600">
           구역명{zone.time_type ? ` · ${zone.time_type}` : ''}
@@ -139,7 +139,7 @@ function AddZoneRow({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6 border-2 border-primary/30">
+    <div className="bg-white rounded-xl shadow p-4 md:p-6 border-2 border-primary/30">
       <label className="block text-xs font-semibold text-gray-600 mb-1">구역명</label>
       <input
         type="text"

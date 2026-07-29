@@ -27,11 +27,11 @@ export default function FacilityLayout({
   const activeAlt = tab === 'total' ? tabTotalLabel : tabCabanaLabel;
 
   return (
-    <section id="layout" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
-          <p className="text-lg text-gray-600">{sectionSubtitle}</p>
+    <section id="layout" className="py-12 md:py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">{sectionTitle}</h2>
+          <p className="text-base md:text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="flex border-b">
