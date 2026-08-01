@@ -10,6 +10,7 @@ import {
   type ReservedItem,
 } from '@/app/cabana-reservation/actions';
 import { todaySeoul } from '@/lib/date';
+import ImageCarousel from './ImageCarousel';
 
 type GuestPolicy = { baseCount: number; extraFee: number; maxCount: number };
 const DEFAULT_GUEST_POLICY: GuestPolicy = { baseCount: 4, extraFee: 3000, maxCount: 6 };
@@ -36,6 +37,8 @@ type CartLine = {
   name: string;
   unitPrice: number;
   guestCount: number;
+  /** 고객이 배치도에서 고른 번호. 0이면 현장 자동 배정. */
+  cabanaNo: number;
 };
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
@@ -61,7 +64,14 @@ function formatPhoneNumber(value: string) {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
-export default function CabanaReservationModal({ buttonLabel }: { buttonLabel: string }) {
+export default function CabanaReservationModal({
+  buttonLabel,
+  diagramUrls = [],
+}: {
+  buttonLabel: string;
+  /** 자리 번호를 고를 때 함께 보여줄 배치도 이미지 */
+  diagramUrls?: string[];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -72,18 +82,26 @@ export default function CabanaReservationModal({ buttonLabel }: { buttonLabel: s
       >
         {buttonLabel}
       </button>
-      {open && <ReservationModal onClose={() => setOpen(false)} />}
+      {open && <ReservationModal onClose={() => setOpen(false)} diagramUrls={diagramUrls} />}
     </>
   );
 }
 
-function ReservationModal({ onClose }: { onClose: () => void }) {
+function ReservationModal({
+  onClose,
+  diagramUrls,
+}: {
+  onClose: () => void;
+  diagramUrls: string[];
+}) {
   const [date, setDate] = useState(today());
   const [products, setProducts] = useState<CabanaProduct[]>([]);
   const [guestPolicy, setGuestPolicy] = useState<GuestPolicy>(DEFAULT_GUEST_POLICY);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedKey, setSelectedKey] = useState('');
   const [addGuestCount, setAddGuestCount] = useState(1);
+  // 담기 전에 고른 자리 번호 (0 = 현장 자동 배정)
+  const [selectedNo, setSelectedNo] = useState(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [isCamping, setIsCamping] = useState(false);
@@ -138,8 +156,36 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
 
   const selectedProduct = products.find((p) => productKey(p) === selectedKey);
 
+  // 선택한 상품 기준으로 이미 찬 번호 = 서버가 알려준 예약분 + 장바구니에서 같은 시간대를 쓰는 항목.
+  const takenNos = useMemo(() => {
+    if (!selectedProduct) return new Set<number>();
+    const set = new Set<number>(selectedProduct.takenNos);
+    for (const line of cart) {
+      if (line.zoneType !== selectedProduct.zoneType || line.cabanaNo === 0) continue;
+      const conflicts =
+        selectedProduct.timeType === '종일' ||
+        line.timeType === selectedProduct.timeType ||
+        line.timeType === '종일';
+      if (conflicts) set.add(line.cabanaNo);
+    }
+    return set;
+  }, [selectedProduct, cart]);
+
+  // 이용권 종류를 바꾸거나 그 번호가 차버리면 선택을 자동 배정으로 되돌린다.
+  useEffect(() => {
+    setSelectedNo((prev) => (prev > 0 && takenNos.has(prev) ? 0 : prev));
+  }, [takenNos]);
+  useEffect(() => {
+    setSelectedNo(0);
+  }, [selectedKey, date]);
+
   function handleAdd() {
     if (!selectedProduct) return;
+    if (selectedNo > 0 && takenNos.has(selectedNo)) {
+      setError(`${selectedProduct.zoneLabel} ${selectedNo}번은 이미 예약된 자리입니다.`);
+      return;
+    }
+    setError('');
     const guestCount = selectedProduct.hasTimeType
       ? Math.max(1, Math.min(addGuestCount, guestPolicy.maxCount))
       : 1;
@@ -154,9 +200,11 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
         name: selectedProduct.name,
         unitPrice: selectedProduct.price,
         guestCount,
+        cabanaNo: selectedProduct.hasTimeType ? selectedNo : 0,
       },
     ]);
     setAddGuestCount(1);
+    setSelectedNo(0);
   }
 
   function removeLine(id: string) {
@@ -199,7 +247,12 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
       fd.set(
         'cart',
         JSON.stringify(
-          cart.map((c) => ({ zoneType: c.zoneType, timeType: c.timeType, guestCount: c.guestCount }))
+          cart.map((c) => ({
+            zoneType: c.zoneType,
+            timeType: c.timeType,
+            guestCount: c.guestCount,
+            cabanaNo: c.cabanaNo,
+          }))
         )
       );
 
@@ -251,7 +304,7 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                       {it.hasTimeType ? ` · ${it.timeType}` : ''}
                     </p>
                     <p className="text-gray-500 text-xs mt-0.5">
-                      예약순번 {it.cabanaNo}번 · 예약번호 {it.reservationNo}
+                      자리 {it.cabanaNo}번 · 예약번호 {it.reservationNo}
                     </p>
                   </div>
                   <span className="font-bold text-gray-900">{won(it.price)}</span>
@@ -263,7 +316,7 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
               <span className="font-bold text-lg text-primary">{won(resultTotal)}</span>
             </div>
             <p className="text-xs text-gray-500 text-center">
-              예약번호를 가지고 현장에서 결제 시 위치는 선착순으로 배정됩니다.
+              위에 표시된 자리 번호로 배정되었습니다. 예약번호를 가지고 현장에서 결제해주세요.
             </p>
             <button
               onClick={onClose}
@@ -361,6 +414,68 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                 )}
               </div>
 
+              {/* 배치도를 보면서 자리 번호를 직접 고르는 영역.
+                  번호 구분이 없는 단일가격 상품(썬배드)은 표시하지 않는다. */}
+              {selectedProduct?.hasTimeType && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    자리 번호 선택 ({selectedProduct.zoneLabel})
+                  </label>
+                  {diagramUrls.filter(Boolean).length > 0 && (
+                    <div className="mb-2">
+                      <ImageCarousel
+                        images={diagramUrls}
+                        alt="평상&케노피 배치도"
+                        className="bg-blue-50 rounded-lg overflow-hidden aspect-video"
+                        imgClassName="w-full h-full object-contain"
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        이미지를 누르면 크게 볼 수 있어요.
+                      </p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNo(0)}
+                      className={`col-span-2 px-2 py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                        selectedNo === 0
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-primary'
+                      }`}
+                    >
+                      자동 배정
+                    </button>
+                    {Array.from({ length: selectedProduct.slotCount }, (_, i) => i + 1).map((n) => {
+                      const taken = takenNos.has(n);
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={taken}
+                          onClick={() => setSelectedNo(n)}
+                          title={taken ? '이미 예약된 자리' : `${n}번 자리`}
+                          className={`px-1 py-2 text-xs font-bold rounded-lg border transition-all ${
+                            taken
+                              ? 'bg-gray-100 text-gray-300 border-gray-200 line-through cursor-not-allowed'
+                              : selectedNo === n
+                                ? 'bg-primary text-white border-primary cursor-pointer'
+                                : 'bg-white text-gray-700 border-gray-300 hover:border-primary cursor-pointer'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {selectedNo > 0
+                      ? `${selectedProduct.zoneLabel} ${selectedNo}번 자리로 예약됩니다.`
+                      : '번호를 고르지 않으면 현장에서 빈 자리로 자동 배정됩니다.'}
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   담은 상품 ({cart.length}건)
@@ -380,6 +495,9 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
                           <p className="font-semibold text-gray-900 truncate">
                             {line.zoneLabel}
                             {line.hasTimeType ? ` · ${line.timeType}` : ''}
+                            {line.cabanaNo > 0 && (
+                              <span className="ml-1 text-primary">· {line.cabanaNo}번</span>
+                            )}
                           </p>
                           <p className="text-xs text-gray-500">{won(linePrice(line))}</p>
                         </div>

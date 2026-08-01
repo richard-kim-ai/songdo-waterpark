@@ -74,7 +74,22 @@ export type CabanaProduct = {
   price: number;
   left: number;
   slotCount: number;
+  /** 이 상품(타임 기준)으로 이미 사용 중인 번호 — 고객이 번호를 고를 때 비활성 처리 */
+  takenNos: number[];
 };
+
+function takenNosFor(
+  slots: Map<number, Set<string>> | undefined,
+  slotCount: number,
+  time: TimeType
+) {
+  const s = slots ?? new Map<number, Set<string>>();
+  const taken: number[] = [];
+  for (let n = 1; n <= slotCount; n++) {
+    if (timeConflicts(s.get(n) ?? new Set<string>(), time)) taken.push(n);
+  }
+  return taken;
+}
 
 // 공개 예약 폼: 케노피/그늘막평상/썬배드 전 상품의 (zone_type, time_type)별
 // 잔여 수량·성수기 요금·슬롯 수를 한 번에 반환한다.
@@ -106,6 +121,7 @@ export async function getCabanaAvailability(date: string) {
       price: z.weekday_price,
       left: countLeft(occupancy[z.zone_type], z.unit_count, effectiveTime),
       slotCount: z.unit_count,
+      takenNos: takenNosFor(occupancy[z.zone_type], z.unit_count, effectiveTime),
     };
   });
 
@@ -168,7 +184,13 @@ function generateReservationNo(dateStr: string) {
   return `R${cleanDate}${randomStr}`;
 }
 
-type CartItem = { zoneType: string; timeType: TimeType; guestCount: number };
+type CartItem = {
+  zoneType: string;
+  timeType: TimeType;
+  guestCount: number;
+  /** 고객이 배치도를 보고 직접 고른 번호. 없으면(0) 빈 자리를 자동 배정한다. */
+  cabanaNo?: number;
+};
 export type ReservedItem = {
   zoneLabel: string;
   timeType: string;
@@ -249,18 +271,36 @@ export async function createCabanaReservation(
       ? 1
       : Math.max(1, Math.min(Number(item.guestCount) || 1, guestPolicy.maxCount));
 
-    // zone_type 내에서 빈 슬롯 순차 배정 (이번 요청에서 앞서 배정된 슬롯도 반영)
+    // 고객이 배치도에서 번호를 골랐으면 그 번호로, 아니면 zone_type 내 빈 슬롯을 순차 배정.
+    // 어느 쪽이든 이번 요청에서 앞서 배정된 슬롯까지 반영해 중복을 막는다.
     const slots = (occupancy[zone] ??= new Map<number, Set<string>>());
+    const wantedNo = Number(item.cabanaNo) || 0;
     let assigned: number | null = null;
-    for (let n = 1; n <= count; n++) {
-      const occ = slots.get(n) ?? new Set<string>();
-      if (!timeConflicts(occ, time)) {
-        assigned = n;
-        occ.add(time);
-        slots.set(n, occ);
-        break;
+
+    if (wantedNo > 0) {
+      if (wantedNo > count)
+        return { ok: false, error: `${zoneLabel(zone)} ${wantedNo}번은 존재하지 않는 자리입니다.` };
+      const occ = slots.get(wantedNo) ?? new Set<string>();
+      if (timeConflicts(occ, time))
+        return {
+          ok: false,
+          error: `${zoneLabel(zone)} ${wantedNo}번은 방금 다른 분이 예약했습니다. 다른 번호를 선택해주세요.`,
+        };
+      assigned = wantedNo;
+      occ.add(time);
+      slots.set(wantedNo, occ);
+    } else {
+      for (let n = 1; n <= count; n++) {
+        const occ = slots.get(n) ?? new Set<string>();
+        if (!timeConflicts(occ, time)) {
+          assigned = n;
+          occ.add(time);
+          slots.set(n, occ);
+          break;
+        }
       }
     }
+
     if (assigned === null)
       return {
         ok: false,

@@ -151,7 +151,10 @@ export default function Cabana({
                 {bookingButtonLabel}
               </a>
             ) : bookingEnabled ? (
-              <CabanaReservationModal buttonLabel={bookingButtonLabel} />
+              <CabanaReservationModal
+                buttonLabel={bookingButtonLabel}
+                diagramUrls={[diagramUrl, diagramUrl2]}
+              />
             ) : (
               <button
                 disabled
