@@ -12,6 +12,13 @@ export type DepositSettings = {
   openbankingFintechUseNum: string;
   openbankingClientUseCode: string;
   openbankingEnabled: boolean;
+  // OAuth 연동값
+  openbankingClientId: string;
+  openbankingClientSecret: string;
+  openbankingRedirectUri: string;
+  openbankingRefreshToken: string;
+  openbankingUserSeqNo: string;
+  openbankingTokenExpiresAt: string | null;
 };
 
 export async function getDepositSettings(): Promise<DepositSettings> {
@@ -24,6 +31,12 @@ export async function getDepositSettings(): Promise<DepositSettings> {
     openbankingFintechUseNum: data?.openbanking_fintech_use_num ?? '',
     openbankingClientUseCode: data?.openbanking_client_use_code ?? '',
     openbankingEnabled: data?.openbanking_enabled ?? false,
+    openbankingClientId: data?.openbanking_client_id ?? '',
+    openbankingClientSecret: data?.openbanking_client_secret ?? '',
+    openbankingRedirectUri: data?.openbanking_redirect_uri ?? '',
+    openbankingRefreshToken: data?.openbanking_refresh_token ?? '',
+    openbankingUserSeqNo: data?.openbanking_user_seq_no ?? '',
+    openbankingTokenExpiresAt: data?.openbanking_token_expires_at ?? null,
   };
 }
 
@@ -39,6 +52,18 @@ export async function saveDepositSettings(patch: Partial<DepositSettings>) {
   if (patch.openbankingClientUseCode !== undefined)
     row.openbanking_client_use_code = patch.openbankingClientUseCode.trim();
   if (patch.openbankingEnabled !== undefined) row.openbanking_enabled = patch.openbankingEnabled;
+  if (patch.openbankingClientId !== undefined)
+    row.openbanking_client_id = patch.openbankingClientId.trim();
+  if (patch.openbankingClientSecret !== undefined)
+    row.openbanking_client_secret = patch.openbankingClientSecret.trim();
+  if (patch.openbankingRedirectUri !== undefined)
+    row.openbanking_redirect_uri = patch.openbankingRedirectUri.trim();
+  if (patch.openbankingRefreshToken !== undefined)
+    row.openbanking_refresh_token = patch.openbankingRefreshToken.trim();
+  if (patch.openbankingUserSeqNo !== undefined)
+    row.openbanking_user_seq_no = patch.openbankingUserSeqNo.trim();
+  if (patch.openbankingTokenExpiresAt !== undefined)
+    row.openbanking_token_expires_at = patch.openbankingTokenExpiresAt;
 
   const { error } = await admin.from('deposit_settings').upsert(row);
   if (error) throw new Error(error.message);

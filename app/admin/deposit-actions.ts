@@ -12,7 +12,12 @@ import {
   sendTelegramTest,
   type DepositSettings,
 } from '@/lib/telegram';
-import { fetchRecentDeposits, matchDeposit } from '@/lib/openbanking';
+import {
+  fetchRecentDeposits,
+  matchDeposit,
+  buildOpenbankingAuthorizeUrl,
+  fetchOpenbankingAccounts,
+} from '@/lib/openbanking';
 
 export type PendingDeposit = {
   id: string;
@@ -48,6 +53,26 @@ export async function updateDepositSettings(patch: Partial<DepositSettings>) {
 export async function testTelegram() {
   await requireAdmin();
   return sendTelegramTest();
+}
+
+/**
+ * 오픈뱅킹 사용자인증 화면 주소를 만들어 돌려준다.
+ * 관리자가 이 주소로 이동해 계좌 인증을 마치면 Callback URL로 code가 돌아온다.
+ */
+export async function getOpenbankingAuthorizeUrl() {
+  await requireAdmin();
+  const s = await getDepositSettings();
+  if (!s.openbankingClientId || !s.openbankingRedirectUri) {
+    return { ok: false as const, error: 'client_id와 Callback URL을 먼저 저장해주세요.' };
+  }
+  const state = Math.random().toString(36).slice(2, 14);
+  return { ok: true as const, url: buildOpenbankingAuthorizeUrl(s.openbankingClientId, s.openbankingRedirectUri, state) };
+}
+
+/** 연결된 계좌 목록 조회 — 입금받을 계좌의 핀테크이용번호를 고르기 위함. */
+export async function listOpenbankingAccounts() {
+  await requireAdmin();
+  return fetchOpenbankingAccounts();
 }
 
 /** 예약금 정책(사용 여부·금액·입금 계좌)은 site_settings에 저장. */

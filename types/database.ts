@@ -183,6 +183,12 @@ export type Database = {
           openbanking_fintech_use_num: string;
           openbanking_client_use_code: string;
           openbanking_enabled: boolean;
+          openbanking_client_id: string;
+          openbanking_client_secret: string;
+          openbanking_redirect_uri: string;
+          openbanking_refresh_token: string;
+          openbanking_user_seq_no: string;
+          openbanking_token_expires_at: string | null;
           updated_at: string;
         };
         Insert: Partial<Database['public']['Tables']['deposit_settings']['Row']>;

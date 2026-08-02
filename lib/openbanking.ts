@@ -1,4 +1,4 @@
-import { getDepositSettings } from '@/lib/telegram';
+import { getDepositSettings, saveDepositSettings } from '@/lib/telegram';
 
 // 금융결제원 오픈뱅킹 "거래내역조회(핀테크이용번호)" 어댑터.
 //   GET https://openapi.openbanking.or.kr/v2.0/account/transaction_list/fin_num
@@ -31,6 +31,137 @@ type ApiResponse = {
     after_balance_amt?: string;
   }[];
 };
+
+// ---------- OAuth (사용자인증 → 토큰 발급) ----------
+
+const AUTHORIZE_URL = 'https://openapi.openbanking.or.kr/oauth/2.0/authorize';
+const TOKEN_URL = 'https://openapi.openbanking.or.kr/oauth/2.0/token';
+
+/**
+ * 사용자인증 화면 주소.
+ * 여기서 계좌 인증을 마치면 등록해둔 Callback URL로 `code`가 붙어 돌아온다.
+ * scope는 거래내역 조회만 필요하므로 login + inquiry.
+ */
+export function buildOpenbankingAuthorizeUrl(
+  clientId: string,
+  redirectUri: string,
+  state: string
+) {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: 'login inquiry',
+    state,
+    auth_type: '0',
+  });
+  return `${AUTHORIZE_URL}?${params}`;
+}
+
+type TokenResponse = {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  user_seq_no?: string;
+  rsp_code?: string;
+  rsp_message?: string;
+};
+
+/** Callback으로 받은 code를 access_token / refresh_token으로 교환해 저장한다. */
+export async function exchangeOpenbankingCode(code: string) {
+  const s = await getDepositSettings();
+  if (!s.openbankingClientId || !s.openbankingClientSecret || !s.openbankingRedirectUri) {
+    return { ok: false as const, error: 'client_id·client_secret·Callback URL을 먼저 저장해주세요.' };
+  }
+
+  const body = new URLSearchParams({
+    code,
+    client_id: s.openbankingClientId,
+    client_secret: s.openbankingClientSecret,
+    redirect_uri: s.openbankingRedirectUri,
+    grant_type: 'authorization_code',
+  });
+
+  try {
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      cache: 'no-store',
+    });
+    const json = (await res.json()) as TokenResponse;
+    if (!json.access_token) {
+      return {
+        ok: false as const,
+        error: `${json.rsp_code ?? 'ERR'} ${json.rsp_message ?? '토큰 발급에 실패했습니다.'}`,
+      };
+    }
+
+    await saveDepositSettings({
+      openbankingAccessToken: json.access_token,
+      openbankingRefreshToken: json.refresh_token ?? '',
+      openbankingUserSeqNo: json.user_seq_no ?? '',
+      openbankingTokenExpiresAt: json.expires_in
+        ? new Date(Date.now() + json.expires_in * 1000).toISOString()
+        : null,
+    });
+
+    return { ok: true as const, userSeqNo: json.user_seq_no ?? '' };
+  } catch (err) {
+    return {
+      ok: false as const,
+      error: err instanceof Error ? err.message : '토큰 발급 중 오류가 발생했습니다.',
+    };
+  }
+}
+
+/**
+ * 등록된 계좌 목록을 조회해 핀테크이용번호(fintech_use_num) 후보를 돌려준다.
+ * 어느 계좌로 입금을 받을지 관리자 화면에서 고를 수 있게 하기 위함.
+ */
+export async function fetchOpenbankingAccounts() {
+  const s = await getDepositSettings();
+  if (!s.openbankingAccessToken || !s.openbankingUserSeqNo) {
+    return { ok: false as const, error: '먼저 오픈뱅킹 연결을 완료해주세요.' };
+  }
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/user/me?user_seq_no=${encodeURIComponent(s.openbankingUserSeqNo)}`,
+      { headers: { Authorization: `Bearer ${s.openbankingAccessToken}` }, cache: 'no-store' }
+    );
+    const json = (await res.json()) as {
+      rsp_code?: string;
+      rsp_message?: string;
+      res_list?: {
+        fintech_use_num?: string;
+        bank_name?: string;
+        account_num_masked?: string;
+        account_alias?: string;
+      }[];
+    };
+    if (json.rsp_code !== 'A0000') {
+      return {
+        ok: false as const,
+        error: `${json.rsp_code ?? 'ERR'} ${json.rsp_message ?? '계좌 조회에 실패했습니다.'}`,
+      };
+    }
+    return {
+      ok: true as const,
+      accounts: (json.res_list ?? []).map((a) => ({
+        fintechUseNum: a.fintech_use_num ?? '',
+        bankName: a.bank_name ?? '',
+        accountMasked: a.account_num_masked ?? '',
+        alias: a.account_alias ?? '',
+      })),
+    };
+  } catch (err) {
+    return {
+      ok: false as const,
+      error: err instanceof Error ? err.message : '계좌 조회 중 오류가 발생했습니다.',
+    };
+  }
+}
 
 /** 은행거래고유번호: 이용기관코드(9) + U + 일련번호(9). 요청마다 유일해야 한다. */
 function makeBankTranId(clientUseCode: string) {

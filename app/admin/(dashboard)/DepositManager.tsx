@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
   saveDepositPolicy,
   updateDepositSettings,
@@ -9,6 +9,8 @@ import {
   confirmDeposit,
   releaseUnpaidDeposit,
   syncDepositsFromBank,
+  getOpenbankingAuthorizeUrl,
+  listOpenbankingAccounts,
   type PendingDeposit,
 } from '@/app/admin/deposit-actions';
 import type { DepositSettings } from '@/lib/telegram';
@@ -70,6 +72,19 @@ export default function DepositManager({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, startTransition] = useTransition();
+  const [accounts, setAccounts] = useState<
+    { fintechUseNum: string; bankName: string; accountMasked: string; alias: string }[]
+  >([]);
+
+  // 개발자센터에 등록해야 하는 Callback URL — 현재 접속한 도메인 기준으로 만들어 보여준다.
+  const [callbackUrl, setCallbackUrl] = useState('');
+  useEffect(() => {
+    setCallbackUrl(`${window.location.origin}/admin/deposit/callback`);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ob_connected')) setMessage('오픈뱅킹 연결이 완료되었습니다.');
+    const obError = params.get('ob_error');
+    if (obError) setError(obError);
+  }, []);
 
   function run(fn: () => Promise<void>) {
     setMessage('');
@@ -320,65 +335,183 @@ export default function DepositManager({
 
       <Card
         title="오픈뱅킹 자동 입금확인 (선택)"
-        desc="금융결제원 오픈뱅킹 이용기관으로 등록해 access_token(scope=inquiry)과 핀테크이용번호를 발급받으면, '입금내역 자동조회'로 입금자명·금액을 맞춰 자동 확정할 수 있습니다. 발급 전에는 비워두고 수동 확인으로 운영하세요. 토스뱅크 계좌도 오픈뱅킹으로 조회됩니다."
+        desc="금융결제원 오픈뱅킹 이용기관으로 등록한 뒤 아래 값을 넣고 '오픈뱅킹 연결하기'를 누르면, 계좌 인증을 거쳐 토큰이 자동으로 저장됩니다. 연결 전에는 비워두고 수동 확인으로 운영하세요. 토스뱅크 계좌도 오픈뱅킹으로 조회됩니다."
       >
-        <label className="flex items-center gap-2 mb-4 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={settings.openbankingEnabled}
-            onChange={(e) => setSettings({ ...settings, openbankingEnabled: e.target.checked })}
-            className="w-4 h-4 cursor-pointer"
-          />
-          <span className="text-sm font-semibold text-gray-800">오픈뱅킹 자동조회 사용</span>
-        </label>
+        <div className="bg-blue-50 rounded-lg p-3 mb-4 text-xs text-gray-700 leading-relaxed">
+          <p className="font-semibold text-gray-900 mb-1">
+            개발자센터에 등록할 Callback URL(Redirect URL)
+          </p>
+          <code className="block bg-white rounded px-2 py-1.5 break-all text-[11px]">
+            {callbackUrl}
+          </code>
+          <p className="mt-1 text-gray-500">
+            이 주소를 그대로 등록하고, 아래 &lsquo;Callback URL&rsquo; 칸에도 같은 값을 저장하세요.
+            (https만 등록 가능)
+          </p>
+        </div>
+
         <div className="space-y-3">
-          <Field label="access_token">
-            <input
-              value={settings.openbankingAccessToken}
-              onChange={(e) =>
-                setSettings({ ...settings, openbankingAccessToken: e.target.value })
-              }
-              className={inputClass}
-            />
-          </Field>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="핀테크이용번호 (fintech_use_num)">
+            <Field label="client_id">
               <input
-                value={settings.openbankingFintechUseNum}
-                onChange={(e) =>
-                  setSettings({ ...settings, openbankingFintechUseNum: e.target.value })
-                }
+                value={settings.openbankingClientId}
+                onChange={(e) => setSettings({ ...settings, openbankingClientId: e.target.value })}
                 className={inputClass}
               />
             </Field>
-            <Field label="이용기관코드 (9자리)" hint="은행거래고유번호 생성에 사용됩니다.">
+            <Field label="client_secret">
               <input
-                value={settings.openbankingClientUseCode}
+                value={settings.openbankingClientSecret}
                 onChange={(e) =>
-                  setSettings({ ...settings, openbankingClientUseCode: e.target.value })
+                  setSettings({ ...settings, openbankingClientSecret: e.target.value })
                 }
                 className={inputClass}
               />
             </Field>
           </div>
+          <Field label="Callback URL" hint="개발자센터에 등록한 값과 정확히 같아야 합니다.">
+            <input
+              value={settings.openbankingRedirectUri}
+              onChange={(e) => setSettings({ ...settings, openbankingRedirectUri: e.target.value })}
+              placeholder={callbackUrl}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="이용기관코드 (9자리)" hint="은행거래고유번호 생성에 사용됩니다.">
+            <input
+              value={settings.openbankingClientUseCode}
+              onChange={(e) =>
+                setSettings({ ...settings, openbankingClientUseCode: e.target.value })
+              }
+              className={inputClass}
+            />
+          </Field>
         </div>
-        <button
-          onClick={() =>
-            run(async () => {
-              await updateDepositSettings({
-                openbankingAccessToken: settings.openbankingAccessToken,
-                openbankingFintechUseNum: settings.openbankingFintechUseNum,
-                openbankingClientUseCode: settings.openbankingClientUseCode,
-                openbankingEnabled: settings.openbankingEnabled,
-              });
-              setMessage('오픈뱅킹 설정을 저장했습니다.');
-            })
-          }
-          disabled={busy}
-          className="mt-4 px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
-        >
-          저장하기
-        </button>
+
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            onClick={() =>
+              run(async () => {
+                await updateDepositSettings({
+                  openbankingClientId: settings.openbankingClientId,
+                  openbankingClientSecret: settings.openbankingClientSecret,
+                  openbankingRedirectUri: settings.openbankingRedirectUri,
+                  openbankingClientUseCode: settings.openbankingClientUseCode,
+                });
+                setMessage('오픈뱅킹 설정을 저장했습니다.');
+              })
+            }
+            disabled={busy}
+            className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            저장하기
+          </button>
+          <button
+            onClick={() =>
+              run(async () => {
+                const res = await getOpenbankingAuthorizeUrl();
+                if (!res.ok) {
+                  setError(res.error);
+                  return;
+                }
+                window.location.href = res.url;
+              })
+            }
+            disabled={busy}
+            className="px-6 py-2 bg-slate-800 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            오픈뱅킹 연결하기
+          </button>
+        </div>
+
+        <div className="border-t mt-5 pt-5">
+          <p className="text-xs text-gray-500 mb-2">
+            연결 상태:{' '}
+            {settings.openbankingAccessToken ? (
+              <strong className="text-primary">연결됨</strong>
+            ) : (
+              <strong className="text-gray-400">미연결</strong>
+            )}
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button
+              onClick={() =>
+                run(async () => {
+                  const res = await listOpenbankingAccounts();
+                  if (!res.ok) {
+                    setError(res.error);
+                    return;
+                  }
+                  setAccounts(res.accounts);
+                  setMessage(`계좌 ${res.accounts.length}건을 불러왔습니다.`);
+                })
+              }
+              disabled={busy || !settings.openbankingAccessToken}
+              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold !rounded-button hover:bg-gray-50 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              등록된 계좌 불러오기
+            </button>
+          </div>
+
+          {accounts.length > 0 && (
+            <div className="space-y-1 mb-3">
+              {accounts.map((a) => (
+                <button
+                  key={a.fintechUseNum}
+                  onClick={() =>
+                    setSettings({ ...settings, openbankingFintechUseNum: a.fintechUseNum })
+                  }
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all cursor-pointer ${
+                    settings.openbankingFintechUseNum === a.fintechUseNum
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 hover:border-primary'
+                  }`}
+                >
+                  <span className="font-semibold text-gray-900">{a.bankName}</span>{' '}
+                  <span className="text-gray-600">{a.accountMasked}</span>
+                  {a.alias && <span className="text-gray-400 text-xs"> · {a.alias}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Field label="입금받을 계좌 (fintech_use_num)">
+            <input
+              value={settings.openbankingFintechUseNum}
+              onChange={(e) =>
+                setSettings({ ...settings, openbankingFintechUseNum: e.target.value })
+              }
+              className={inputClass}
+            />
+          </Field>
+
+          <label className="flex items-center gap-2 mt-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.openbankingEnabled}
+              onChange={(e) => setSettings({ ...settings, openbankingEnabled: e.target.checked })}
+              className="w-4 h-4 cursor-pointer"
+            />
+            <span className="text-sm font-semibold text-gray-800">오픈뱅킹 자동조회 사용</span>
+          </label>
+
+          <button
+            onClick={() =>
+              run(async () => {
+                await updateDepositSettings({
+                  openbankingFintechUseNum: settings.openbankingFintechUseNum,
+                  openbankingEnabled: settings.openbankingEnabled,
+                });
+                setMessage('입금 계좌 설정을 저장했습니다.');
+              })
+            }
+            disabled={busy}
+            className="mt-4 px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            저장하기
+          </button>
+        </div>
       </Card>
     </div>
   );
