@@ -6,6 +6,7 @@ import { sendKakaoNotification } from '@/lib/kakao';
 import { sendCustomerReservationAlimtalk } from '@/lib/aligo';
 import { ZONE_TYPE_LABELS, type ZoneType } from '@/lib/cabana-pricing';
 import { todaySeoul } from '@/lib/date';
+import { sendTelegramNotification } from '@/lib/telegram';
 import type { Database } from '@/types/database';
 
 type TimeType = '주간' | '야간' | '종일';
@@ -27,6 +28,49 @@ async function getCabanaGuestPolicy(supabase: SupabaseAdmin) {
     extraFee: Number(map.cabana_guest_extra_fee) || 3000,
     maxCount: Number(map.cabana_guest_max_count) || 6,
   };
+}
+
+// 자리를 직접 지정한 예약에 받는 노쇼 방지 예약금 정책.
+// 관리자 "예약금 · 입금확인" 화면에서 site_settings로 설정한다.
+export type DepositPolicy = {
+  enabled: boolean;
+  amount: number;
+  bankName: string;
+  accountNo: string;
+  holder: string;
+  guide: string;
+};
+
+async function getDepositPolicy(supabase: SupabaseAdmin): Promise<DepositPolicy> {
+  const { data } = await supabase
+    .from('site_settings')
+    .select('key,value')
+    .in('key', [
+      'deposit_enabled',
+      'deposit_amount',
+      'deposit_bank_name',
+      'deposit_account_no',
+      'deposit_holder',
+      'deposit_guide',
+    ]);
+
+  const map = Object.fromEntries((data ?? []).map((s) => [s.key, s.value]));
+  const bankName = map.deposit_bank_name ?? '';
+  const accountNo = map.deposit_account_no ?? '';
+  return {
+    // 계좌 정보가 없으면 안내할 수 없으므로 켜져 있어도 비활성으로 본다.
+    enabled: map.deposit_enabled === 'true' && !!bankName && !!accountNo,
+    amount: Number(map.deposit_amount) || 10000,
+    bankName,
+    accountNo,
+    holder: map.deposit_holder ?? '',
+    guide: map.deposit_guide ?? '',
+  };
+}
+
+/** 공개 예약 폼에서 예약금 안내를 노출하기 위해 정책만 조회. */
+export async function getCabanaDepositPolicy(): Promise<DepositPolicy> {
+  return getDepositPolicy(createAdminClient());
 }
 
 function zoneLabel(zoneType: string) {
@@ -198,16 +242,22 @@ export type ReservedItem = {
   cabanaNo: number;
   reservationNo: string;
   price: number;
+  /** 자리를 지정해 예약금 입금이 필요한 항목 */
+  depositRequired: boolean;
 };
 
 // 장바구니(여러 상품)를 한 번에 예약. 각 항목마다 zone_type 내에서 빈 슬롯을 자동 배정하고,
 // 같은 요청 안에서 먼저 배정된 슬롯과도 충돌하지 않도록 순차 처리한다.
 export async function createCabanaReservation(
   formData: FormData
-): Promise<{ ok: true; items: ReservedItem[] } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; items: ReservedItem[]; deposit: DepositPolicy | null; depositTotal: number }
+  | { ok: false; error: string }
+> {
   const reservationDate = String(formData.get('reservationDate') ?? '').trim();
   const name = String(formData.get('name') ?? '').trim();
   const phone = String(formData.get('phone') ?? '').trim();
+  const depositorName = String(formData.get('depositorName') ?? '').trim();
   const isCamping = formData.get('isCamping') === 'true';
   const hasAdmission = isCamping || formData.get('hasAdmission') === 'true';
 
@@ -225,7 +275,10 @@ export async function createCabanaReservation(
     return { ok: false, error: '예약할 상품을 1개 이상 추가해주세요.' };
 
   const supabase = createAdminClient();
-  const guestPolicy = await getCabanaGuestPolicy(supabase);
+  const [guestPolicy, depositPolicy] = await Promise.all([
+    getCabanaGuestPolicy(supabase),
+    getDepositPolicy(supabase),
+  ]);
 
   const { data: zones } = await supabase
     .from('cabana_zones')
@@ -314,6 +367,9 @@ export async function createCabanaReservation(
     while (usedNos.has(reservationNo)) reservationNo = generateReservationNo(reservationDate);
     usedNos.add(reservationNo);
 
+    // 자리를 직접 지정한 항목만 노쇼 방지 예약금 대상.
+    const needsDeposit = depositPolicy.enabled && wantedNo > 0;
+
     rows.push({
       reservation_no: reservationNo,
       reservation_date: reservationDate,
@@ -326,6 +382,9 @@ export async function createCabanaReservation(
       is_camping: isCamping,
       has_admission: hasAdmission,
       price_override: price,
+      deposit_status: needsDeposit ? 'pending' : 'none',
+      deposit_amount: needsDeposit ? depositPolicy.amount : 0,
+      depositor_name: needsDeposit ? depositorName || name : '',
     });
     items.push({
       zoneLabel: zoneLabel(zone),
@@ -334,6 +393,7 @@ export async function createCabanaReservation(
       cabanaNo: assigned,
       reservationNo,
       price,
+      depositRequired: needsDeposit,
     });
   }
 
@@ -341,6 +401,7 @@ export async function createCabanaReservation(
   if (error) return { ok: false, error: '예약 처리 중 오류가 발생했습니다. 다시 시도해주세요.' };
 
   const totalPrice = items.reduce((sum, it) => sum + it.price, 0);
+  const depositTotal = items.filter((it) => it.depositRequired).length * depositPolicy.amount;
   const summaryLabel =
     items.length === 1
       ? `${items[0].zoneLabel}${items[0].hasTimeType ? ` ${items[0].timeType}` : ''}`
@@ -358,9 +419,26 @@ export async function createCabanaReservation(
           `- ${it.zoneLabel}${it.hasTimeType ? ` ${it.timeType}` : ''} · ${it.cabanaNo}번 · ${it.price.toLocaleString('ko-KR')}원 (예약번호 ${it.reservationNo})`
       ),
       '',
-      `합계: ${totalPrice.toLocaleString('ko-KR')}원 (현장 배정은 선착순)`,
+      `합계: ${totalPrice.toLocaleString('ko-KR')}원`,
+      ...(depositTotal > 0
+        ? [`예약금 입금대기: ${depositTotal.toLocaleString('ko-KR')}원 (입금자명 ${depositorName || name})`]
+        : []),
     ].join('\n')
   );
+
+  // 예약금 대상이면 관리자 텔레그램으로도 즉시 알린다(입금 확인이 필요한 건이므로).
+  if (depositTotal > 0) {
+    await sendTelegramNotification(
+      [
+        '💰 <b>예약금 입금 대기</b>',
+        `${name}님 · ${summaryLabel}`,
+        `예약일자: ${reservationDate}`,
+        `입금자명: ${depositorName || name}`,
+        `입금 예정액: ${depositTotal.toLocaleString('ko-KR')}원`,
+        `예약번호: ${items.map((it) => it.reservationNo).join(', ')}`,
+      ].join('\n')
+    );
+  }
 
   await sendCustomerReservationAlimtalk(phone, {
     name,
@@ -370,5 +448,11 @@ export async function createCabanaReservation(
   });
 
   revalidatePath('/admin/cabana-reservations');
-  return { ok: true, items };
+  revalidatePath('/admin/deposit');
+  return {
+    ok: true,
+    items,
+    deposit: depositTotal > 0 ? depositPolicy : null,
+    depositTotal,
+  };
 }

@@ -23,6 +23,12 @@ export const ADMIN_PAGES = [
     label: '방문/매출 현황',
     icon: 'ri-line-chart-line',
   },
+  {
+    key: 'deposit',
+    href: '/admin/deposit',
+    label: '예약금 · 입금확인',
+    icon: 'ri-bank-card-line',
+  },
   { key: 'gallery', href: '/admin/gallery', label: '포토갤러리 관리', icon: 'ri-image-line' },
   {
     key: 'site-images',

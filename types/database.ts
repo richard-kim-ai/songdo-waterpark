@@ -69,6 +69,12 @@ export type Database = {
           is_no_show: boolean; // 노쇼(미방문): 판매 집계에서 매출·건수 제외
           is_visited: boolean; // 방문 완료(체크인): 확정 매출로 집계
           is_walk_in: boolean; // 현장배정(워크인): 예약 없이 방문, 이름 대신 일일 순번 부여
+          // 자리 지정 예약의 노쇼 방지 예약금
+          deposit_status: 'none' | 'pending' | 'paid' | 'refunded';
+          deposit_amount: number;
+          depositor_name: string;
+          deposit_paid_at: string | null;
+          deposit_tx_ref: string | null;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;
@@ -166,6 +172,21 @@ export type Database = {
         };
         Insert: Partial<Database['public']['Tables']['aligo_notify_settings']['Row']>;
         Update: Partial<Database['public']['Tables']['aligo_notify_settings']['Row']>;
+        Relationships: [];
+      };
+      deposit_settings: {
+        Row: {
+          id: number;
+          telegram_bot_token: string;
+          telegram_chat_id: string;
+          openbanking_access_token: string;
+          openbanking_fintech_use_num: string;
+          openbanking_client_use_code: string;
+          openbanking_enabled: boolean;
+          updated_at: string;
+        };
+        Insert: Partial<Database['public']['Tables']['deposit_settings']['Row']>;
+        Update: Partial<Database['public']['Tables']['deposit_settings']['Row']>;
         Relationships: [];
       };
       inquiries: {

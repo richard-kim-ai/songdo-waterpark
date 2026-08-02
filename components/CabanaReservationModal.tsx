@@ -6,8 +6,10 @@ import {
   createCabanaReservation,
   lookupCabanaReservationsByPhone,
   cancelCabanaReservationByPhone,
+  getCabanaDepositPolicy,
   type CabanaProduct,
   type ReservedItem,
+  type DepositPolicy,
 } from '@/app/cabana-reservation/actions';
 import { todaySeoul } from '@/lib/date';
 import ImageCarousel from './ImageCarousel';
@@ -110,6 +112,17 @@ function ReservationModal({
   const [result, setResult] = useState<ReservedItem[] | null>(null);
   const [pending, startTransition] = useTransition();
   const [showLookup, setShowLookup] = useState(false);
+  // 노쇼 방지 예약금: 자리를 직접 지정한 항목에만 적용된다.
+  const [depositPolicy, setDepositPolicy] = useState<DepositPolicy | null>(null);
+  const [depositorName, setDepositorName] = useState('');
+  const [resultDeposit, setResultDeposit] = useState<{
+    policy: DepositPolicy;
+    total: number;
+  } | null>(null);
+
+  useEffect(() => {
+    getCabanaDepositPolicy().then((p) => setDepositPolicy(p.enabled ? p : null));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -227,6 +240,10 @@ function ReservationModal({
   const totalPrice = cart.reduce((sum, line) => sum + linePrice(line), 0);
   const canAdd = !!selectedProduct && remainingFor(selectedProduct) > 0;
 
+  // 자리를 지정한 항목 수 × 예약금
+  const depositLines = cart.filter((c) => c.cabanaNo > 0).length;
+  const depositTotal = depositPolicy ? depositLines * depositPolicy.amount : 0;
+
   function handleSubmit() {
     setError('');
     if (cart.length === 0) {
@@ -244,6 +261,7 @@ function ReservationModal({
       fd.set('phone', phone.trim());
       fd.set('isCamping', String(isCamping));
       fd.set('hasAdmission', String(hasAdmission));
+      fd.set('depositorName', depositorName.trim());
       fd.set(
         'cart',
         JSON.stringify(
@@ -259,6 +277,7 @@ function ReservationModal({
       const res = await createCabanaReservation(fd);
       if (res.ok) {
         setResult(res.items);
+        setResultDeposit(res.deposit ? { policy: res.deposit, total: res.depositTotal } : null);
       } else {
         setError(res.error);
       }
@@ -315,9 +334,32 @@ function ReservationModal({
               <span className="font-bold text-gray-900">합계</span>
               <span className="font-bold text-lg text-primary">{won(resultTotal)}</span>
             </div>
-            <p className="text-xs text-gray-500 text-center">
-              위에 표시된 자리 번호로 배정되었습니다. 예약번호를 가지고 현장에서 결제해주세요.
-            </p>
+            {resultDeposit ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+                <p className="font-bold text-amber-900 mb-2">
+                  예약금 {won(resultDeposit.total)}을 입금해주세요
+                </p>
+                <div className="bg-white rounded-lg px-3 py-2 space-y-0.5">
+                  <p className="font-bold text-gray-900">
+                    {resultDeposit.policy.bankName} {resultDeposit.policy.accountNo}
+                  </p>
+                  {resultDeposit.policy.holder && (
+                    <p className="text-gray-600 text-xs">예금주 {resultDeposit.policy.holder}</p>
+                  )}
+                  <p className="text-gray-600 text-xs">
+                    입금자명 <strong className="text-gray-900">{depositorName.trim() || name}</strong>
+                  </p>
+                </div>
+                <p className="text-xs text-amber-800 mt-2 leading-relaxed whitespace-pre-line">
+                  {resultDeposit.policy.guide ||
+                    '입금이 확인되면 예약이 확정되고 안내 메시지를 보내드립니다.'}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 text-center">
+                위에 표시된 자리 번호로 배정되었습니다. 예약번호를 가지고 현장에서 결제해주세요.
+              </p>
+            )}
             <button
               onClick={onClose}
               className="w-full px-6 py-3 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
@@ -358,6 +400,21 @@ function ReservationModal({
                   </div>
                 ))}
               </div>
+
+              {/* 배치도를 먼저 보고 상품·자리를 고르도록 이용권 종류 위에 배치. */}
+              {diagramUrls.filter(Boolean).length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    배치도 (이미지를 누르면 크게 볼 수 있어요)
+                  </label>
+                  <ImageCarousel
+                    images={diagramUrls}
+                    alt="평상&케노피 배치도"
+                    className="bg-blue-50 rounded-lg overflow-hidden aspect-video"
+                    imgClassName="w-full h-full object-contain"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -421,19 +478,6 @@ function ReservationModal({
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
                     자리 번호 선택 ({selectedProduct.zoneLabel})
                   </label>
-                  {diagramUrls.filter(Boolean).length > 0 && (
-                    <div className="mb-2">
-                      <ImageCarousel
-                        images={diagramUrls}
-                        alt="평상&케노피 배치도"
-                        className="bg-blue-50 rounded-lg overflow-hidden aspect-video"
-                        imgClassName="w-full h-full object-contain"
-                      />
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        이미지를 누르면 크게 볼 수 있어요.
-                      </p>
-                    </div>
-                  )}
                   <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5">
                     <button
                       type="button"
@@ -555,6 +599,28 @@ function ReservationModal({
                 <span className="text-sm text-gray-500">예상 결제 금액</span>
                 <span className="font-bold text-lg text-primary">{won(totalPrice)}</span>
               </div>
+
+              {/* 자리를 지정한 항목이 있으면 노쇼 방지 예약금을 안내하고 입금자명을 받는다. */}
+              {depositPolicy && depositTotal > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-amber-900">
+                      자리 지정 예약금 ({depositLines}자리)
+                    </span>
+                    <span className="font-bold text-amber-900">{won(depositTotal)}</span>
+                  </div>
+                  <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                    예약 후 안내되는 계좌로 예약금을 입금해주시면 자리가 확정됩니다. 입금이 확인되면
+                    안내 메시지를 보내드립니다.
+                  </p>
+                  <input
+                    value={depositorName}
+                    onChange={(e) => setDepositorName(e.target.value)}
+                    placeholder={`입금자명 (비워두면 ${name.trim() || '예약자 성함'})`}
+                    className="w-full mt-2 px-3 py-2 border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 text-sm text-gray-700">
                 <label className="flex items-center gap-2 cursor-pointer">
