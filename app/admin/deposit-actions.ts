@@ -66,7 +66,16 @@ export async function getOpenbankingAuthorizeUrl() {
     return { ok: false as const, error: 'client_id와 Callback URL을 먼저 저장해주세요.' };
   }
   const state = Math.random().toString(36).slice(2, 14);
-  return { ok: true as const, url: buildOpenbankingAuthorizeUrl(s.openbankingClientId, s.openbankingRedirectUri, state) };
+  return {
+    ok: true as const,
+    url: buildOpenbankingAuthorizeUrl({
+      clientId: s.openbankingClientId,
+      redirectUri: s.openbankingRedirectUri,
+      state,
+      scope: s.openbankingScope,
+      useTest: s.openbankingUseTest,
+    }),
+  };
 }
 
 /** 연결된 계좌 목록 조회 — 입금받을 계좌의 핀테크이용번호를 고르기 위함. */

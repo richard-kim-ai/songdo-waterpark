@@ -189,6 +189,8 @@ export type Database = {
           openbanking_refresh_token: string;
           openbanking_user_seq_no: string;
           openbanking_token_expires_at: string | null;
+          openbanking_use_test: boolean;
+          openbanking_scope: string;
           updated_at: string;
         };
         Insert: Partial<Database['public']['Tables']['deposit_settings']['Row']>;

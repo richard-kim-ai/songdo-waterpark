@@ -6,7 +6,16 @@ import { getDepositSettings, saveDepositSettings } from '@/lib/telegram';
 // 동작한다. 발급 전에는 openbanking_enabled=false 상태로 두고 수동 확인으로 운영한다.
 //
 // 토스뱅크 계좌도 오픈뱅킹 참가기관이므로 이 API로 조회된다(토스뱅크 자체 공개 API는 없음).
-const BASE_URL = 'https://openapi.openbanking.or.kr/v2.0';
+// 테스트베드와 운영은 도메인이 다르고 client_id·이용기관코드도 서로 다르다.
+// 조합이 어긋나면 authorize 단계에서 "인증요청거부-인증 파라미터 오류"로 거부된다.
+const HOSTS = {
+  test: 'https://testapi.openbanking.or.kr',
+  prod: 'https://openapi.openbanking.or.kr',
+} as const;
+
+export function openbankingHost(useTest: boolean) {
+  return useTest ? HOSTS.test : HOSTS.prod;
+}
 
 export type BankTransaction = {
   /** 거래 식별용 키 — 같은 입금이 두 번 매칭되지 않도록 예약에 저장한다. */
@@ -34,28 +43,27 @@ type ApiResponse = {
 
 // ---------- OAuth (사용자인증 → 토큰 발급) ----------
 
-const AUTHORIZE_URL = 'https://openapi.openbanking.or.kr/oauth/2.0/authorize';
-const TOKEN_URL = 'https://openapi.openbanking.or.kr/oauth/2.0/token';
-
 /**
  * 사용자인증 화면 주소.
  * 여기서 계좌 인증을 마치면 등록해둔 Callback URL로 `code`가 붙어 돌아온다.
- * scope는 거래내역 조회만 필요하므로 login + inquiry.
+ * scope는 이용기관이 신청한 서비스와 일치해야 하며, 거래내역 조회만 쓰면 'login inquiry'.
  */
-export function buildOpenbankingAuthorizeUrl(
-  clientId: string,
-  redirectUri: string,
-  state: string
-) {
+export function buildOpenbankingAuthorizeUrl(opts: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  scope: string;
+  useTest: boolean;
+}) {
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    scope: 'login inquiry',
-    state,
+    client_id: opts.clientId,
+    redirect_uri: opts.redirectUri,
+    scope: opts.scope,
+    state: opts.state,
     auth_type: '0',
   });
-  return `${AUTHORIZE_URL}?${params}`;
+  return `${openbankingHost(opts.useTest)}/oauth/2.0/authorize?${params}`;
 }
 
 type TokenResponse = {
@@ -71,7 +79,10 @@ type TokenResponse = {
 export async function exchangeOpenbankingCode(code: string) {
   const s = await getDepositSettings();
   if (!s.openbankingClientId || !s.openbankingClientSecret || !s.openbankingRedirectUri) {
-    return { ok: false as const, error: 'client_id·client_secret·Callback URL을 먼저 저장해주세요.' };
+    return {
+      ok: false as const,
+      error: 'client_id·client_secret·Callback URL을 먼저 저장해주세요.',
+    };
   }
 
   const body = new URLSearchParams({
@@ -83,7 +94,7 @@ export async function exchangeOpenbankingCode(code: string) {
   });
 
   try {
-    const res = await fetch(TOKEN_URL, {
+    const res = await fetch(`${openbankingHost(s.openbankingUseTest)}/oauth/2.0/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
@@ -127,8 +138,11 @@ export async function fetchOpenbankingAccounts() {
 
   try {
     const res = await fetch(
-      `${BASE_URL}/user/me?user_seq_no=${encodeURIComponent(s.openbankingUserSeqNo)}`,
-      { headers: { Authorization: `Bearer ${s.openbankingAccessToken}` }, cache: 'no-store' }
+      `${openbankingHost(s.openbankingUseTest)}/v2.0/user/me?user_seq_no=${encodeURIComponent(s.openbankingUserSeqNo)}`,
+      {
+        headers: { Authorization: `Bearer ${s.openbankingAccessToken}` },
+        cache: 'no-store',
+      },
     );
     const json = (await res.json()) as {
       rsp_code?: string;
@@ -178,7 +192,7 @@ function yyyymmdd(d: Date) {
  * 설정이 없거나 비활성이면 `configured: false`로 조용히 반환 — 호출부가 수동 확인으로 넘어간다.
  */
 export async function fetchRecentDeposits(
-  days = 3
+  days = 3,
 ): Promise<
   | { configured: false }
   | { configured: true; ok: true; transactions: BankTransaction[] }
@@ -203,10 +217,13 @@ export async function fetchRecentDeposits(
   });
 
   try {
-    const res = await fetch(`${BASE_URL}/account/transaction_list/fin_num?${params}`, {
-      headers: { Authorization: `Bearer ${s.openbankingAccessToken}` },
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `${openbankingHost(s.openbankingUseTest)}/v2.0/account/transaction_list/fin_num?${params}`,
+      {
+        headers: { Authorization: `Bearer ${s.openbankingAccessToken}` },
+        cache: 'no-store',
+      },
+    );
     const json = (await res.json()) as ApiResponse;
 
     // 정상 응답코드는 A0000. 그 외에는 사유를 그대로 올려 관리자 화면에 보여준다.
@@ -258,7 +275,7 @@ export function normalizeDepositorName(v: string) {
 export function matchDeposit(
   pending: { depositorName: string; depositAmount: number },
   transactions: BankTransaction[],
-  usedRefs: Set<string>
+  usedRefs: Set<string>,
 ) {
   const wanted = normalizeDepositorName(pending.depositorName);
   if (!wanted) return null;
@@ -267,7 +284,7 @@ export function matchDeposit(
       (t) =>
         !usedRefs.has(t.ref) &&
         t.amount >= pending.depositAmount &&
-        normalizeDepositorName(t.printedContent).includes(wanted)
+        normalizeDepositorName(t.printedContent).includes(wanted),
     ) ?? null
   );
 }

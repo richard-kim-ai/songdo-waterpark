@@ -26,7 +26,15 @@ type Policy = {
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
-function Card({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+function Card({
+  title,
+  desc,
+  children,
+}: {
+  title: string;
+  desc?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="bg-white rounded-xl shadow p-4 md:p-6 mb-6">
       <h2 className="font-bold text-gray-900 mb-1">{title}</h2>
@@ -73,7 +81,12 @@ export default function DepositManager({
   const [error, setError] = useState('');
   const [busy, startTransition] = useTransition();
   const [accounts, setAccounts] = useState<
-    { fintechUseNum: string; bankName: string; accountMasked: string; alias: string }[]
+    {
+      fintechUseNum: string;
+      bankName: string;
+      accountMasked: string;
+      alias: string;
+    }[]
   >([]);
 
   // 개발자센터에 등록해야 하는 Callback URL — 현재 접속한 도메인 기준으로 만들어 보여준다.
@@ -103,9 +116,7 @@ export default function DepositManager({
   return (
     <div>
       {(message || error) && (
-        <p
-          className={`mb-4 text-sm font-semibold ${error ? 'text-red-600' : 'text-primary'}`}
-        >
+        <p className={`mb-4 text-sm font-semibold ${error ? 'text-red-600' : 'text-primary'}`}>
           {error || message}
         </p>
       )}
@@ -127,7 +138,7 @@ export default function DepositManager({
                 setMessage(
                   res.matched.length > 0
                     ? `입금 ${res.matched.length}건 자동 확인: ${res.matched.join(', ')}`
-                    : `조회된 입금 ${res.checked}건 중 매칭되는 예약이 없습니다.`
+                    : `조회된 입금 ${res.checked}건 중 매칭되는 예약이 없습니다.`,
                 );
               })
             }
@@ -179,7 +190,11 @@ export default function DepositManager({
                   </button>
                   <button
                     onClick={() => {
-                      if (!confirm(`${p.name}님 예약(${p.reservationNo})을 취소하고 자리를 반환할까요?`))
+                      if (
+                        !confirm(
+                          `${p.name}님 예약(${p.reservationNo})을 취소하고 자리를 반환할까요?`,
+                        )
+                      )
                         return;
                       run(async () => {
                         await releaseUnpaidDeposit(p.id);
@@ -350,12 +365,47 @@ export default function DepositManager({
           </p>
         </div>
 
+        <div className="flex gap-2 mb-4">
+          {[
+            {
+              test: true,
+              label: '테스트베드',
+              host: 'testapi.openbanking.or.kr',
+            },
+            { test: false, label: '운영', host: 'openapi.openbanking.or.kr' },
+          ].map((env) => (
+            <button
+              key={env.label}
+              type="button"
+              onClick={() => setSettings({ ...settings, openbankingUseTest: env.test })}
+              className={`flex-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                settings.openbankingUseTest === env.test
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary'
+              }`}
+            >
+              {env.label}
+              <span className="block text-[10px] font-normal opacity-70">{env.host}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+          개발자센터에서 <strong>테스트용 앱</strong>으로 등록했으면 «테스트베드», 이용기관 심사를
+          마친 <strong>운영 앱</strong>이면 «운영»을 고르세요. client_id와 이용기관코드가 서로 달라
+          잘못 조합하면 <code>인증요청거부-인증 파라미터 오류</code>가 납니다.
+        </p>
+
         <div className="space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="client_id">
               <input
                 value={settings.openbankingClientId}
-                onChange={(e) => setSettings({ ...settings, openbankingClientId: e.target.value })}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    openbankingClientId: e.target.value,
+                  })
+                }
                 className={inputClass}
               />
             </Field>
@@ -363,7 +413,10 @@ export default function DepositManager({
               <input
                 value={settings.openbankingClientSecret}
                 onChange={(e) =>
-                  setSettings({ ...settings, openbankingClientSecret: e.target.value })
+                  setSettings({
+                    ...settings,
+                    openbankingClientSecret: e.target.value,
+                  })
                 }
                 className={inputClass}
               />
@@ -372,20 +425,41 @@ export default function DepositManager({
           <Field label="Callback URL" hint="개발자센터에 등록한 값과 정확히 같아야 합니다.">
             <input
               value={settings.openbankingRedirectUri}
-              onChange={(e) => setSettings({ ...settings, openbankingRedirectUri: e.target.value })}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  openbankingRedirectUri: e.target.value,
+                })
+              }
               placeholder={callbackUrl}
               className={inputClass}
             />
           </Field>
-          <Field label="이용기관코드 (9자리)" hint="은행거래고유번호 생성에 사용됩니다.">
-            <input
-              value={settings.openbankingClientUseCode}
-              onChange={(e) =>
-                setSettings({ ...settings, openbankingClientUseCode: e.target.value })
-              }
-              className={inputClass}
-            />
-          </Field>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="이용기관코드 (9자리)" hint="은행거래고유번호 생성에 사용됩니다.">
+              <input
+                value={settings.openbankingClientUseCode}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    openbankingClientUseCode: e.target.value,
+                  })
+                }
+                className={inputClass}
+              />
+            </Field>
+            <Field
+              label="scope"
+              hint="이용기관이 신청한 서비스와 같아야 합니다. 조회만 쓰면 login inquiry."
+            >
+              <input
+                value={settings.openbankingScope}
+                onChange={(e) => setSettings({ ...settings, openbankingScope: e.target.value })}
+                placeholder="login inquiry"
+                className={inputClass}
+              />
+            </Field>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4">
@@ -397,6 +471,8 @@ export default function DepositManager({
                   openbankingClientSecret: settings.openbankingClientSecret,
                   openbankingRedirectUri: settings.openbankingRedirectUri,
                   openbankingClientUseCode: settings.openbankingClientUseCode,
+                  openbankingUseTest: settings.openbankingUseTest,
+                  openbankingScope: settings.openbankingScope,
                 });
                 setMessage('오픈뱅킹 설정을 저장했습니다.');
               })
@@ -460,7 +536,10 @@ export default function DepositManager({
                 <button
                   key={a.fintechUseNum}
                   onClick={() =>
-                    setSettings({ ...settings, openbankingFintechUseNum: a.fintechUseNum })
+                    setSettings({
+                      ...settings,
+                      openbankingFintechUseNum: a.fintechUseNum,
+                    })
                   }
                   className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all cursor-pointer ${
                     settings.openbankingFintechUseNum === a.fintechUseNum
@@ -480,7 +559,10 @@ export default function DepositManager({
             <input
               value={settings.openbankingFintechUseNum}
               onChange={(e) =>
-                setSettings({ ...settings, openbankingFintechUseNum: e.target.value })
+                setSettings({
+                  ...settings,
+                  openbankingFintechUseNum: e.target.value,
+                })
               }
               className={inputClass}
             />
@@ -490,7 +572,12 @@ export default function DepositManager({
             <input
               type="checkbox"
               checked={settings.openbankingEnabled}
-              onChange={(e) => setSettings({ ...settings, openbankingEnabled: e.target.checked })}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  openbankingEnabled: e.target.checked,
+                })
+              }
               className="w-4 h-4 cursor-pointer"
             />
             <span className="text-sm font-semibold text-gray-800">오픈뱅킹 자동조회 사용</span>
