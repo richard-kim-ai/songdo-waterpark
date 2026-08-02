@@ -360,8 +360,10 @@ export default function DepositManager({
             {callbackUrl}
           </code>
           <p className="mt-1 text-gray-500">
-            이 주소를 그대로 등록하고, 아래 &lsquo;Callback URL&rsquo; 칸에도 같은 값을 저장하세요.
-            (https만 등록 가능)
+            개발자센터에 등록한 값과 아래 &lsquo;Callback URL&rsquo; 칸의 값이{' '}
+            <strong>글자 하나까지 같아야</strong> 합니다(끝의 / 포함). 다르면 인증 파라미터 오류로
+            거부됩니다. 테스트베드는 <code>http://localhost:3000/...</code> 도 등록할 수 있고,
+            운영은 https 주소만 등록됩니다.
           </p>
         </div>
 
@@ -370,9 +372,9 @@ export default function DepositManager({
             {
               test: true,
               label: '테스트베드',
-              host: 'testapi.openbanking.or.kr',
+              host: 'developers.kftc.or.kr 에서 발급',
             },
-            { test: false, label: '운영', host: 'openapi.openbanking.or.kr' },
+            { test: false, label: '운영', host: 'openapi.kftc.or.kr 에서 발급' },
           ].map((env) => (
             <button
               key={env.label}
@@ -390,9 +392,11 @@ export default function DepositManager({
           ))}
         </div>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          개발자센터에서 <strong>테스트용 앱</strong>으로 등록했으면 «테스트베드», 이용기관 심사를
-          마친 <strong>운영 앱</strong>이면 «운영»을 고르세요. client_id와 이용기관코드가 서로 달라
-          잘못 조합하면 <code>인증요청거부-인증 파라미터 오류</code>가 납니다.
+          개발자사이트(<code>developers.kftc.or.kr</code>) → 마이페이지 →{' '}
+          <strong>테스트 정보 관리</strong> → API Key 관리에서 받은 키라면{' '}
+          <strong>테스트베드</strong>
+          입니다. 운영 키는 이용기관 심사 후 <strong>통합포털사이트</strong>에서 따로 발급됩니다.
+          client_id와 도메인 조합이 어긋나면 <code>인증요청거부-인증 파라미터 오류</code>가 납니다.
         </p>
 
         <div className="space-y-3">
@@ -450,7 +454,7 @@ export default function DepositManager({
             </Field>
             <Field
               label="scope"
-              hint="이용기관이 신청한 서비스와 같아야 합니다. 조회만 쓰면 login inquiry."
+              hint="'이용중인 서비스'에 등록된 API와 맞아야 합니다. 조회만 쓰면 login inquiry, 이체까지 등록돼 있으면 login inquiry transfer."
             >
               <input
                 value={settings.openbankingScope}
