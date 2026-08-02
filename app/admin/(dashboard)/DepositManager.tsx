@@ -391,13 +391,30 @@ export default function DepositManager({
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+        <p className="text-xs text-gray-500 mb-3 leading-relaxed">
           개발자사이트(<code>developers.kftc.or.kr</code>) → 마이페이지 →{' '}
           <strong>테스트 정보 관리</strong> → API Key 관리에서 받은 키라면{' '}
           <strong>테스트베드</strong>
           입니다. 운영 키는 이용기관 심사 후 <strong>통합포털사이트</strong>에서 따로 발급됩니다.
-          client_id와 도메인 조합이 어긋나면 <code>인증요청거부-인증 파라미터 오류</code>가 납니다.
         </p>
+
+        {/* 실제 호출로 확인한 거부 코드별 원인. 연결이 안 될 때 바로 짚을 수 있게 남겨둔다. */}
+        <div className="bg-gray-50 rounded-lg p-3 mb-4 text-[11px] text-gray-600 leading-relaxed">
+          <p className="font-semibold text-gray-800 mb-1">
+            «인증요청거부-인증 파라미터 오류» 코드별 원인
+          </p>
+          <ul className="space-y-0.5">
+            <li>
+              <code>3000201</code> — 환경 불일치. 테스트베드 키를 운영 도메인으로 보냈을 때.
+            </li>
+            <li>
+              <code>3000114</code> — Callback URL이 개발자센터 등록값과 다를 때.
+            </li>
+            <li>
+              <code>3000103</code> — state 길이 오류(32자 고정). 코드에서 자동 처리됩니다.
+            </li>
+          </ul>
+        </div>
 
         <div className="space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
