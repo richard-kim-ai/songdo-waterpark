@@ -65,13 +65,11 @@ export async function getOpenbankingAuthorizeUrl() {
   if (!s.openbankingClientId || !s.openbankingRedirectUri) {
     return { ok: false as const, error: 'client_id와 Callback URL을 먼저 저장해주세요.' };
   }
-  const state = Math.random().toString(36).slice(2, 14);
   return {
     ok: true as const,
     url: buildOpenbankingAuthorizeUrl({
       clientId: s.openbankingClientId,
       redirectUri: s.openbankingRedirectUri,
-      state,
       scope: s.openbankingScope,
       useTest: s.openbankingUseTest,
     }),

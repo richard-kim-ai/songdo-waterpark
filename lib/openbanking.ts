@@ -44,26 +44,41 @@ type ApiResponse = {
 // ---------- OAuth (사용자인증 → 토큰 발급) ----------
 
 /**
+ * CSRF 방지용 state. 오픈뱅킹 명세상 **32Byte 고정**이며,
+ * 길이가 다르면 authorize가 "인증요청거부-인증 파라미터 오류"로 거부된다.
+ */
+export function makeOpenbankingState() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let out = '';
+  for (let i = 0; i < 32; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+/**
  * 사용자인증 화면 주소.
  * 여기서 계좌 인증을 마치면 등록해둔 Callback URL로 `code`가 붙어 돌아온다.
  * scope는 이용기관이 신청한 서비스와 일치해야 하며, 거래내역 조회만 쓰면 'login inquiry'.
+ * auth_type: 0=최초인증, 1=재인증, 2=인증생략.
  */
 export function buildOpenbankingAuthorizeUrl(opts: {
   clientId: string;
   redirectUri: string;
-  state: string;
   scope: string;
   useTest: boolean;
 }) {
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: opts.clientId,
-    redirect_uri: opts.redirectUri,
-    scope: opts.scope,
-    state: opts.state,
-    auth_type: '0',
-  });
-  return `${openbankingHost(opts.useTest)}/oauth/2.0/authorize?${params}`;
+  // URLSearchParams는 공백을 '+'로 인코딩하는데, 오픈뱅킹 명세 예시는 '%20'을 쓴다.
+  // scope가 공백으로 구분되므로 encodeURIComponent로 직접 조립한다.
+  const params: [string, string][] = [
+    ['response_type', 'code'],
+    ['client_id', opts.clientId],
+    ['redirect_uri', opts.redirectUri],
+    ['scope', opts.scope.trim().replace(/\s+/g, ' ')],
+    // 명세상 32Byte 고정이라 호출부에서 넘기지 않고 여기서 항상 규격에 맞춰 만든다.
+    ['state', makeOpenbankingState()],
+    ['auth_type', '0'],
+  ];
+  const query = params.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  return `${openbankingHost(opts.useTest)}/oauth/2.0/authorize?${query}`;
 }
 
 type TokenResponse = {
