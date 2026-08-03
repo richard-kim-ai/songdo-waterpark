@@ -32,7 +32,13 @@ export default function ZoomableImage({
         className={`relative block w-full cursor-zoom-in group ${className ?? ''}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className={imgClassName ?? 'w-full h-auto'} />
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className={imgClassName ?? 'w-full h-auto'}
+        />
         {/* 모바일에는 hover가 없으므로 확대 아이콘을 항상 표시, 데스크톱은 hover 시 표시 */}
         <span className="absolute bottom-2 right-2 w-9 h-9 flex items-center justify-center bg-black/45 text-white rounded-full md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           <i className="ri-zoom-in-line text-lg"></i>
