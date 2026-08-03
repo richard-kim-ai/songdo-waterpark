@@ -45,16 +45,10 @@ export const ADMIN_PAGES = [
   },
   { key: 'usage', href: '/admin/usage', label: '사용량 & 트래픽', icon: 'ri-dashboard-line' },
   {
-    key: 'kakao',
-    href: '/admin/kakao',
-    label: '카카오톡 알림 설정',
-    icon: 'ri-kakao-talk-fill',
-  },
-  {
-    key: 'aligo',
-    href: '/admin/aligo',
-    label: '고객 알림톡 설정',
-    icon: 'ri-message-3-line',
+    key: 'notify',
+    href: '/admin/notify',
+    label: '알림 설정',
+    icon: 'ri-notification-3-line',
   },
 ] as const;
 

@@ -4,9 +4,10 @@ import { useEffect, useState, useTransition } from 'react';
 import {
   saveDepositPolicy,
   updateDepositSettings,
-  testTelegram,
   getPendingDeposits,
   confirmDeposit,
+  confirmWithoutDeposit,
+  pushReservationToTelegram,
   releaseUnpaidDeposit,
   syncDepositsFromBank,
   getOpenbankingAuthorizeUrl,
@@ -123,7 +124,7 @@ export default function DepositManager({
 
       <Card
         title="입금 대기 예약"
-        desc="고객이 자리를 지정해 예약한 건입니다. 입금이 확인되면 '입금 확인'을 눌러 예약을 확정하세요. 입금이 오지 않으면 '자리 반환'으로 예약을 취소해 다른 고객이 예약할 수 있게 합니다."
+        desc="고객이 자리를 지정해 예약한 건입니다. 입금이 확인되면 '입금 확인'을 눌러 예약을 확정하세요. 입금을 받지 않고 확정하려면 '입금 없이 확정'을 누릅니다(매출에는 잡히지 않습니다). 입금이 오지 않으면 '자리 반환'으로 예약을 취소해 다른 고객이 예약할 수 있게 합니다."
       >
         <div className="flex flex-wrap gap-2 mb-4">
           <button
@@ -174,7 +175,7 @@ export default function DepositManager({
                   {p.name} ({p.phone}) · 입금자명 <strong>{p.depositorName}</strong> ·{' '}
                   {won(p.depositAmount)}
                 </span>
-                <span className="order-2 md:order-3 flex gap-1 shrink-0">
+                <span className="order-2 md:order-3 flex flex-wrap gap-1 shrink-0">
                   <button
                     onClick={() =>
                       run(async () => {
@@ -187,6 +188,39 @@ export default function DepositManager({
                     className="px-3 py-1.5 bg-primary text-white text-xs font-semibold !rounded-button hover:bg-opacity-90 disabled:opacity-50 cursor-pointer"
                   >
                     입금 확인
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          `${p.name}님 예약(${p.reservationNo})을 입금 없이 확정할까요?\n받은 금액이 없으므로 매출에는 잡히지 않습니다.`,
+                        )
+                      )
+                        return;
+                      run(async () => {
+                        await confirmWithoutDeposit(p.id);
+                        await reloadPending();
+                        setMessage(`${p.name}님 예약을 입금 없이 확정했습니다.`);
+                      });
+                    }}
+                    disabled={busy}
+                    className="px-3 py-1.5 border border-primary text-primary text-xs font-semibold !rounded-button hover:bg-primary/5 disabled:opacity-50 cursor-pointer"
+                  >
+                    입금 없이 확정
+                  </button>
+                  <button
+                    onClick={() =>
+                      run(async () => {
+                        const res = await pushReservationToTelegram(p.id);
+                        if (res.ok) setMessage('텔레그램으로 예약 내역을 보냈습니다.');
+                        else setError(res.error);
+                      })
+                    }
+                    disabled={busy}
+                    title="이 예약 내역을 텔레그램으로 보내기"
+                    className="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-semibold !rounded-button hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                  >
+                    <i className="ri-send-plane-line"></i> 텔레그램
                   </button>
                   <button
                     onClick={() => {
@@ -294,59 +328,6 @@ export default function DepositManager({
         </button>
       </Card>
 
-      <Card
-        title="텔레그램 알림 (무료)"
-        desc="@BotFather에서 봇을 만들면 봇 토큰이 발급됩니다. 그 봇과 대화를 시작한 뒤 https://api.telegram.org/bot<토큰>/getUpdates 를 열면 chat_id를 확인할 수 있습니다. 입금 대기 발생·입금 확인 시 알림이 옵니다."
-      >
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="봇 토큰">
-            <input
-              value={settings.telegramBotToken}
-              onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
-              placeholder="123456789:AA..."
-              className={inputClass}
-            />
-          </Field>
-          <Field label="chat_id">
-            <input
-              value={settings.telegramChatId}
-              onChange={(e) => setSettings({ ...settings, telegramChatId: e.target.value })}
-              placeholder="예) 123456789"
-              className={inputClass}
-            />
-          </Field>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-4">
-          <button
-            onClick={() =>
-              run(async () => {
-                await updateDepositSettings({
-                  telegramBotToken: settings.telegramBotToken,
-                  telegramChatId: settings.telegramChatId,
-                });
-                setMessage('텔레그램 설정을 저장했습니다.');
-              })
-            }
-            disabled={busy}
-            className="px-6 py-2 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
-          >
-            저장하기
-          </button>
-          <button
-            onClick={() =>
-              run(async () => {
-                const res = await testTelegram();
-                if (res.ok) setMessage('테스트 메시지를 발송했습니다. 텔레그램을 확인해주세요.');
-                else setError(res.error);
-              })
-            }
-            disabled={busy}
-            className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold !rounded-button hover:bg-gray-50 transition-all disabled:opacity-50 cursor-pointer"
-          >
-            테스트 발송
-          </button>
-        </div>
-      </Card>
 
       <Card
         title="오픈뱅킹 자동 입금확인 (선택)"

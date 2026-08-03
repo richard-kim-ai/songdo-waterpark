@@ -70,7 +70,7 @@ export type Database = {
           is_visited: boolean; // 방문 완료(체크인): 확정 매출로 집계
           is_walk_in: boolean; // 현장배정(워크인): 예약 없이 방문, 이름 대신 일일 순번 부여
           // 자리 지정 예약의 노쇼 방지 예약금
-          deposit_status: 'none' | 'pending' | 'paid' | 'refunded' | 'forfeited';
+          deposit_status: 'none' | 'pending' | 'paid' | 'refunded' | 'forfeited' | 'waived';
           deposit_amount: number;
           depositor_name: string;
           deposit_paid_at: string | null;
