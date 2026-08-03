@@ -438,7 +438,7 @@ export async function getCabanaZoneSlotCounts(): Promise<Record<string, number>>
   await requireAdmin();
   const admin = createAdminClient();
 
-  // 반드시 DB의 cabana_zones만 근거로 삼는다. 예전에는 기본값(60/18/40)을 깔아두고
+  // 슬롯 수는 DB의 cabana_zones를 근거로 한다. 예전에는 기본값(60/18/40)을 깔아두고
   // DB 값으로 덮었는데, 상품을 삭제해도 기본값이 남아 삭제한 타입이 계속 보였다.
   const counts: Record<string, number> = {};
   const { data } = await admin.from('cabana_zones').select('zone_type, unit_count');
@@ -447,6 +447,17 @@ export async function getCabanaZoneSlotCounts(): Promise<Record<string, number>>
     // 같은 타입에 주간/야간/종일 행이 여러 개 있으므로 가장 큰 개수를 슬롯 수로 본다.
     counts[z.zone_type] = Math.max(counts[z.zone_type] ?? 0, z.unit_count ?? 0);
   }
+
+  // 상품을 삭제해도 그 타입의 기존 예약은 남는다. 화면에서 아예 안 보이면
+  // 확인·정리할 방법이 없으므로, 예약이 있는 타입은 최대 번호만큼 슬롯을 확보해 노출한다.
+  const { data: leftover } = await admin
+    .from('cabana_reservations')
+    .select('zone_type, cabana_no');
+  for (const r of leftover ?? []) {
+    if (!r.zone_type) continue;
+    counts[r.zone_type] = Math.max(counts[r.zone_type] ?? 0, r.cabana_no ?? 0);
+  }
+
   return counts;
 }
 
@@ -1135,10 +1146,14 @@ export async function getCabanaBlockStatusForDate(
   }
 
   const blockedSlots: Record<string, Set<number>> = {};
-  for (const b of blocks ?? []) (blockedSlots[b.zone_type] ??= new Set()).add(b.cabana_no);
+  for (const b of blocks ?? []) {
+    (blockedSlots[b.zone_type] ??= new Set()).add(b.cabana_no);
+    // 상품이 삭제된 타입이라도 그 날 걸어둔 예약막기가 있으면 해제할 수 있게 노출한다.
+    slotCount[b.zone_type] = Math.max(slotCount[b.zone_type] ?? 0, b.cabana_no ?? 0);
+  }
 
   const result: Record<string, { blocked: number; slotCount: number }> = {};
-  // 등록된 상품이 있는 타입만 반환한다(삭제한 타입이 "막힘 0/40"으로 남지 않도록).
+  // 상품도 없고 그 날 막아둔 것도 없는 타입은 표시하지 않는다.
   for (const zt of ZONE_TYPES) {
     if (!slotCount[zt]) continue;
     result[zt] = { blocked: blockedSlots[zt]?.size ?? 0, slotCount: slotCount[zt] };
