@@ -43,6 +43,16 @@ create table if not exists public.deposit_settings (
   constraint deposit_settings_single_row check (id = 1)
 );
 
+-- 오픈뱅킹 OAuth 연동값. 이용기관 등록 후 발급받는 값들로,
+-- 관리자 화면에서 "오픈뱅킹 연결하기"를 누르면 authorize → callback → token 순으로 채워진다.
+alter table public.deposit_settings
+  add column if not exists openbanking_client_id text not null default '',
+  add column if not exists openbanking_client_secret text not null default '',
+  add column if not exists openbanking_redirect_uri text not null default '',
+  add column if not exists openbanking_refresh_token text not null default '',
+  add column if not exists openbanking_user_seq_no text not null default '',
+  add column if not exists openbanking_token_expires_at timestamptz;
+
 insert into public.deposit_settings (id) values (1) on conflict (id) do nothing;
 
 alter table public.deposit_settings enable row level security;

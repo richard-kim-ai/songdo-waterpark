@@ -12,7 +12,12 @@ import {
   sendTelegramTest,
   type DepositSettings,
 } from '@/lib/telegram';
-import { fetchRecentDeposits, matchDeposit } from '@/lib/openbanking';
+import {
+  fetchRecentDeposits,
+  matchDeposit,
+  buildOpenbankingAuthorizeUrl,
+  fetchOpenbankingAccounts,
+} from '@/lib/openbanking';
 
 export type PendingDeposit = {
   id: string;
@@ -48,6 +53,33 @@ export async function updateDepositSettings(patch: Partial<DepositSettings>) {
 export async function testTelegram() {
   await requireAdmin();
   return sendTelegramTest();
+}
+
+/**
+ * 오픈뱅킹 사용자인증 화면 주소를 만들어 돌려준다.
+ * 관리자가 이 주소로 이동해 계좌 인증을 마치면 Callback URL로 code가 돌아온다.
+ */
+export async function getOpenbankingAuthorizeUrl() {
+  await requireAdmin();
+  const s = await getDepositSettings();
+  if (!s.openbankingClientId || !s.openbankingRedirectUri) {
+    return { ok: false as const, error: 'client_id와 Callback URL을 먼저 저장해주세요.' };
+  }
+  return {
+    ok: true as const,
+    url: buildOpenbankingAuthorizeUrl({
+      clientId: s.openbankingClientId,
+      redirectUri: s.openbankingRedirectUri,
+      scope: s.openbankingScope,
+      useTest: s.openbankingUseTest,
+    }),
+  };
+}
+
+/** 연결된 계좌 목록 조회 — 입금받을 계좌의 핀테크이용번호를 고르기 위함. */
+export async function listOpenbankingAccounts() {
+  await requireAdmin();
+  return fetchOpenbankingAccounts();
 }
 
 /** 예약금 정책(사용 여부·금액·입금 계좌)은 site_settings에 저장. */
@@ -157,6 +189,97 @@ export async function confirmDeposit(id: string, txRef?: string) {
   revalidatePath('/admin/deposit');
   revalidatePath('/admin/cabana-reservations');
   return { alreadyPaid: false as const };
+}
+
+/**
+ * 입금을 받지 않고 바로 확정 (단골·현장 협의 등).
+ * 예약은 확정되지만 받은 돈이 없으므로 'waived'로 표시해 매출에 잡히지 않게 한다.
+ */
+export async function confirmWithoutDeposit(id: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: row } = await admin
+    .from('cabana_reservations')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (!row) throw new Error('예약을 찾을 수 없습니다.');
+
+  const { error } = await admin
+    .from('cabana_reservations')
+    .update({ deposit_status: 'waived', deposit_paid_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+
+  const label = `${zoneLabel(row.zone_type)} ${row.time_type} ${row.cabana_no}번`;
+
+  await sendCustomerReservationAlimtalk(row.phone, {
+    name: row.name,
+    date: row.reservation_date,
+    timeType: label,
+    reservationNo: row.reservation_no,
+  });
+
+  await sendTelegramNotification(
+    [
+      '✅ <b>예약 확정 (입금 면제)</b>',
+      `${row.name}님 · ${label}`,
+      `예약일자: ${row.reservation_date}`,
+      `예약번호: ${row.reservation_no}`,
+      '예약금을 받지 않고 관리자가 확정했습니다.',
+    ].join('\n')
+  );
+
+  revalidatePath('/admin/deposit');
+  revalidatePath('/admin/cabana-sales');
+}
+
+/** 자리 지정 예약 내역을 관리자 텔레그램으로 즉시 보낸다(버튼으로 수동 발송). */
+export async function pushReservationToTelegram(id: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: r } = await admin
+    .from('cabana_reservations')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (!r) return { ok: false as const, error: '예약을 찾을 수 없습니다.' };
+
+  const statusLabel: Record<string, string> = {
+    none: '예약금 없음',
+    pending: '입금 대기',
+    paid: '입금 확인',
+    refunded: '환불 대상',
+    forfeited: '몰수',
+    waived: '입금 면제',
+  };
+
+  const res = await sendTelegramNotification(
+    [
+      '📋 <b>자리 지정 예약</b>',
+      `${r.name}님 (${r.phone})`,
+      `일자: ${r.reservation_date}`,
+      `상품: ${zoneLabel(r.zone_type)} ${r.time_type} · ${r.cabana_no}번`,
+      `인원: ${r.guest_count}명`,
+      `예약번호: ${r.reservation_no}`,
+      r.deposit_amount > 0
+        ? `예약금: ${r.deposit_amount.toLocaleString('ko-KR')}원 (${statusLabel[r.deposit_status] ?? r.deposit_status})`
+        : '예약금: 없음',
+      r.depositor_name ? `입금자명: ${r.depositor_name}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  );
+
+  if (!res.ok) {
+    return {
+      ok: false as const,
+      error: res.skipped ? '텔레그램 설정(봇 토큰·chat_id)을 먼저 저장해주세요.' : (res.error ?? '발송 실패'),
+    };
+  }
+  return { ok: true as const };
 }
 
 /** 입금이 오지 않아 자리를 풀 때 — 예약 자체를 삭제해 슬롯을 반환한다. */

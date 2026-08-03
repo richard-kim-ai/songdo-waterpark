@@ -148,7 +148,8 @@ export async function getCabanaAvailability(date: string) {
     supabase
       .from('cabana_reservations')
       .select('zone_type, time_type, cabana_no')
-      .eq('reservation_date', date),
+      .eq('reservation_date', date)
+      .eq('is_cancelled', false),
     getCabanaGuestPolicy(supabase),
   ]);
 
@@ -200,7 +201,9 @@ export async function cancelCabanaReservationByPhone(id: string, phone: string) 
   const supabase = createAdminClient();
   const { data: target, error: findError } = await supabase
     .from('cabana_reservations')
-    .select('id, phone, reservation_date, is_visited, is_walk_in, is_blocked')
+    .select(
+      'id, phone, reservation_date, is_visited, is_walk_in, is_blocked, is_cancelled, deposit_status, deposit_amount'
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -208,18 +211,46 @@ export async function cancelCabanaReservationByPhone(id: string, phone: string) 
   if (target.phone !== cleanPhone || target.is_walk_in || target.is_blocked) {
     return { ok: false as const, error: '취소할 수 없는 예약입니다.' };
   }
+  if (target.is_cancelled) return { ok: false as const, error: '이미 취소된 예약입니다.' };
   if (target.is_visited) {
     return { ok: false as const, error: '이미 방문 확인된 예약은 취소할 수 없습니다.' };
   }
-  if (target.reservation_date < todaySeoul()) {
+  const today = todaySeoul();
+  if (target.reservation_date < today) {
     return { ok: false as const, error: '지난 예약은 취소할 수 없습니다.' };
   }
 
-  const { error } = await supabase.from('cabana_reservations').delete().eq('id', id);
-  if (error) return { ok: false as const, error: '취소 처리에 실패했습니다. 잠시 후 다시 시도해주세요.' };
+  // 이용 당일 취소는 예약금을 돌려주지 않고 몰수(매출로 잡힘).
+  // 전날까지 취소하면 환불 대상으로 표시해 관리자가 처리한다.
+  const sameDay = target.reservation_date === today;
+  const depositPaid = target.deposit_status === 'paid';
+  const nextDepositStatus = !depositPaid
+    ? target.deposit_status
+    : sameDay
+      ? 'forfeited'
+      : 'refunded';
+
+  // 기록을 남겨야 하므로 삭제하지 않고 취소 표시만 한다(잔여 계산에서는 제외됨).
+  const { error } = await supabase
+    .from('cabana_reservations')
+    .update({
+      is_cancelled: true,
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: 'customer',
+      deposit_status: nextDepositStatus,
+    })
+    .eq('id', id);
+  if (error)
+    return { ok: false as const, error: '취소 처리에 실패했습니다. 잠시 후 다시 시도해주세요.' };
 
   revalidatePath('/admin/cabana-reservations');
-  return { ok: true as const };
+  revalidatePath('/admin/deposit');
+  return {
+    ok: true as const,
+    depositForfeited: depositPaid && sameDay,
+    depositRefundable: depositPaid && !sameDay,
+    depositAmount: depositPaid ? target.deposit_amount : 0,
+  };
 }
 
 function generateReservationNo(dateStr: string) {
@@ -258,6 +289,7 @@ export async function createCabanaReservation(
   const name = String(formData.get('name') ?? '').trim();
   const phone = String(formData.get('phone') ?? '').trim();
   const depositorName = String(formData.get('depositorName') ?? '').trim();
+  const isFullPayment = formData.get('isFullPayment') === 'true';
   const isCamping = formData.get('isCamping') === 'true';
   const hasAdmission = isCamping || formData.get('hasAdmission') === 'true';
 
@@ -299,7 +331,8 @@ export async function createCabanaReservation(
   const { data: existing } = await supabase
     .from('cabana_reservations')
     .select('zone_type, time_type, cabana_no')
-    .eq('reservation_date', reservationDate);
+    .eq('reservation_date', reservationDate)
+    .eq('is_cancelled', false);
 
   const occupancy = buildOccupancy(existing ?? []);
   const usedNos = new Set<string>();
@@ -368,7 +401,9 @@ export async function createCabanaReservation(
     usedNos.add(reservationNo);
 
     // 자리를 직접 지정한 항목만 노쇼 방지 예약금 대상.
+    // 전액결제를 고르면 예약금 대신 그 항목의 이용요금 전액을 미리 받는다.
     const needsDeposit = depositPolicy.enabled && wantedNo > 0;
+    const depositAmount = needsDeposit ? (isFullPayment ? price : depositPolicy.amount) : 0;
 
     rows.push({
       reservation_no: reservationNo,
@@ -383,8 +418,9 @@ export async function createCabanaReservation(
       has_admission: hasAdmission,
       price_override: price,
       deposit_status: needsDeposit ? 'pending' : 'none',
-      deposit_amount: needsDeposit ? depositPolicy.amount : 0,
+      deposit_amount: depositAmount,
       depositor_name: needsDeposit ? depositorName || name : '',
+      is_full_payment: needsDeposit && isFullPayment,
     });
     items.push({
       zoneLabel: zoneLabel(zone),
@@ -401,7 +437,7 @@ export async function createCabanaReservation(
   if (error) return { ok: false, error: '예약 처리 중 오류가 발생했습니다. 다시 시도해주세요.' };
 
   const totalPrice = items.reduce((sum, it) => sum + it.price, 0);
-  const depositTotal = items.filter((it) => it.depositRequired).length * depositPolicy.amount;
+  const depositTotal = rows.reduce((sum, r) => sum + (r.deposit_amount ?? 0), 0);
   const summaryLabel =
     items.length === 1
       ? `${items[0].zoneLabel}${items[0].hasTimeType ? ` ${items[0].timeType}` : ''}`

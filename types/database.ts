@@ -70,11 +70,19 @@ export type Database = {
           is_visited: boolean; // 방문 완료(체크인): 확정 매출로 집계
           is_walk_in: boolean; // 현장배정(워크인): 예약 없이 방문, 이름 대신 일일 순번 부여
           // 자리 지정 예약의 노쇼 방지 예약금
-          deposit_status: 'none' | 'pending' | 'paid' | 'refunded';
+          deposit_status: 'none' | 'pending' | 'paid' | 'refunded' | 'forfeited' | 'waived';
           deposit_amount: number;
           depositor_name: string;
           deposit_paid_at: string | null;
           deposit_tx_ref: string | null;
+          /** 예약금으로 이용요금 전액을 미리 받은 건 */
+          is_full_payment: boolean;
+          /** 방문 후 현장 카드결제로 예약금을 환불한 시각 */
+          deposit_refunded_at: string | null;
+          // 취소 이력 (하드 삭제 대신 소프트 삭제)
+          is_cancelled: boolean;
+          cancelled_at: string | null;
+          cancelled_by: string;
           created_at: string;
         };
         Insert: Partial<Database['public']['Tables']['cabana_reservations']['Row']>;
@@ -183,6 +191,14 @@ export type Database = {
           openbanking_fintech_use_num: string;
           openbanking_client_use_code: string;
           openbanking_enabled: boolean;
+          openbanking_client_id: string;
+          openbanking_client_secret: string;
+          openbanking_redirect_uri: string;
+          openbanking_refresh_token: string;
+          openbanking_user_seq_no: string;
+          openbanking_token_expires_at: string | null;
+          openbanking_use_test: boolean;
+          openbanking_scope: string;
           updated_at: string;
         };
         Insert: Partial<Database['public']['Tables']['deposit_settings']['Row']>;
