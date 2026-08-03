@@ -15,6 +15,9 @@ type DailyData = {
   visited: { count: number; revenue: number };
   noShow: { count: number; revenue: number };
   pending: { count: number; revenue: number };
+  cancelled: { count: number; revenue: number };
+  /** 노쇼·당일취소로 몰수돼 매출로 잡히는 예약금 */
+  forfeitedDeposit: { count: number; revenue: number };
   byZone: Record<string, { count: number; revenue: number }>;
 };
 
@@ -152,7 +155,9 @@ export default function CabanaSalesManager({
         <div className="bg-white rounded-xl shadow p-4 md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-bold text-gray-900">{formatDateKorean(date)} 확정 매출</h3>
-            <span className="text-xl md:text-2xl font-bold text-primary">{won(daily.visited.revenue)}</span>
+            <span className="text-xl md:text-2xl font-bold text-primary">
+              {won(daily.visited.revenue + daily.forfeitedDeposit.revenue)}
+            </span>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-4">
@@ -174,7 +179,7 @@ export default function CabanaSalesManager({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <div className="bg-green-50 rounded-lg p-4">
               <p className="text-sm font-semibold text-gray-600">
                 <i className="ri-user-follow-line mr-1 text-green-600"></i>방문 완료
@@ -196,13 +201,38 @@ export default function CabanaSalesManager({
               <p className="text-xl md:text-2xl font-bold text-red-500 mt-1">{daily.noShow.count}건</p>
               <p className="text-xs text-gray-500 mt-1">{won(daily.noShow.revenue)}</p>
             </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm font-semibold text-gray-600">
+                <i className="ri-close-circle-line mr-1 text-gray-400"></i>취소
+              </p>
+              <p className="text-xl md:text-2xl font-bold text-gray-400 mt-1">
+                {daily.cancelled.count}건
+              </p>
+              <p className="text-xs text-gray-500 mt-1">{won(daily.cancelled.revenue)}</p>
+            </div>
           </div>
+
+          {/* 노쇼·당일취소로 돌려주지 않은 예약금은 매출로 잡힌다. */}
+          {daily.forfeitedDeposit.count > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-amber-50 rounded-lg px-3 md:px-4 py-3 mb-4">
+              <span className="text-sm font-semibold text-gray-700">
+                <i className="ri-hand-coin-line mr-1 text-amber-600"></i>몰수 예약금 (노쇼 · 당일취소)
+              </span>
+              <span className="text-right">
+                <span className="font-bold text-gray-900">{daily.forfeitedDeposit.count}건</span>
+                <span className="mx-2 text-gray-300">·</span>
+                <span className="font-bold text-amber-600">
+                  +{won(daily.forfeitedDeposit.revenue)}
+                </span>
+              </span>
+            </div>
+          )}
 
           <p className="text-xs font-semibold text-gray-500 mb-2">
             상품별 확정 매출 (방문 완료 기준)
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {ZONE_TYPES.map((zt) => {
+            {ZONE_TYPES.filter((zt) => daily.byZone[zt]).map((zt) => {
               const z = daily.byZone[zt] ?? { count: 0, revenue: 0 };
               return (
                 <div key={zt} className="bg-gray-50 rounded-lg p-4">
@@ -257,10 +287,32 @@ export default function CabanaSalesManager({
                   </span>
                   <span
                     className={`order-3 md:order-4 font-bold text-sm ml-auto md:ml-0 md:w-24 text-right shrink-0 ${
-                      it.status === 'noShow' ? 'text-gray-400 line-through' : 'text-gray-900'
+                      it.status === 'noShow' || it.status === 'cancelled'
+                        ? 'text-gray-400 line-through'
+                        : 'text-gray-900'
                     }`}
                   >
                     {won(it.price)}
+                    {it.depositAmount > 0 && (
+                      <span
+                        className={`block text-[10px] font-semibold no-underline ${
+                          it.depositStatus === 'forfeited'
+                            ? 'text-red-600'
+                            : it.depositStatus === 'refunded'
+                              ? 'text-gray-400'
+                              : 'text-amber-600'
+                        }`}
+                      >
+                        {it.isFullPayment ? '전액' : '예약금'} {won(it.depositAmount)}
+                        {it.depositStatus === 'forfeited'
+                          ? ' 몰수'
+                          : it.depositStatus === 'refunded'
+                            ? ' 환불'
+                            : it.depositStatus === 'pending'
+                              ? ' 대기'
+                              : ''}
+                      </span>
+                    )}
                   </span>
                 </div>
               ))}
@@ -283,6 +335,12 @@ function StatusBadge({ status }: { status: DailySalesItem['status'] }) {
     return (
       <span className="text-xs font-bold text-red-500 bg-red-100 rounded px-2 py-0.5 shrink-0">
         노쇼
+      </span>
+    );
+  if (status === 'cancelled')
+    return (
+      <span className="text-xs font-bold text-gray-400 bg-gray-100 rounded px-2 py-0.5 shrink-0">
+        취소
       </span>
     );
   return (
@@ -406,8 +464,9 @@ function printDailyReport(date: string, daily: DailyData) {
     visited: '방문완료',
     noShow: '노쇼',
     pending: '대기',
+    cancelled: '취소',
   };
-  const zoneRows = ZONE_TYPES.map((zt) => {
+  const zoneRows = ZONE_TYPES.filter((zt) => daily.byZone[zt]).map((zt) => {
     const z = daily.byZone[zt] ?? { count: 0, revenue: 0 };
     return `<tr><td>${ZONE_TYPE_LABELS[zt]}</td><td class="r">${z.count}건</td><td class="r">${won(z.revenue)}</td></tr>`;
   }).join('');

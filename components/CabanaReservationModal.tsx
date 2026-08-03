@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   getCabanaAvailability,
   createCabanaReservation,
@@ -10,9 +10,9 @@ import {
   type CabanaProduct,
   type ReservedItem,
   type DepositPolicy,
-} from "@/app/cabana-reservation/actions";
-import { todaySeoul } from "@/lib/date";
-import ImageCarousel from "./ImageCarousel";
+} from '@/app/cabana-reservation/actions';
+import { todaySeoul } from '@/lib/date';
+import ImageCarousel from './ImageCarousel';
 
 type GuestPolicy = { baseCount: number; extraFee: number; maxCount: number };
 const DEFAULT_GUEST_POLICY: GuestPolicy = {
@@ -51,13 +51,13 @@ type CartLine = {
 
 // 예약 폼을 4단계로 나눠 모바일에서도 한 화면에 들어오게 한다.
 const STEPS = [
-  { no: 1, label: "날짜 · 잔여" },
-  { no: 2, label: "상품 담기" },
-  { no: 3, label: "자리 선택" },
-  { no: 4, label: "예약자 확인" },
+  { no: 1, label: '날짜 · 잔여' },
+  { no: 2, label: '상품 담기' },
+  { no: 3, label: '자리 선택' },
+  { no: 4, label: '예약자 확인' },
 ] as const;
 
-const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
+const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
 function productKey(p: { zoneType: string; timeType: string }) {
   return `${p.zoneType}|${p.timeType}`;
@@ -68,16 +68,15 @@ function today() {
 }
 
 function formatDateKorean(dateStr: string) {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = dateStr.split('-').map(Number);
   return `${y}년 ${m}월 ${d}일`;
 }
 
 function formatPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
+  const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length < 4) return digits;
   if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  if (digits.length === 10)
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
@@ -99,12 +98,7 @@ export default function CabanaReservationModal({
       >
         {buttonLabel}
       </button>
-      {open && (
-        <ReservationModal
-          onClose={() => setOpen(false)}
-          diagramUrls={diagramUrls}
-        />
-      )}
+      {open && <ReservationModal onClose={() => setOpen(false)} diagramUrls={diagramUrls} />}
     </>
   );
 }
@@ -118,34 +112,31 @@ function ReservationModal({
 }) {
   const [date, setDate] = useState(today());
   const [products, setProducts] = useState<CabanaProduct[]>([]);
-  const [guestPolicy, setGuestPolicy] =
-    useState<GuestPolicy>(DEFAULT_GUEST_POLICY);
+  const [guestPolicy, setGuestPolicy] = useState<GuestPolicy>(DEFAULT_GUEST_POLICY);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [selectedKey, setSelectedKey] = useState("");
+  const [selectedKey, setSelectedKey] = useState('');
   const [addGuestCount, setAddGuestCount] = useState(1);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [isCamping, setIsCamping] = useState(false);
   const [hasAdmission, setHasAdmission] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [result, setResult] = useState<ReservedItem[] | null>(null);
   const [pending, startTransition] = useTransition();
   const [showLookup, setShowLookup] = useState(false);
   // 노쇼 방지 예약금: 자리를 직접 지정한 항목에만 적용된다.
-  const [depositPolicy, setDepositPolicy] = useState<DepositPolicy | null>(
-    null,
-  );
-  const [depositorName, setDepositorName] = useState("");
+  const [depositPolicy, setDepositPolicy] = useState<DepositPolicy | null>(null);
+  const [depositorName, setDepositorName] = useState('');
+  // 예약금 대신 이용요금 전액을 미리 결제
+  const [isFullPayment, setIsFullPayment] = useState(false);
   const [resultDeposit, setResultDeposit] = useState<{
     policy: DepositPolicy;
     total: number;
   } | null>(null);
 
   useEffect(() => {
-    getCabanaDepositPolicy().then((p) =>
-      setDepositPolicy(p.enabled ? p : null),
-    );
+    getCabanaDepositPolicy().then((p) => setDepositPolicy(p.enabled ? p : null));
   }, []);
 
   useEffect(() => {
@@ -161,7 +152,7 @@ function ReservationModal({
           ? prev
           : res.products[0]
             ? productKey(res.products[0])
-            : "",
+            : '',
       );
     });
     return () => {
@@ -171,10 +162,7 @@ function ReservationModal({
 
   // zone_type별로 상품을 묶어 잔여 안내 패널과 셀렉트 옵션을 구성.
   const groups = useMemo(() => {
-    const map = new Map<
-      string,
-      { zoneLabel: string; items: CabanaProduct[] }
-    >();
+    const map = new Map<string, { zoneLabel: string; items: CabanaProduct[] }>();
     for (const p of products) {
       const g = map.get(p.zoneType) ?? { zoneLabel: p.zoneLabel, items: [] };
       g.items.push(p);
@@ -188,8 +176,8 @@ function ReservationModal({
   function remainingFor(product: CabanaProduct) {
     const consumed = cart.filter((c) => {
       if (c.zoneType !== product.zoneType) return false;
-      if (product.timeType === "종일") return true;
-      return c.timeType === product.timeType || c.timeType === "종일";
+      if (product.timeType === '종일') return true;
+      return c.timeType === product.timeType || c.timeType === '종일';
     }).length;
     return Math.max(0, product.left - consumed);
   }
@@ -204,16 +192,10 @@ function ReservationModal({
     );
     const set = new Set<number>(product?.takenNos ?? []);
     for (const other of cart) {
-      if (
-        other.id === line.id ||
-        other.zoneType !== line.zoneType ||
-        other.cabanaNo === 0
-      )
+      if (other.id === line.id || other.zoneType !== line.zoneType || other.cabanaNo === 0)
         continue;
       const conflicts =
-        line.timeType === "종일" ||
-        other.timeType === line.timeType ||
-        other.timeType === "종일";
+        line.timeType === '종일' || other.timeType === line.timeType || other.timeType === '종일';
       if (conflicts) set.add(other.cabanaNo);
     }
     return set;
@@ -225,7 +207,7 @@ function ReservationModal({
 
   function handleAdd() {
     if (!selectedProduct) return;
-    setError("");
+    setError('');
     const guestCount = selectedProduct.hasTimeType
       ? Math.max(1, Math.min(addGuestCount, guestPolicy.maxCount))
       : 1;
@@ -257,10 +239,7 @@ function ReservationModal({
         c.id === id
           ? {
               ...c,
-              guestCount: Math.max(
-                1,
-                Math.min(guestCount, guestPolicy.maxCount),
-              ),
+              guestCount: Math.max(1, Math.min(guestCount, guestPolicy.maxCount)),
             }
           : c,
       ),
@@ -268,50 +247,53 @@ function ReservationModal({
   }
 
   function linePrice(line: CartLine) {
-    const extra = line.hasTimeType
-      ? Math.max(0, line.guestCount - guestPolicy.baseCount)
-      : 0;
+    const extra = line.hasTimeType ? Math.max(0, line.guestCount - guestPolicy.baseCount) : 0;
     return line.unitPrice + extra * guestPolicy.extraFee;
   }
 
   const totalPrice = cart.reduce((sum, line) => sum + linePrice(line), 0);
   const canAdd = !!selectedProduct && remainingFor(selectedProduct) > 0;
 
-  // 자리를 지정한 항목 수 × 예약금
+  // 자리를 지정한 항목 수 × 예약금. 전액결제를 고르면 이용요금 전액을 미리 받는다.
   const depositLines = cart.filter((c) => c.cabanaNo > 0).length;
-  const depositTotal = depositPolicy ? depositLines * depositPolicy.amount : 0;
+  const depositTotal = !depositPolicy
+    ? 0
+    : isFullPayment
+      ? totalPrice
+      : depositLines * depositPolicy.amount;
   // 번호를 지정할 수 있는 항목(썬배드처럼 번호가 없는 상품은 제외)
   const numberedLines = cart.filter((c) => c.hasTimeType);
 
   function goStep(next: number) {
-    setError("");
+    setError('');
     if (next > 2 && cart.length === 0) {
-      setError("예약할 상품을 1개 이상 담아주세요.");
+      setError('예약할 상품을 1개 이상 담아주세요.');
       return;
     }
     setStep(Math.min(4, Math.max(1, next)) as 1 | 2 | 3 | 4);
   }
 
   function handleSubmit() {
-    setError("");
+    setError('');
     if (cart.length === 0) {
-      setError("예약할 상품을 1개 이상 추가해주세요.");
+      setError('예약할 상품을 1개 이상 추가해주세요.');
       return;
     }
     if (!name.trim() || !phone.trim()) {
-      setError("예약자 성함과 연락처를 입력해주세요.");
+      setError('예약자 성함과 연락처를 입력해주세요.');
       return;
     }
     startTransition(async () => {
       const fd = new FormData();
-      fd.set("reservationDate", date);
-      fd.set("name", name.trim());
-      fd.set("phone", phone.trim());
-      fd.set("isCamping", String(isCamping));
-      fd.set("hasAdmission", String(hasAdmission));
-      fd.set("depositorName", depositorName.trim());
+      fd.set('reservationDate', date);
+      fd.set('name', name.trim());
+      fd.set('phone', phone.trim());
+      fd.set('isCamping', String(isCamping));
+      fd.set('hasAdmission', String(hasAdmission));
+      fd.set('depositorName', depositorName.trim());
+      fd.set('isFullPayment', String(isFullPayment));
       fd.set(
-        "cart",
+        'cart',
         JSON.stringify(
           cart.map((c) => ({
             zoneType: c.zoneType,
@@ -325,9 +307,7 @@ function ReservationModal({
       const res = await createCabanaReservation(fd);
       if (res.ok) {
         setResult(res.items);
-        setResultDeposit(
-          res.deposit ? { policy: res.deposit, total: res.depositTotal } : null,
-        );
+        setResultDeposit(res.deposit ? { policy: res.deposit, total: res.depositTotal } : null);
       } else {
         setError(res.error);
       }
@@ -347,11 +327,7 @@ function ReservationModal({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h3 className="font-bold text-lg text-gray-900">실시간 예약</h3>
-          <button
-            onClick={onClose}
-            aria-label="닫기"
-            className="cursor-pointer"
-          >
+          <button onClick={onClose} aria-label="닫기" className="cursor-pointer">
             <i className="ri-close-line text-2xl text-gray-500"></i>
           </button>
         </div>
@@ -363,9 +339,7 @@ function ReservationModal({
               <p className="text-xl font-bold text-primary mt-2">
                 {name}님 · 총 {result.length}건
               </p>
-              <p className="text-sm text-gray-500 mt-1">
-                {formatDateKorean(date)}
-              </p>
+              <p className="text-sm text-gray-500 mt-1">{formatDateKorean(date)}</p>
             </div>
             <div className="space-y-2">
               {result.map((it) => (
@@ -376,23 +350,19 @@ function ReservationModal({
                   <div>
                     <p className="font-bold text-gray-900">
                       {it.zoneLabel}
-                      {it.hasTimeType ? ` · ${it.timeType}` : ""}
+                      {it.hasTimeType ? ` · ${it.timeType}` : ''}
                     </p>
                     <p className="text-gray-500 text-xs mt-0.5">
                       자리 {it.cabanaNo}번 · 예약번호 {it.reservationNo}
                     </p>
                   </div>
-                  <span className="font-bold text-gray-900">
-                    {won(it.price)}
-                  </span>
+                  <span className="font-bold text-gray-900">{won(it.price)}</span>
                 </div>
               ))}
             </div>
             <div className="flex items-center justify-between border-t pt-3">
               <span className="font-bold text-gray-900">합계</span>
-              <span className="font-bold text-lg text-primary">
-                {won(resultTotal)}
-              </span>
+              <span className="font-bold text-lg text-primary">{won(resultTotal)}</span>
             </div>
             {resultDeposit ? (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
@@ -401,30 +371,24 @@ function ReservationModal({
                 </p>
                 <div className="bg-white rounded-lg px-3 py-2 space-y-0.5">
                   <p className="font-bold text-gray-900">
-                    {resultDeposit.policy.bankName}{" "}
-                    {resultDeposit.policy.accountNo}
+                    {resultDeposit.policy.bankName} {resultDeposit.policy.accountNo}
                   </p>
                   {resultDeposit.policy.holder && (
-                    <p className="text-gray-600 text-xs">
-                      예금주 {resultDeposit.policy.holder}
-                    </p>
+                    <p className="text-gray-600 text-xs">예금주 {resultDeposit.policy.holder}</p>
                   )}
                   <p className="text-gray-600 text-xs">
-                    입금자명{" "}
-                    <strong className="text-gray-900">
-                      {depositorName.trim() || name}
-                    </strong>
+                    입금자명{' '}
+                    <strong className="text-gray-900">{depositorName.trim() || name}</strong>
                   </p>
                 </div>
                 <p className="text-xs text-amber-800 mt-2 leading-relaxed whitespace-pre-line">
                   {resultDeposit.policy.guide ||
-                    "입금이 확인되면 예약이 확정되고 안내 메시지를 보내드립니다."}
+                    '입금이 확인되면 예약이 확정되고 안내 메시지를 보내드립니다.'}
                 </p>
               </div>
             ) : (
               <p className="text-xs text-gray-500 text-center">
-                위에 표시된 자리 번호로 배정되었습니다. 예약번호를 가지고
-                현장에서 결제해주세요.
+                위에 표시된 자리 번호로 배정되었습니다. 예약번호를 가지고 현장에서 결제해주세요.
               </p>
             )}
             <button
@@ -447,10 +411,10 @@ function ReservationModal({
                   onClick={() => goStep(s.no)}
                   className={`flex-1 min-w-0 px-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     step === s.no
-                      ? "bg-primary text-white"
+                      ? 'bg-primary text-white'
                       : step > s.no
-                        ? "bg-primary/10 text-primary"
-                        : "bg-gray-100 text-gray-400"
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-gray-100 text-gray-400'
                   }`}
                 >
                   <span className="block truncate">
@@ -478,27 +442,16 @@ function ReservationModal({
                   </div>
 
                   <div className="space-y-2 bg-blue-50 rounded-lg p-3 text-sm">
-                    <p className="text-xs font-semibold text-gray-600">
-                      상품별 잔여 현황
-                    </p>
+                    <p className="text-xs font-semibold text-gray-600">상품별 잔여 현황</p>
                     {groups.map((g) => (
-                      <div
-                        key={g.zoneLabel}
-                        className="flex items-center justify-between gap-2"
-                      >
-                        <span className="font-semibold text-gray-800 shrink-0">
-                          {g.zoneLabel}
-                        </span>
+                      <div key={g.zoneLabel} className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-gray-800 shrink-0">{g.zoneLabel}</span>
                         <span className="text-gray-600 text-right">
                           {g.items.map((p, i) => (
                             <span key={productKey(p)}>
-                              {i > 0 && (
-                                <span className="text-gray-300"> · </span>
-                              )}
-                              {p.hasTimeType ? `${p.timeType} ` : "잔여 "}
-                              <strong className="text-gray-900">
-                                {remainingFor(p)}
-                              </strong>
+                              {i > 0 && <span className="text-gray-300"> · </span>}
+                              {p.hasTimeType ? `${p.timeType} ` : '잔여 '}
+                              <strong className="text-gray-900">{remainingFor(p)}</strong>
                             </span>
                           ))}
                         </span>
@@ -506,8 +459,8 @@ function ReservationModal({
                     ))}
                   </div>
                   <p className="text-xs text-gray-500">
-                    날짜를 고르고 &lsquo;계속 진행&rsquo;을 눌러주세요. 날짜를
-                    바꾸면 담은 상품은 초기화됩니다.
+                    날짜를 고르고 &lsquo;계속 진행&rsquo;을 눌러주세요. 날짜를 바꾸면 담은 상품은
+                    초기화됩니다.
                   </p>
                 </>
               )}
@@ -550,9 +503,8 @@ function ReservationModal({
                                   disabled={left <= 0}
                                 >
                                   {p.zoneLabel}
-                                  {p.hasTimeType
-                                    ? ` · ${p.timeType}`
-                                    : ""} · {won(p.price)} (잔여 {left})
+                                  {p.hasTimeType ? ` · ${p.timeType}` : ''} · {won(p.price)} (잔여{' '}
+                                  {left})
                                 </option>
                               );
                             })}
@@ -569,10 +521,7 @@ function ReservationModal({
                             setAddGuestCount(
                               Math.max(
                                 1,
-                                Math.min(
-                                  Number(e.target.value) || 1,
-                                  guestPolicy.maxCount,
-                                ),
+                                Math.min(Number(e.target.value) || 1, guestPolicy.maxCount),
                               ),
                             )
                           }
@@ -590,9 +539,8 @@ function ReservationModal({
                     </div>
                     {selectedProduct?.hasTimeType && (
                       <p className="text-xs text-gray-500 mt-1">
-                        기본 {guestPolicy.baseCount}명 포함, 초과 인원 1명당{" "}
-                        {won(guestPolicy.extraFee)} 추가 (최대{" "}
-                        {guestPolicy.maxCount}명)
+                        기본 {guestPolicy.baseCount}명 포함, 초과 인원 1명당{' '}
+                        {won(guestPolicy.extraFee)} 추가 (최대 {guestPolicy.maxCount}명)
                       </p>
                     )}
                   </div>
@@ -615,11 +563,9 @@ function ReservationModal({
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-gray-900 truncate">
                                 {line.zoneLabel}
-                                {line.hasTimeType ? ` · ${line.timeType}` : ""}
+                                {line.hasTimeType ? ` · ${line.timeType}` : ''}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {won(linePrice(line))}
-                              </p>
+                              <p className="text-xs text-gray-500">{won(linePrice(line))}</p>
                             </div>
                             {line.hasTimeType && (
                               <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
@@ -630,10 +576,7 @@ function ReservationModal({
                                   max={guestPolicy.maxCount}
                                   value={line.guestCount}
                                   onChange={(e) =>
-                                    updateLineGuests(
-                                      line.id,
-                                      Number(e.target.value) || 1,
-                                    )
+                                    updateLineGuests(line.id, Number(e.target.value) || 1)
                                   }
                                   className="w-12 px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-primary"
                                 />
@@ -673,8 +616,7 @@ function ReservationModal({
 
                   {numberedLines.length === 0 ? (
                     <p className="text-sm text-gray-400 bg-gray-50 rounded-lg px-4 py-6 text-center">
-                      담으신 상품은 자리 번호를 지정하지 않습니다. 계속
-                      진행해주세요.
+                      담으신 상품은 자리 번호를 지정하지 않습니다. 계속 진행해주세요.
                     </p>
                   ) : (
                     numberedLines.map((line) => {
@@ -690,16 +632,13 @@ function ReservationModal({
                               onClick={() => setLineNo(line.id, 0)}
                               className={`col-span-2 px-2 py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                                 line.cabanaNo === 0
-                                  ? "bg-primary text-white border-primary"
-                                  : "bg-white text-gray-600 border-gray-300 hover:border-primary"
+                                  ? 'bg-primary text-white border-primary'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary'
                               }`}
                             >
                               자동 배정
                             </button>
-                            {Array.from(
-                              { length: line.slotCount },
-                              (_, i) => i + 1,
-                            ).map((n) => {
+                            {Array.from({ length: line.slotCount }, (_, i) => i + 1).map((n) => {
                               const isTaken = taken.has(n);
                               return (
                                 <button
@@ -707,15 +646,13 @@ function ReservationModal({
                                   type="button"
                                   disabled={isTaken}
                                   onClick={() => setLineNo(line.id, n)}
-                                  title={
-                                    isTaken ? "이미 예약된 자리" : `${n}번 자리`
-                                  }
+                                  title={isTaken ? '이미 예약된 자리' : `${n}번 자리`}
                                   className={`px-1 py-2 text-xs font-bold rounded-lg border transition-all ${
                                     isTaken
-                                      ? "bg-gray-100 text-gray-300 border-gray-200 line-through cursor-not-allowed"
+                                      ? 'bg-gray-100 text-gray-300 border-gray-200 line-through cursor-not-allowed'
                                       : line.cabanaNo === n
-                                        ? "bg-primary text-white border-primary cursor-pointer"
-                                        : "bg-white text-gray-700 border-gray-300 hover:border-primary cursor-pointer"
+                                        ? 'bg-primary text-white border-primary cursor-pointer'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary cursor-pointer'
                                   }`}
                                 >
                                   {n}
@@ -726,7 +663,7 @@ function ReservationModal({
                           <p className="text-xs text-gray-500 mt-1">
                             {line.cabanaNo > 0
                               ? `${line.zoneLabel} ${line.cabanaNo}번 자리로 예약됩니다.`
-                              : "번호를 고르지 않으면 현장에서 빈 자리로 자동 배정됩니다."}
+                              : '번호를 고르지 않으면 현장에서 빈 자리로 자동 배정됩니다.'}
                           </p>
                         </div>
                       );
@@ -744,25 +681,19 @@ function ReservationModal({
                     </p>
                     <div className="space-y-1">
                       {cart.map((line) => (
-                        <div
-                          key={line.id}
-                          className="flex items-center justify-between gap-2"
-                        >
+                        <div key={line.id} className="flex items-center justify-between gap-2">
                           <span className="text-gray-800 min-w-0 truncate">
                             {line.zoneLabel}
-                            {line.hasTimeType ? ` · ${line.timeType}` : ""}
+                            {line.hasTimeType ? ` · ${line.timeType}` : ''}
                             {line.cabanaNo > 0 ? (
                               <span className="text-primary font-semibold">
-                                {" "}
+                                {' '}
                                 · {line.cabanaNo}번
                               </span>
                             ) : (
-                              <span className="text-gray-400">
-                                {" "}
-                                · 자동 배정
-                              </span>
+                              <span className="text-gray-400"> · 자동 배정</span>
                             )}
-                            {line.hasTimeType ? ` · ${line.guestCount}명` : ""}
+                            {line.hasTimeType ? ` · ${line.guestCount}명` : ''}
                           </span>
                           <span className="font-semibold text-gray-900 shrink-0">
                             {won(linePrice(line))}
@@ -791,9 +722,7 @@ function ReservationModal({
                       </label>
                       <input
                         value={phone}
-                        onChange={(e) =>
-                          setPhone(formatPhoneNumber(e.target.value))
-                        }
+                        onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                         type="tel"
                         maxLength={13}
                         placeholder="010-0000-0000"
@@ -803,12 +732,8 @@ function ReservationModal({
                   </div>
 
                   <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-gray-200">
-                    <span className="text-sm text-gray-500">
-                      예상 결제 금액
-                    </span>
-                    <span className="font-bold text-lg text-primary">
-                      {won(totalPrice)}
-                    </span>
+                    <span className="text-sm text-gray-500">예상 결제 금액</span>
+                    <span className="font-bold text-lg text-primary">{won(totalPrice)}</span>
                   </div>
 
                   {/* 자리를 지정한 항목이 있으면 노쇼 방지 예약금을 안내하고 입금자명을 받는다. */}
@@ -818,20 +743,62 @@ function ReservationModal({
                         <span className="font-semibold text-amber-900">
                           자리 지정 예약금 ({depositLines}자리)
                         </span>
-                        <span className="font-bold text-amber-900">
-                          {won(depositTotal)}
-                        </span>
+                        <span className="font-bold text-amber-900">{won(depositTotal)}</span>
                       </div>
                       <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                        예약 후 안내되는 계좌로 예약금을 입금해주시면 자리가
-                        확정됩니다. 입금이 확인되면 안내 메시지를 보내드립니다.
+                        예약 후 안내되는 계좌로 입금해주시면 자리가 확정됩니다. 입금이 확인되면 안내
+                        메시지를 보내드립니다.
                       </p>
+
+                      {/* 예약금만 낼지, 이용요금 전액을 미리 낼지 선택 */}
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsFullPayment(false)}
+                          className={`flex-1 px-3 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                            !isFullPayment
+                              ? 'bg-amber-500 text-white border-amber-500'
+                              : 'bg-white text-amber-800 border-amber-300 hover:border-amber-500'
+                          }`}
+                        >
+                          예약금만 입금
+                          <span className="block font-normal opacity-80">
+                            {won(depositLines * (depositPolicy?.amount ?? 0))} · 잔액 현장 결제
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsFullPayment(true)}
+                          className={`flex-1 px-3 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                            isFullPayment
+                              ? 'bg-amber-500 text-white border-amber-500'
+                              : 'bg-white text-amber-800 border-amber-300 hover:border-amber-500'
+                          }`}
+                        >
+                          전액 결제
+                          <span className="block font-normal opacity-80">
+                            {won(totalPrice)} · 현장 결제 없음
+                          </span>
+                        </button>
+                      </div>
+
                       <input
                         value={depositorName}
                         onChange={(e) => setDepositorName(e.target.value)}
-                        placeholder={`입금자명 (비워두면 ${name.trim() || "예약자 성함"})`}
+                        placeholder={`입금자명 (비워두면 ${name.trim() || '예약자 성함'})`}
                         className="w-full mt-2 px-3 py-2 border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
                       />
+
+                      <ul className="text-[11px] text-amber-800 mt-2 space-y-0.5 leading-relaxed">
+                        <li>• 방문하시면 현장에서 결제하고 입금하신 예약금은 환불해 드립니다.</li>
+                        <li>
+                          • <strong>이용 당일 취소</strong>는 예약금을 환불해 드리지 않습니다.
+                        </li>
+                        <li>
+                          • <strong>연락 없이 방문하지 않으신 경우(노쇼)</strong>에도 예약금은
+                          환불되지 않습니다.
+                        </li>
+                      </ul>
                     </div>
                   )}
 
@@ -860,30 +827,31 @@ function ReservationModal({
                 </>
               )}
 
-              {error && (
-                <p className="text-sm text-red-600 font-semibold">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-600 font-semibold">{error}</p>}
             </div>
 
-            {/* 하단 고정 영역 — 단계 이동과 취소/조회/확정 버튼이 항상 보인다. */}
-            <div className="border-t shrink-0 px-4 md:px-6 py-3 space-y-2 bg-white">
-              <div className="flex gap-2">
+            {/* 하단 고정 영역 — 단계 이동과 취소/조회/확정 버튼이 항상 보인다.
+                단계 이동 줄은 회색 배경으로 구분해 아래 실행 버튼과 헷갈리지 않게 한다. */}
+            <div className="border-t shrink-0 bg-white">
+              <div className="flex gap-2 bg-gray-100 px-4 md:px-6 py-2.5">
                 <button
                   onClick={() => goStep(step - 1)}
                   disabled={step === 1}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold !rounded-button hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-semibold !rounded-button hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   이전
                 </button>
-                <button
-                  onClick={() => goStep(step + 1)}
-                  disabled={step === 4}
-                  className="flex-1 px-4 py-2.5 bg-gray-900 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  계속 진행
-                </button>
+                {/* 마지막 단계에서는 더 넘어갈 곳이 없으므로 숨긴다. */}
+                {step < 4 && (
+                  <button
+                    onClick={() => goStep(step + 1)}
+                    className="flex-1 px-4 py-2.5 bg-gray-900 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all cursor-pointer"
+                  >
+                    계속 진행
+                  </button>
+                )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 px-4 md:px-6 py-3">
                 <button
                   onClick={onClose}
                   className="px-4 py-2.5 text-gray-600 text-sm font-semibold !rounded-button hover:bg-gray-100 transition-all cursor-pointer shrink-0"
@@ -901,7 +869,7 @@ function ReservationModal({
                   disabled={pending || cart.length === 0}
                   className="flex-1 min-w-0 px-4 py-2.5 bg-primary text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {pending ? "예약 중..." : "예약 확정하기"}
+                  {pending ? '예약 중...' : '예약 확정하기'}
                 </button>
               </div>
             </div>
@@ -913,32 +881,28 @@ function ReservationModal({
 }
 
 function LookupView({ onBack }: { onBack: () => void }) {
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState('');
   const [results, setResults] = useState<LookupReservation[] | null>(null);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   // 취소 확인 팝업 대상. null이면 팝업이 닫힌 상태.
-  const [cancelTarget, setCancelTarget] = useState<LookupReservation | null>(
-    null,
-  );
+  const [cancelTarget, setCancelTarget] = useState<LookupReservation | null>(null);
   const [pending, startTransition] = useTransition();
   const [canceling, startCancel] = useTransition();
   const today = todaySeoul();
 
   function handleLookup() {
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     setResults(null);
     if (!phone.trim()) {
-      setError("연락처를 입력해주세요.");
+      setError('연락처를 입력해주세요.');
       return;
     }
     startTransition(async () => {
-      const res = (await lookupCabanaReservationsByPhone(
-        phone.trim(),
-      )) as LookupReservation[];
+      const res = (await lookupCabanaReservationsByPhone(phone.trim())) as LookupReservation[];
       if (res.length === 0) {
-        setError("해당 연락처로 등록된 예약이 없습니다.");
+        setError('해당 연락처로 등록된 예약이 없습니다.');
       } else {
         setResults(res);
       }
@@ -948,8 +912,8 @@ function LookupView({ onBack }: { onBack: () => void }) {
   function handleCancel() {
     const target = cancelTarget;
     if (!target) return;
-    setError("");
-    setNotice("");
+    setError('');
+    setNotice('');
     startCancel(async () => {
       const res = await cancelCabanaReservationByPhone(target.id, phone.trim());
       setCancelTarget(null);
@@ -982,7 +946,7 @@ function LookupView({ onBack }: { onBack: () => void }) {
             disabled={pending}
             className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
           >
-            {pending ? "조회 중..." : "조회"}
+            {pending ? '조회 중...' : '조회'}
           </button>
         </div>
       </div>
@@ -994,23 +958,20 @@ function LookupView({ onBack }: { onBack: () => void }) {
         <div className="space-y-2">
           {results.map((r) => {
             const label = ZONE_LABELS[r.zone_type] ?? r.zone_type;
-            const isSingle = r.zone_type === "썬배드";
+            const isSingle = r.zone_type === '썬배드';
             // 지난 예약이거나 이미 방문 확인된 건은 고객이 직접 취소할 수 없음.
             const cancelable = r.reservation_date >= today && !r.is_visited;
             return (
               <div key={r.id} className="bg-gray-50 rounded-lg p-3 text-sm">
                 <p className="font-bold text-gray-900">
                   {formatDateKorean(r.reservation_date)} · {label}
-                  {isSingle ? "" : ` ${r.time_type}`}
+                  {isSingle ? '' : ` ${r.time_type}`}
                 </p>
                 <p className="text-gray-600 mt-1">
-                  예약자: {r.name} ({r.phone}) · {r.guest_count}명 · 순번{" "}
-                  {r.cabana_no}번
+                  예약자: {r.name} ({r.phone}) · {r.guest_count}명 · 순번 {r.cabana_no}번
                 </p>
                 <div className="flex items-end justify-between gap-2 mt-1">
-                  <p className="text-gray-500 text-xs">
-                    예약번호 {r.reservation_no}
-                  </p>
+                  <p className="text-gray-500 text-xs">예약번호 {r.reservation_no}</p>
                   {cancelable ? (
                     <button
                       onClick={() => setCancelTarget(r)}
@@ -1020,7 +981,7 @@ function LookupView({ onBack }: { onBack: () => void }) {
                     </button>
                   ) : (
                     <span className="text-gray-400 text-xs shrink-0">
-                      {r.is_visited ? "방문 완료" : "이용 종료"}
+                      {r.is_visited ? '방문 완료' : '이용 종료'}
                     </span>
                   )}
                 </div>
@@ -1040,24 +1001,17 @@ function LookupView({ onBack }: { onBack: () => void }) {
       {cancelTarget && (
         <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-sm p-6">
-            <p className="text-lg font-bold text-gray-900">
-              예약을 취소할까요?
-            </p>
+            <p className="text-lg font-bold text-gray-900">예약을 취소할까요?</p>
             <div className="mt-3 bg-gray-50 rounded-lg p-3 text-sm">
               <p className="font-bold text-gray-900">
-                {formatDateKorean(cancelTarget.reservation_date)} ·{" "}
+                {formatDateKorean(cancelTarget.reservation_date)} ·{' '}
                 {ZONE_LABELS[cancelTarget.zone_type] ?? cancelTarget.zone_type}
-                {cancelTarget.zone_type === "썬배드"
-                  ? ""
-                  : ` ${cancelTarget.time_type}`}
+                {cancelTarget.zone_type === '썬배드' ? '' : ` ${cancelTarget.time_type}`}
               </p>
-              <p className="text-gray-500 text-xs mt-1">
-                예약번호 {cancelTarget.reservation_no}
-              </p>
+              <p className="text-gray-500 text-xs mt-1">예약번호 {cancelTarget.reservation_no}</p>
             </div>
             <p className="text-sm text-gray-600 mt-3">
-              취소한 예약은 되돌릴 수 없으며, 다시 이용하시려면 새로
-              예약해주세요.
+              취소한 예약은 되돌릴 수 없으며, 다시 이용하시려면 새로 예약해주세요.
             </p>
             <div className="flex gap-2 mt-5">
               <button
@@ -1072,7 +1026,7 @@ function LookupView({ onBack }: { onBack: () => void }) {
                 disabled={canceling}
                 className="flex-1 px-4 py-3 bg-red-600 text-white font-semibold !rounded-button hover:bg-opacity-90 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {canceling ? "취소 중..." : "예약취소"}
+                {canceling ? '취소 중...' : '예약취소'}
               </button>
             </div>
           </div>
@@ -1083,7 +1037,7 @@ function LookupView({ onBack }: { onBack: () => void }) {
 }
 
 const ZONE_LABELS: Record<string, string> = {
-  케노피: "평상&케노피",
-  그늘막평상: "그늘막평상",
-  썬배드: "썬배드",
+  케노피: '평상&케노피',
+  그늘막평상: '그늘막평상',
+  썬배드: '썬배드',
 };

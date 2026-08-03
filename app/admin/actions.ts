@@ -13,6 +13,7 @@ import {
   type ZoneType,
 } from '@/lib/cabana-pricing';
 import { saveKakaoConfig, disconnectKakao, sendKakaoTestMessage } from '@/lib/kakao';
+import { todaySeoul } from '@/lib/date';
 import { saveAligoConfig, sendAligoTestMessage } from '@/lib/aligo';
 import type { Database } from '@/types/database';
 
@@ -409,6 +410,12 @@ export async function deleteInquiry(id: string) {
 }
 
 // ---------- 케노피 실시간 예약 ----------
+//
+// POS_NO_REVALIDATE
+// 이 화면의 액션들은 '/admin/cabana-reservations'를 revalidate하지 않는다.
+// 현재 보고 있는 라우트를 재검증하면 서버 트리가 다시 렌더되면서 전체화면(POS) 대상
+// DOM이 교체되고, 브라우저가 전체화면을 해제해버리기 때문이다.
+// 화면 갱신은 클라이언트의 refresh()가 서버 액션으로 직접 다시 조회해 처리한다.
 // 상품 타입(zone_type)별로 슬롯 번호(1~N) 체계가 독립적이므로 반드시 zoneType으로 필터링.
 export async function listCabanaReservationsForDate(date: string, zoneType: string) {
   await requireAdmin();
@@ -431,10 +438,14 @@ export async function getCabanaZoneSlotCounts(): Promise<Record<string, number>>
   await requireAdmin();
   const admin = createAdminClient();
 
-  const counts: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
+  // 반드시 DB의 cabana_zones만 근거로 삼는다. 예전에는 기본값(60/18/40)을 깔아두고
+  // DB 값으로 덮었는데, 상품을 삭제해도 기본값이 남아 삭제한 타입이 계속 보였다.
+  const counts: Record<string, number> = {};
   const { data } = await admin.from('cabana_zones').select('zone_type, unit_count');
   for (const z of data ?? []) {
-    if (z.zone_type) counts[z.zone_type] = z.unit_count;
+    if (!z.zone_type) continue;
+    // 같은 타입에 주간/야간/종일 행이 여러 개 있으므로 가장 큰 개수를 슬롯 수로 본다.
+    counts[z.zone_type] = Math.max(counts[z.zone_type] ?? 0, z.unit_count ?? 0);
   }
   return counts;
 }
@@ -474,7 +485,8 @@ export async function getCabanaMonthSummary(startDate: string, endDate: string) 
         'reservation_date, zone_type, time_type, discount_type, is_camping, is_blocked, is_no_show, price_override'
       )
       .gte('reservation_date', startDate)
-      .lte('reservation_date', endDate),
+      .lte('reservation_date', endDate)
+      .eq('is_cancelled', false),
     admin.from('cabana_zones').select('zone_type, time_type, weekday_price'),
   ]);
 
@@ -583,7 +595,8 @@ export async function getCabanaSalesCalendar(startDate: string, endDate: string)
         'reservation_date, zone_type, time_type, discount_type, is_blocked, is_no_show, is_visited, price_override'
       )
       .gte('reservation_date', startDate)
-      .lte('reservation_date', endDate),
+      .lte('reservation_date', endDate)
+      .eq('is_cancelled', false),
     admin.from('cabana_zones').select('zone_type, time_type, weekday_price'),
   ]);
 
@@ -616,9 +629,15 @@ export type DailySalesItem = {
   phone: string;
   guestCount: number;
   price: number;
-  status: 'visited' | 'noShow' | 'pending';
+  status: 'visited' | 'noShow' | 'pending' | 'cancelled';
   isCamping: boolean;
   isWalkIn: boolean;
+  /** 자리 지정 예약금 (0이면 예약금 없는 건) */
+  depositAmount: number;
+  /** 'none' | 'pending' | 'paid' | 'refunded' | 'forfeited' */
+  depositStatus: string;
+  /** 예약금으로 이용요금 전액을 미리 받은 건 */
+  isFullPayment: boolean;
 };
 
 // 특정 날짜의 예약 리스트 + 상태별 집계 + 상품별 확정매출(방문완료 기준).
@@ -630,7 +649,7 @@ export async function getCabanaDailySales(date: string) {
     admin
       .from('cabana_reservations')
       .select(
-        'id, zone_type, time_type, cabana_no, name, phone, guest_count, discount_type, is_camping, is_blocked, is_no_show, is_visited, is_walk_in, price_override'
+        'id, zone_type, time_type, cabana_no, name, phone, guest_count, discount_type, is_camping, is_blocked, is_no_show, is_visited, is_walk_in, price_override, is_cancelled, deposit_amount, deposit_status, is_full_payment'
       )
       .eq('reservation_date', date)
       .order('zone_type')
@@ -644,8 +663,15 @@ export async function getCabanaDailySales(date: string) {
   const visited = { count: 0, revenue: 0 };
   const noShow = { count: 0, revenue: 0 };
   const pending = { count: 0, revenue: 0 };
+  const cancelled = { count: 0, revenue: 0 };
+  // 노쇼·당일취소로 몰수된 예약금 — 이용요금은 매출에서 빠지지만 예약금은 매출로 남는다.
+  const forfeitedDeposit = { count: 0, revenue: 0 };
+  // 실제로 등록된 상품 타입만 집계 대상에 넣는다. (삭제한 타입이 0건으로 남지 않도록)
+  const existingZoneTypes = new Set((zones ?? []).map((z) => z.zone_type).filter(Boolean));
   const byZone: Record<string, { count: number; revenue: number }> = {};
-  for (const zt of ZONE_TYPES) byZone[zt] = { count: 0, revenue: 0 };
+  for (const zt of ZONE_TYPES) {
+    if (existingZoneTypes.has(zt)) byZone[zt] = { count: 0, revenue: 0 };
+  }
 
   for (const r of reservations ?? []) {
     if (r.is_blocked) continue;
@@ -653,11 +679,15 @@ export async function getCabanaDailySales(date: string) {
     const multiplier = DISCOUNT_MULTIPLIER[(r.discount_type as DiscountType) ?? '일반'] ?? 1;
     const basePrice = priceByType[r.zone_type]?.[r.time_type] ?? 0;
     const price = r.price_override ?? basePrice * multiplier;
-    const status: DailySalesItem['status'] = r.is_no_show
-      ? 'noShow'
-      : r.is_visited
-        ? 'visited'
-        : 'pending';
+    const depositAmount = r.deposit_amount ?? 0;
+    const depositStatus = r.deposit_status ?? 'none';
+    const status: DailySalesItem['status'] = r.is_cancelled
+      ? 'cancelled'
+      : r.is_no_show
+        ? 'noShow'
+        : r.is_visited
+          ? 'visited'
+          : 'pending';
 
     items.push({
       id: r.id,
@@ -673,7 +703,18 @@ export async function getCabanaDailySales(date: string) {
       status,
       isCamping: r.is_camping,
       isWalkIn: r.is_walk_in ?? false,
+      depositAmount,
+      depositStatus,
+      isFullPayment: r.is_full_payment ?? false,
     });
+
+    // 몰수된 예약금은 방문 여부와 무관하게 매출로 잡는다.
+    if (depositStatus === 'forfeited' && depositAmount > 0) {
+      forfeitedDeposit.count += 1;
+      forfeitedDeposit.revenue += depositAmount;
+      const z = byZone[r.zone_type] ?? (byZone[r.zone_type] = { count: 0, revenue: 0 });
+      z.revenue += depositAmount;
+    }
 
     if (status === 'visited') {
       visited.count += 1;
@@ -684,13 +725,16 @@ export async function getCabanaDailySales(date: string) {
     } else if (status === 'noShow') {
       noShow.count += 1;
       noShow.revenue += price;
+    } else if (status === 'cancelled') {
+      cancelled.count += 1;
+      cancelled.revenue += price;
     } else {
       pending.count += 1;
       pending.revenue += price;
     }
   }
 
-  return { items, visited, noShow, pending, byZone };
+  return { items, visited, noShow, pending, cancelled, forfeitedDeposit, byZone };
 }
 
 // 일마감: 해당 날짜의 미확인(방문 미확인 · 노쇼 아님 · 차단 아님) 예약을 모두 노쇼로 처리한다.
@@ -704,14 +748,23 @@ export async function closeCabanaDay(date: string): Promise<{ marked: number }> 
     .update({ is_no_show: true })
     .eq('reservation_date', date)
     .eq('is_blocked', false)
+    .eq('is_cancelled', false)
     .eq('is_visited', false)
     .eq('is_no_show', false)
     .select('id');
 
   if (error) throw new Error(error.message);
 
+  // 노쇼는 예약금을 돌려주지 않는다 — 몰수 처리해 매출로 잡는다.
+  await admin
+    .from('cabana_reservations')
+    .update({ deposit_status: 'forfeited' })
+    .eq('reservation_date', date)
+    .eq('is_no_show', true)
+    .eq('deposit_status', 'paid');
+
   revalidatePath('/admin/cabana-sales');
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
   return { marked: data?.length ?? 0 };
 }
 
@@ -751,7 +804,7 @@ async function getZoneSlotCount(
     .eq('zone_type', zoneType)
     .limit(1)
     .maybeSingle();
-  return data?.unit_count ?? 60;
+  return data?.unit_count ?? 0;
 }
 
 export async function createCabanaReservationAdmin(data: {
@@ -788,7 +841,8 @@ export async function createCabanaReservationAdmin(data: {
     .select('time_type')
     .eq('reservation_date', data.reservation_date)
     .eq('zone_type', data.zone_type)
-    .eq('cabana_no', data.cabana_no);
+    .eq('cabana_no', data.cabana_no)
+    .eq('is_cancelled', false);
 
   const conflict = (others ?? []).some(
     (r) => r.time_type === '종일' || data.time_type === '종일' || r.time_type === data.time_type
@@ -820,7 +874,7 @@ export async function createCabanaReservationAdmin(data: {
   });
   if (error) throw new Error(error.message);
 
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
 }
 
 export async function updateCabanaReservation(
@@ -845,6 +899,7 @@ export async function updateCabanaReservation(
   const { data: current, error: fetchError } = await admin
     .from('cabana_reservations')
     .select('reservation_date, cabana_no, zone_type')
+    .eq('is_cancelled', false)
     .eq('id', id)
     .maybeSingle();
 
@@ -865,6 +920,7 @@ export async function updateCabanaReservation(
     .eq('reservation_date', current.reservation_date)
     .eq('zone_type', zoneType)
     .eq('cabana_no', data.cabana_no)
+    .eq('is_cancelled', false)
     .neq('id', id);
 
   const conflictsAtTarget = (targetOthers ?? []).filter(
@@ -884,6 +940,7 @@ export async function updateCabanaReservation(
       .eq('reservation_date', current.reservation_date)
       .eq('zone_type', zoneType)
       .eq('cabana_no', oldCabanaNo)
+      .eq('is_cancelled', false)
       .neq('id', id);
 
     const wouldConflictAfterSwap = conflictsAtTarget.some((moved) =>
@@ -926,17 +983,45 @@ export async function updateCabanaReservation(
 
   if (error) throw new Error(error.message);
 
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
 }
 
 export async function cancelCabanaReservation(id: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
-  const { error } = await admin.from('cabana_reservations').delete().eq('id', id);
+  const { data: row } = await admin
+    .from('cabana_reservations')
+    .select('reservation_date, is_blocked, deposit_status')
+    .eq('id', id)
+    .maybeSingle();
+
+  // 예약막기 행은 기록으로 남길 이유가 없으므로 그대로 삭제한다.
+  if (row?.is_blocked) {
+    const { error } = await admin.from('cabana_reservations').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
+    return;
+  }
+
+  // 이용 당일 취소는 예약금 몰수, 그 전이면 환불 대상으로 표시.
+  const sameDay = row?.reservation_date === todaySeoul();
+  const nextDepositStatus =
+    row?.deposit_status === 'paid' ? (sameDay ? 'forfeited' : 'refunded') : row?.deposit_status;
+
+  const { error } = await admin
+    .from('cabana_reservations')
+    .update({
+      is_cancelled: true,
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: 'admin',
+      deposit_status: nextDepositStatus,
+    })
+    .eq('id', id);
   if (error) throw new Error(error.message);
 
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
+  revalidatePath('/admin/cabana-sales');
 }
 
 function generateBlockNo(dateStr: string) {
@@ -962,6 +1047,7 @@ export async function blockCabanaSlots(
     .select('cabana_no, time_type')
     .eq('reservation_date', reservationDate)
     .eq('zone_type', zoneType)
+    .eq('is_cancelled', false)
     .in('cabana_no', cabanaNos);
 
   const occupied = existing ?? [];
@@ -1003,7 +1089,7 @@ export async function blockCabanaSlots(
     }
   }
 
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
   return { blocked, skipped };
 }
 
@@ -1017,9 +1103,9 @@ async function getZoneMeta(
     .select('unit_count, time_type')
     .eq('zone_type', zoneType);
   const rows = data ?? [];
-  const defaults: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
+  // 상품이 삭제된 타입은 슬롯 0 — 하드코딩 기본값을 쓰면 삭제한 타입이 되살아난다.
   return {
-    slotCount: rows[0]?.unit_count ?? defaults[zoneType] ?? 60,
+    slotCount: rows.reduce((max, r) => Math.max(max, r.unit_count ?? 0), 0),
     singlePrice: rows.length > 0 && rows.every((r) => r.time_type === null),
   };
 }
@@ -1038,22 +1124,24 @@ export async function getCabanaBlockStatusForDate(
       .from('cabana_reservations')
       .select('zone_type, cabana_no')
       .eq('reservation_date', date)
+      .eq('is_cancelled', false)
       .eq('is_blocked', true),
   ]);
 
-  const defaults: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
   const slotCount: Record<string, number> = {};
-  for (const z of zones ?? []) slotCount[z.zone_type] = z.unit_count;
+  for (const z of zones ?? []) {
+    if (!z.zone_type) continue;
+    slotCount[z.zone_type] = Math.max(slotCount[z.zone_type] ?? 0, z.unit_count ?? 0);
+  }
 
   const blockedSlots: Record<string, Set<number>> = {};
   for (const b of blocks ?? []) (blockedSlots[b.zone_type] ??= new Set()).add(b.cabana_no);
 
   const result: Record<string, { blocked: number; slotCount: number }> = {};
+  // 등록된 상품이 있는 타입만 반환한다(삭제한 타입이 "막힘 0/40"으로 남지 않도록).
   for (const zt of ZONE_TYPES) {
-    result[zt] = {
-      blocked: blockedSlots[zt]?.size ?? 0,
-      slotCount: slotCount[zt] ?? defaults[zt] ?? 0,
-    };
+    if (!slotCount[zt]) continue;
+    result[zt] = { blocked: blockedSlots[zt]?.size ?? 0, slotCount: slotCount[zt] };
   }
   return result;
 }
@@ -1074,7 +1162,8 @@ export async function blockAllCabanaSlotsForDate(
     .from('cabana_reservations')
     .select('cabana_no, time_type')
     .eq('reservation_date', date)
-    .eq('zone_type', zoneType);
+    .eq('zone_type', zoneType)
+    .eq('is_cancelled', false);
 
   const occupied = existing ?? [];
   const rows: Database['public']['Tables']['cabana_reservations']['Insert'][] = [];
@@ -1116,7 +1205,7 @@ export async function blockAllCabanaSlotsForDate(
     if (error) throw new Error(error.message);
   }
 
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
   return { blocked: rows.length };
 }
 
@@ -1138,7 +1227,7 @@ export async function unblockAllCabanaSlotsForDate(
 
   if (error) throw new Error(error.message);
 
-  revalidatePath('/admin/cabana-reservations');
+  // 현재 라우트는 revalidate하지 않는다 — 사유는 POS_NO_REVALIDATE 주석 참고.
   return { removed: data?.length ?? 0 };
 }
 

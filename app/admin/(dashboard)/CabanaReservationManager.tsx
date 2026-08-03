@@ -22,11 +22,11 @@ import {
   type DiscountType,
   type ZoneType,
 } from '@/lib/cabana-pricing';
+import { todaySeoul } from '@/lib/date';
 import type { Database } from '@/types/database';
 
 type Reservation = Database['public']['Tables']['cabana_reservations']['Row'];
 
-const DEFAULT_SLOT_COUNTS: Record<string, number> = { 케노피: 60, 그늘막평상: 18, 썬배드: 40 };
 const TIME_TYPES = ['주간', '야간', '종일'] as const;
 
 type CategorySummary = Record<string, { count: number; revenue: number }>;
@@ -64,7 +64,8 @@ export default function CabanaReservationManager({
 }) {
   const [date, setDate] = useState(initialDate);
   const [zoneType, setZoneType] = useState<ZoneType>('케노피');
-  const [slotCounts, setSlotCounts] = useState<Record<string, number>>(DEFAULT_SLOT_COUNTS);
+  // DB(cabana_zones)에서 받아온 타입별 슬롯 수. 상품을 삭제하면 그 타입은 아예 사라진다.
+  const [slotCounts, setSlotCounts] = useState<Record<string, number>>({});
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
   const [loading, setLoading] = useState(false);
   const [selectedCabana, setSelectedCabana] = useState<number | null>(null);
@@ -72,7 +73,19 @@ export default function CabanaReservationManager({
   const [creating, setCreating] = useState(false);
 
   const hasTimeTypes = zoneType !== '썬배드';
-  const totalSlots = slotCounts[zoneType] ?? DEFAULT_SLOT_COUNTS[zoneType] ?? 60;
+  const totalSlots = slotCounts[zoneType] ?? 0;
+
+  // 등록된 상품이 있는 타입만 화면에 노출한다(삭제한 타입이 남지 않도록).
+  const activeZoneTypes = ZONE_TYPES.filter((zt) => (slotCounts[zt] ?? 0) > 0);
+
+  // 보고 있던 타입의 상품이 삭제되면 남아있는 첫 타입으로 옮긴다.
+  useEffect(() => {
+    if (activeZoneTypes.length > 0 && !activeZoneTypes.includes(zoneType)) {
+      setZoneType(activeZoneTypes[0]);
+      setSelectedCabana(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotCounts]);
 
   const [monthCursor, setMonthCursor] = useState(() => {
     const [y, m] = initialDate.split('-').map(Number);
@@ -371,7 +384,7 @@ export default function CabanaReservationManager({
               해제합니다. (실제 고객 예약은 그대로 유지됩니다)
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2">
-              {ZONE_TYPES.map((zt) => {
+              {activeZoneTypes.map((zt) => {
                 const st = dateBlockStatus[zt];
                 const isBlocked = (st?.blocked ?? 0) > 0;
                 return (
@@ -414,6 +427,7 @@ export default function CabanaReservationManager({
             sunbed={monthSummary.sunbed}
             noShow={monthSummary.noShow}
             loading={summaryLoading}
+            hasSunbed={(slotCounts['썬배드'] ?? 0) > 0}
           />
         </div>
       </div>
@@ -427,7 +441,7 @@ export default function CabanaReservationManager({
         {/* 전체화면(POS) 모드에서는 posRef 서브트리 바깥은 렌더링되지 않으므로, 탭도
             반드시 이 안에 두어야 POS 모드에서도 평상&케노피/그늘막평상/썬배드를 전환할 수 있다. */}
         <div className="mb-6 bg-white rounded-xl shadow p-1.5 sm:p-2 flex gap-1 sm:gap-2">
-          {ZONE_TYPES.map((zt) => (
+          {activeZoneTypes.map((zt) => (
             <button
               key={zt}
               onClick={() => handleZoneTypeChange(zt)}
@@ -863,6 +877,7 @@ function SalesDashboard({
   sunbed,
   noShow,
   loading,
+  hasSunbed,
 }: {
   byType: CategorySummary;
   byCategory: CategorySummary;
@@ -870,6 +885,8 @@ function SalesDashboard({
   sunbed: { count: number; revenue: number };
   noShow: { count: number; revenue: number };
   loading: boolean;
+  /** 썬배드 상품이 등록돼 있을 때만 해당 줄을 보여준다. */
+  hasSunbed: boolean;
 }) {
   const totalCount = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.count ?? 0), 0);
   const totalRevenue = TIME_TYPES.reduce((sum, t) => sum + (byType[t]?.revenue ?? 0), 0);
@@ -904,16 +921,18 @@ function SalesDashboard({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-secondary/5 rounded-lg px-3 md:px-4 py-3 mb-4">
-        <span className="text-sm font-semibold text-gray-700">
-          <i className="ri-sun-line mr-1 text-secondary"></i>썬배드 (개당 이용)
-        </span>
-        <span className="text-right">
-          <span className="font-bold text-gray-900">{sunbed.count}건</span>
-          <span className="mx-2 text-gray-300">·</span>
-          <span className="font-bold text-secondary">{won(sunbed.revenue)}</span>
-        </span>
-      </div>
+      {hasSunbed && (
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-secondary/5 rounded-lg px-3 md:px-4 py-3 mb-4">
+          <span className="text-sm font-semibold text-gray-700">
+            <i className="ri-sun-line mr-1 text-secondary"></i>썬배드 (개당 이용)
+          </span>
+          <span className="text-right">
+            <span className="font-bold text-gray-900">{sunbed.count}건</span>
+            <span className="mx-2 text-gray-300">·</span>
+            <span className="font-bold text-secondary">{won(sunbed.revenue)}</span>
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-primary/5 rounded-lg px-3 md:px-4 py-3 mb-4">
         <span className="text-sm font-semibold text-gray-700">
@@ -1381,12 +1400,30 @@ function EditPanel({
 
   const computedPrice = Math.round((priceByType[timeType] ?? 0) * DISCOUNT_MULTIPLIER[discountType]);
 
+  // 자리 지정 예약금 정보 — 방문/노쇼/취소 처리 시 안내에 사용한다.
+  const depositAmount = reservation.deposit_amount ?? 0;
+  const depositStatus = reservation.deposit_status ?? 'none';
+  const isFullPayment = reservation.is_full_payment ?? false;
+  const depositPaid = depositStatus === 'paid' && depositAmount > 0;
+
   // 노쇼와 방문 완료는 동시에 성립할 수 없으므로 한쪽을 켜면 다른 쪽을 끈다.
   function toggleNoShow(checked: boolean) {
+    if (checked && depositPaid) {
+      alert(
+        `노쇼 처리하면 예약금 ${won(depositAmount)}은 환불되지 않고 매출로 잡힙니다.\n(방문/매출 현황의 "몰수 예약금"에 표시됩니다)`
+      );
+    }
     setIsNoShow(checked);
     if (checked) setIsVisited(false);
   }
   function toggleVisited(checked: boolean) {
+    // 예약금을 받은 건은 현장에서 전액 결제하고 예약금을 돌려줘야 하므로 안내한다.
+    if (checked && depositPaid) {
+      const msg = isFullPayment
+        ? `이 예약은 예약금으로 이용요금 전액(${won(depositAmount)})을 이미 받았습니다.\n현장에서 추가로 결제받지 마세요.`
+        : `이 예약은 예약금 ${won(depositAmount)}을 받았습니다.\n현장에서 이용요금 전액을 결제받고, 예약금 ${won(depositAmount)}은 환불해주세요.`;
+      alert(msg);
+    }
     setIsVisited(checked);
     if (checked) setIsNoShow(false);
   }
@@ -1416,7 +1453,18 @@ function EditPanel({
   }
 
   function handleCancelReservation() {
-    if (!confirm('정말로 이 예약을 취소하시겠습니까? 취소 후 복구는 불가능합니다.')) return;
+    const isToday = reservation.reservation_date === todaySeoul();
+    const depositNote = !depositPaid
+      ? ''
+      : isToday
+        ? `\n\n이용 당일 취소이므로 예약금 ${won(depositAmount)}은 환불되지 않고 매출로 잡힙니다.`
+        : `\n\n받은 예약금 ${won(depositAmount)}은 환불 대상으로 표시됩니다. 고객에게 환불해주세요.`;
+    if (
+      !confirm(
+        `정말로 이 예약을 취소하시겠습니까?${depositNote}\n\n취소 내역은 예약 리스트에 기록으로 남습니다.`
+      )
+    )
+      return;
     startTransition(async () => {
       await cancelCabanaReservation(reservation.id);
       onCancelled();
@@ -1466,6 +1514,30 @@ function EditPanel({
   return (
     <div className="mt-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-primary/20">
       <h4 className="font-bold text-gray-900 mb-3">예약 정보 수정</h4>
+
+      {/* 자리를 지정해 받은 예약금 현황 */}
+      {depositAmount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-sm">
+          <span className="font-semibold text-amber-900">
+            {isFullPayment ? '전액 선결제' : '자리 지정 예약금'}
+          </span>
+          <span className="text-right">
+            <span className="font-bold text-amber-900">{won(depositAmount)}</span>
+            <span className="mx-2 text-amber-300">·</span>
+            <span className="font-semibold text-amber-800">
+              {depositStatus === 'paid'
+                ? '입금 확인'
+                : depositStatus === 'pending'
+                  ? '입금 대기'
+                  : depositStatus === 'refunded'
+                    ? '환불 대상'
+                    : depositStatus === 'forfeited'
+                      ? '몰수 (매출 반영)'
+                      : '-'}
+            </span>
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <label className="text-sm text-gray-600">
           고객성함
