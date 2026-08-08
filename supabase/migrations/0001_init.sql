@@ -54,7 +54,10 @@ create table if not exists cabana_reservations (
 );
 
 create index if not exists idx_ticket_orders_visit_date on ticket_orders(visit_date);
-create index if not exists idx_cabana_reservations_date on cabana_reservations(reservation_date, zone_id);
+-- cabana_reservations는 0012_cabana_reservations.sql에서 zone_id 없는 스키마로 재정의되며
+-- 이 인덱스도 함께 새로 만들어지므로(idx_cabana_reservations_date_no), 여기서는 만들지 않는다.
+-- (예전에는 만들었으나 Supabase 프리뷰 브랜치가 매번 처음부터 마이그레이션을 재생하면서
+-- 존재하지 않는 zone_id 컬럼을 참조해 실패하는 원인이 되어 제거함)
 
 -- ============================================================
 -- RLS (Row Level Security)
