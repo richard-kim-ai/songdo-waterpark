@@ -436,6 +436,8 @@ function ViewModal({ target, onClose }: { target: InquiryListItem; onClose: () =
                     <img
                       src={publicUrl(path)}
                       alt={`첨부 ${i + 1}`}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full aspect-square object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
                     />
                   </a>

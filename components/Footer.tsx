@@ -53,6 +53,8 @@ export default function Footer({
               <img
                 src={logoUrl}
                 alt="송도국제캠핑장"
+                loading="lazy"
+                decoding="async"
                 className="h-16 md:h-24 w-auto mb-5 md:mb-6 cursor-pointer"
               />
             </Link>

@@ -20,7 +20,15 @@ export default function Facilities({
   rideButtonLabel: string;
 }) {
   const attractions = tickets.filter((t) => t.category === 'attraction');
-  const RIDE_IMAGES = [trainUrl, carUrl, squirrelTubUrl];
+
+  // 이미지는 놀이기구 이름으로 매칭한다. 예전에는 배열 순서(index)로 붙였는데,
+  // 비활성 항목이 필터링되어 순서가 당겨지면 다른 놀이기구의 이미지가 붙는 문제가 있었다
+  // (신나는기차·마이카가 비활성일 때 다람쥐통이 0번으로 밀려나 신나는기차 이미지를 받음).
+  const RIDE_IMAGE_BY_NAME: Record<string, string> = {
+    신나는기차: trainUrl,
+    마이카: carUrl,
+    다람쥐통: squirrelTubUrl,
+  };
 
   if (attractions.length === 0) return null;
 
@@ -32,7 +40,7 @@ export default function Facilities({
           <p className="text-base md:text-lg text-gray-600">{sectionSubtitle}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
-          {attractions.map((t, i) => (
+          {attractions.map((t) => (
             <div
               key={t.id}
               className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
@@ -40,7 +48,7 @@ export default function Facilities({
               <div
                 className="h-64"
                 style={{
-                  background: `url('${RIDE_IMAGES[i] ?? RIDE_IMAGES[0]}') center/cover no-repeat`,
+                  background: `url('${RIDE_IMAGE_BY_NAME[t.name] ?? trainUrl}') center/cover no-repeat`,
                 }}
               ></div>
               <div className="p-6">
