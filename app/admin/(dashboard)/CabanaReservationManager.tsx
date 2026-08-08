@@ -191,8 +191,12 @@ export default function CabanaReservationManager({
     }
   }
 
-  const dayBooked = reservations.filter((r) => r.time_type === '주간' || r.time_type === '종일').length;
-  const nightBooked = reservations.filter((r) => r.time_type === '야간' || r.time_type === '종일').length;
+  const dayBooked = reservations.filter(
+    (r) => !r.is_cancelled && (r.time_type === '주간' || r.time_type === '종일')
+  ).length;
+  const nightBooked = reservations.filter(
+    (r) => !r.is_cancelled && (r.time_type === '야간' || r.time_type === '종일')
+  ).length;
   const dayLeft = Math.max(0, totalSlots - dayBooked);
   const nightLeft = Math.max(0, totalSlots - nightBooked);
   // 종일 예약은 완전히 비어있는 케노피만 배정 가능하므로 min(주간,야간)이 아니라
@@ -615,7 +619,9 @@ export default function CabanaReservationManager({
           >
             {Array.from({ length: totalSlots }, (_, i) => {
               const cabanaNo = i + 1;
-              const matches = reservations.filter((r) => r.cabana_no === cabanaNo);
+              const matches = reservations.filter(
+                (r) => r.cabana_no === cabanaNo && !r.is_cancelled
+              );
               const isFull = matches.some((r) => r.time_type === '종일') || matches.length >= 2;
               const isPart = matches.length === 1 && matches[0].time_type !== '종일';
               const isBlockedOnly = matches.length > 0 && matches.every((r) => r.is_blocked);
@@ -722,17 +728,20 @@ export default function CabanaReservationManager({
               </div>
 
               {(() => {
+                // 취소된 예약도 이력 확인을 위해 목록에는 계속 표시하지만, 마감/중복 판정에는
+                // 포함하지 않는다 (취소건이 남아있으면 빈 자리가 '마감'으로 잘못 표시되던 문제).
                 const cabanaMatches = reservations.filter((r) => r.cabana_no === selectedCabana);
-                const takenTypes = new Set(cabanaMatches.map((r) => r.time_type));
+                const activeMatches = cabanaMatches.filter((r) => !r.is_cancelled);
+                const takenTypes = new Set(activeMatches.map((r) => r.time_type));
                 const isFullyBooked = hasTimeTypes
                   ? takenTypes.has('종일') || (takenTypes.has('주간') && takenTypes.has('야간'))
-                  : cabanaMatches.length > 0;
+                  : activeMatches.length > 0;
                 const availableTypes = hasTimeTypes
                   ? TIME_TYPES.filter((t) => {
-                      if (t === '종일') return cabanaMatches.length === 0;
+                      if (t === '종일') return activeMatches.length === 0;
                       return !takenTypes.has(t) && !takenTypes.has('종일');
                     })
-                  : cabanaMatches.length === 0
+                  : activeMatches.length === 0
                     ? (['종일'] as const)
                     : ([] as const);
 
@@ -768,11 +777,13 @@ export default function CabanaReservationManager({
                             <div
                               key={match.id}
                               className={`flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-lg ${
-                                match.is_no_show
-                                  ? 'bg-red-50'
-                                  : match.is_visited
-                                    ? 'bg-green-50'
-                                    : 'bg-gray-50'
+                                match.is_cancelled
+                                  ? 'bg-gray-50 opacity-60'
+                                  : match.is_no_show
+                                    ? 'bg-red-50'
+                                    : match.is_visited
+                                      ? 'bg-green-50'
+                                      : 'bg-gray-50'
                               }`}
                             >
                               <span className="font-bold text-sm text-gray-500 w-14 shrink-0">
@@ -784,7 +795,7 @@ export default function CabanaReservationManager({
                                   setCreating(false);
                                 }}
                                 className={`flex-1 text-left text-sm cursor-pointer ${
-                                  match.is_no_show
+                                  match.is_cancelled || match.is_no_show
                                     ? 'text-gray-400 line-through hover:text-gray-500'
                                     : 'text-gray-800 hover:text-primary'
                                 }`}
@@ -809,6 +820,11 @@ export default function CabanaReservationManager({
                                 {match.is_no_show && (
                                   <span className="ml-2 text-xs text-red-500 font-semibold no-underline">
                                     노쇼
+                                  </span>
+                                )}
+                                {match.is_cancelled && (
+                                  <span className="ml-2 text-xs text-gray-400 font-semibold no-underline">
+                                    취소됨
                                   </span>
                                 )}
                               </button>
